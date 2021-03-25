@@ -31,8 +31,7 @@ func main() {
 ```
 
 ## Complex Go Routine Orchestration
-The following example shows how a complex go routines pipelines can be orachastrated using simple structure!
-
+The following example shows how a complex go routines' pipeline can be orachastrated using simple structure!
 ```go
 import "github.com/maniartech/async"
 
@@ -46,7 +45,7 @@ import "github.com/maniartech/async"
 func HandleResource(resourceId int) {
   async.Go( // Go: Parallel execution
     async.Go(fetchResource,  resourceId),
-    async.GoQ( // GoQ: Sequential exection
+    async.GoQ( // GoQ: Sequential execution
       async.Go(processResource),
       async.Go(submitResource),
     ),
