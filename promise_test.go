@@ -19,23 +19,23 @@ func TestBatchGo(t *testing.T) {
 	}
 
 	async.Go(
-		async.Go(fakeAsync, "A", 3000, newCB()),
-		async.Go(fakeAsync, "B", 2000, newCB()),
+		async.Go(processAsync, "A", 3000, newCB()),
+		async.Go(processAsync, "B", 2000, newCB()),
 		async.GoQ( // Calls Go routines in queue!
-			async.Go(fakeAsync, "C", 1000, newCB()),
-			async.Go(fakeAsync, "D", 500, newCB()),
-			async.Go(fakeAsync, "E", 100, newCB()),
+			async.Go(processAsync, "C", 1000, newCB()),
+			async.Go(processAsync, "D", 500, newCB()),
+			async.Go(processAsync, "E", 100, newCB()),
 		),
 		async.Go(
-			async.Go(fakeAsync, "F", 200, newCB()),
-			async.Go(fakeAsync, "G", 0, newCB()),
+			async.Go(processAsync, "F", 200, newCB()),
+			async.Go(processAsync, "G", 0, newCB()),
 		),
 	).Await()
 
 	assert.Equal(t, "G,F,C,D,E,B,A", strings.Join(vals, ","))
 }
 
-func fakeAsync(p *async.Promise, args ...interface{}) {
+func processAsync(p *async.Promise, args ...interface{}) {
 	s := args[0].(string)
 	ms := args[1].(int)
 	cb := args[2].(func(string))
