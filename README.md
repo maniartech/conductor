@@ -84,7 +84,7 @@ func HandleResource(resourceId int) {
   }
 
   // Execute the promise in a new go routine andwait for the results.
-  result, err := aysnc.Go(prosess, 1).Then()
+  result, err := aysnc.Go(prosess, 1).Await()
 
   if err != nil {
     panic(err)
