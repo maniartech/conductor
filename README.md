@@ -20,39 +20,68 @@ import "github.com/maniartech/async"
 
 
 func main() {
-  // Create a new go routine and wait for it to finish
-  p1 := async.Go(Process).Await()
+  // Executes the async function in a new go routine and
+  // awaits for the result.
+  result, err := async.Go(Process).Await()
+  if err != nil {
+    panic("An error occured while executing Process")
+  }
 
   // Pass the result of previous go routine to the next one!
-  p2 := async.Go(Process2, p1.Result.Value).Await()
+  result, err = async.Go(Process2, result).Await()
+  if err != nil {
+    panic("An error occured while executing Process2")
+  }
 
   print(p1.Result.Value, p2.Result.value)
 }
 ```
 
 ## Complex Go Routine Orchestration
+
 The following example shows how a complex go routines' pipeline can be orachastrated using simple structure!
+
 ```go
 import "github.com/maniartech/async"
 
 
 // HandleResource processes the various activities
 // on the specified resouce. All these activities
-// are invoked using their own go routines.
+// are executed using their own go routines and
+// in an orchastrated manner.
 //
 // This orchestration provides the parallel, faster yet
 // controlled execution of various activities.
 func HandleResource(resourceId int) {
-  async.Go( // Go: Parallel execution
+  async.GoP( // Go: Parallel execution
     async.Go(fetchResource,  resourceId),
     async.GoQ( // GoQ: Sequential execution
       async.Go(processResource),
       async.Go(submitResource),
     ),
-    async.Go(
+    async.GoP(
       async.Go(emailResource, resourceId),
       async.Go(publishResource, resourceId),
     ),
   ).Await()
 }
 ```
+
+## Commonly used functions
+
+
+
+* `async.Go(PromiseHandler, ...interfaces{}) *Promsie`
+
+  Eecutes the funciton in new go routine and returns a promsie. The promise can be awaited until the execution is finised and results are retunred.
+
+  ```go
+  // process is a prmise handler function
+  func process(p *Promise, args ...interface{}}) {
+    processId := args[0].(int)
+    value, err := fetchProcessResource(processId)
+    p.Then(value, err)
+  }
+
+  aysnc.Go(prosess, 1)
+  ```
