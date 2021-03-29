@@ -80,10 +80,10 @@ func HandleResource(resourceId int) {
   func process(p *Promise, args ...interface{}}) {
     processId := args[0].(int)
     value, err := fetchProcessResource(processId)
-    p.Then(value, err)
+    p.Done(value, err)
   }
 
-  // Execute the promise in a new go routine and wait for the results.
+  // Execute the promise in a new go routine andwait for the results.
   result, err := aysnc.Go(prosess, 1).Then()
 
   if err != nil {
