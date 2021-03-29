@@ -1,8 +1,9 @@
 package async_test
 
+import "testing"
 import (
 	"strings"
-	"testing"
+	testing"
 	"time"
 
 	"github.com/maniartech/async"

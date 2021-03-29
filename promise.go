@@ -4,32 +4,36 @@ import (
 	"sync"
 )
 
+// Promise status
+const notStarted byte = 0
+const pending byte = 1
+const finished byte = 3
+
 // PromiseHandler provides a signature validation for
 // promise function.
 //
 // Example:
 //
-// func Process(p *Promise, ...v interface()) {
-//   processId := v.(int)
-//   result, err := SendRequest(processId)
-//   // When finished processing, call Done by passing
-//   // result and error details
-//   p.Done(result, err)
-// }
+//  func Process(p *Promise, ...v interface()) {
+//    processId := v.(int)
+//    result, err := SendRequest(processId)
+//    // When finished processing, call Done by passing
+//    // result and error details
+//    p.Done(result, err)
+//  }
 type PromiseHandler func(*Promise, ...interface{})
 
-// FinishHandler is used to register a callback which aims to be
-// invoked when the associated promise is finished processing the
-// promised function.
+// ThenHandler is a callback which will be
+// invoked when the associated promise has finished.
 //
 // Example
 //
-// promise := async.NewPromise(process, 1)
-// promise.OnFinish(func() {
+//   p := async.Go(process, 1)
+//   p.Then(func(v interface{}, e error) {
 //     print("The promise has just finished!")
-// })
+//   })
 //
-type FinishHandler func()
+type ThenHandler func(interface{}, error)
 
 type Promise struct {
 	// Fn represent the underlaying promised function
@@ -41,50 +45,32 @@ type Promise struct {
 	// Not Started: 0
 	// Started: 1
 	// Finished: 2
-	status int
+	status byte
 	wg     sync.WaitGroup
 
-	readyHandlers []FinishHandler
+	then ThenHandler
 
 	// Result
-	Result struct {
-		Value interface{}
-		Err   error
-	}
+	result interface{}
+
+	// Error
+	err error
 }
 
-// NewPromise creates a new Promise. It does not start it however.
-// To start the promise use Promise.Go method.
-//
-// For Example:
-//
-// p := NewPromise(processAsync, 1)
-// p.Go()
-//
-func NewPromise(fn PromiseHandler, args ...interface{}) *Promise {
-	return &Promise{
-		fn:            fn,
-		args:          args,
-		wg:            sync.WaitGroup{},
-		readyHandlers: make([]FinishHandler, 0),
-	}
-}
+// Start executes the promise in the new go routine
+func (p *Promise) start() {
 
-// Go executes the promise in the
-// new go routine
-func (p *Promise) Go() *Promise {
-
-	// Proceed further only when the promise has
-	// not started.
-	if !p.NotStarted() {
-		return p
+	// Proceed only when the promise has not yet started.
+	if p.status != notStarted {
+		return
 	}
 
-	// Add waitGroup
+	// Add a wait group counter.
 	p.wg.Add(1)
-	p.status = 1
+	p.status = pending
+
+	// Execute the associated function in a new go routine
 	go p.fn(p, p.args...)
-	return p
 }
 
 // Done is designed to be executed by the
@@ -92,58 +78,83 @@ func (p *Promise) Go() *Promise {
 func (p *Promise) Done(v ...interface{}) {
 	for i := 0; i < len(v); i++ {
 		if val, ok := v[i].(error); ok {
-			p.Result.Err = val
+			p.err = val
 		} else {
-			p.Result.Value = val
+			p.result = val
 		}
 	}
 	p.wg.Done()
-	p.status = 2 // Finished
+	p.status = finished
 
-	// Notify ready handlers!
-	if len(p.readyHandlers) != 0 {
-		for i := 0; i < len(p.readyHandlers); i++ {
-			p.readyHandlers[i]()
-		}
+	// Invoke then function!
+	if p.then != nil {
+		p.then(p.result, p.err)
 	}
 }
 
-func (p *Promise) Await() {
+// Await waits for promise to finish and returns a resulting value.
+func (p *Promise) Await() (interface{}, error) {
 	// If the promise has already finished
 	// do not wait further.
 	if p.Finished() {
-		return
+		return p.result, p.err
 	}
 
 	// The promise has not yet started, start it!
-	if p.NotStarted() {
-		p.Go()
+	if p.Pending() {
+		p.start()
 	}
 
 	p.wg.Wait()
+	return p.result, p.err
 }
 
-// OnFinish registers a new FinishHandler function. The
-// handler function is invoked when the promise
+// Then is invoked when the associated promise
 // has finished procesing.
-func (p *Promise) OnFinish(fn FinishHandler) {
-	p.readyHandlers = append(p.readyHandlers, fn)
+func (p *Promise) Then(fn ThenHandler) {
+	p.then = fn
 }
 
-// NotStarted returns `true` if the promise exection has
-// not yet started.It returns `false`.
-func (p *Promise) NotStarted() bool {
-	return p.status == 0
-}
-
-// Started returns `true` if the promise exection has started.
-// It returns `false` otherwise.
-func (p *Promise) Started() bool {
-	return p.status == 1
+// Pending returns `true` if the promise exection has
+// not yet started. It returns `false`.
+func (p *Promise) Pending() bool {
+	return p.status == pending
 }
 
 // Finished returns `true` if the promise has finished the
 // function execution. It returns `false` otherwise.
 func (p *Promise) Finished() bool {
-	return p.status == 2
+	return p.status == finished
+}
+
+// Result returns the value which is received after the successful
+// execution of the associated function.
+func (p *Promise) Result() interface{} {
+	return p.result
+}
+
+// Err returns the error that is reported when promise has failed.
+// When the promise is successful or not yet finished, Err() will return `nil`.
+func (p *Promise) Err() error {
+	return p.err
+}
+
+// Promises returns the associated child promises when created with GoP or GoQ functions!
+// It returns nil otherwise.
+func (p *Promise) Promises() []*Promise {
+	l := len(p.args)
+
+	if l == 0 {
+		return nil
+	}
+
+	promises := make([]*Promise, l)
+	for i := 0; i < l; i++ {
+		if promise, ok := p.args[0].(*Promise); ok {
+			promises[i] = promise
+		} else {
+			return nil
+		}
+	}
+	return promises
 }
