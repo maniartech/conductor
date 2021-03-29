@@ -1,46 +1,68 @@
 package async
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
-var goParallel func(*Promise, ...interface{}) = func(p *Promise, args ...interface{}) {
+// goParallel starts the specified promises in parallel go routines.
+func goParallel(p *Promise, args ...interface{}) {
 	wg := sync.WaitGroup{}
 
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Promise)
 		if !ok {
-			continue
+			panic(fmt.Errorf("Invalid promise at index '%v'", i))
+		} else if pr.Started() {
+			panic(fmt.Errorf("The promise at index '%v' has already started!", i))
 		}
 		wg.Add(1)
-		pr.OnFinish(func() {
+		pr.Then(func(interface{}, error) {
 			wg.Done()
 		})
-		pr.Go()
+		pr.Start()
 	}
 	wg.Wait()
 	p.Done()
 }
 
-var goQueue func(*Promise, ...interface{}) = func(p *Promise, args ...interface{}) {
+// goQueue starts the specified promises in new go routines with queued mannger.
+// That is it starts the promise only after the preview promise has finished.
+func goQueue(p *Promise, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Promise)
 		if !ok {
-			continue
+			panic(fmt.Errorf("Invalid promise at index '%v'", i))
+		} else if pr.Started() {
+			panic(fmt.Errorf("The promise at index '%v' has already started!", i))
 		}
 		pr.Await()
 	}
 	p.Done()
 }
 
-func goExec(q bool, args ...interface{}) *Promise {
-	if len(args) == 0 {
+// Create a prmise that executes single handler
+func create(fn PromiseHandler, args ...interface{}) *Promise {
+	return &Promise{
+		fn:            fn,
+		args:          args,
+		wg:            sync.WaitGroup{}
+	}
+}
+
+// Creates a promise that executes one or more handlers
+func createBatch(q bool, promises ...*Promise) *Promise {
+	if len(promises) == 0 {
 		panic("arguments-missing")
 	}
 
-	if _, ok := args[0].(*Promise); ok {
-		if q {
-			return NewPromise(goQueue, args...)
-		}
-		return NewPromise(goParallel, args...)
+	interfaces := make([]interface{}, len(promises))
+	for i := 0; i < len(promises); i++ {
+		interfaces[i] = promises[i]
 	}
-	return NewPromise(args[0].(func(*Promise, ...interface{})), args[1:]...)
+
+	if q {
+		return create(goQueue, interfaces...)
+	}
+	return create(goParallel, interfaces...)
 }
