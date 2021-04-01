@@ -1,6 +1,6 @@
 package async
 
-// Go creates a new promise which provides easy to awat mechanism.
+// Go creates a new promise which provides easy to await mechanism.
 // It can be started either by using calling`Start` or `Await` method.
 //
 //    func(fn PromiseHandler, args ...interface{}) *Promsie
@@ -20,7 +20,7 @@ package async
 //    })
 //
 func Go(fn PromiseHandler, args ...interface{}) *Promise {
-	return create(fn, args)
+	return create(fn, args...)
 }
 
 // GoP creates a new promise form list of promises and run them in parallel go routines.
