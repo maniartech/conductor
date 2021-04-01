@@ -1,9 +1,8 @@
 package async_test
 
-import "testing"
 import (
 	"strings"
-	testing"
+	"testing"
 	"time"
 
 	"github.com/maniartech/async"
@@ -19,7 +18,7 @@ func TestBatchGo(t *testing.T) {
 		}
 	}
 
-	async.Go(
+	async.GoP(
 		async.Go(processAsync, "A", 3000, newCB()),
 		async.Go(processAsync, "B", 2000, newCB()),
 		async.GoQ( // Calls Go routines in queue!
@@ -27,7 +26,7 @@ func TestBatchGo(t *testing.T) {
 			async.Go(processAsync, "D", 500, newCB()),
 			async.Go(processAsync, "E", 100, newCB()),
 		),
-		async.Go(
+		async.GoP(
 			async.Go(processAsync, "F", 200, newCB()),
 			async.Go(processAsync, "G", 0, newCB()),
 		),

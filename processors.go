@@ -12,9 +12,9 @@ func goParallel(p *Promise, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Promise)
 		if !ok {
-			panic(fmt.Errorf("Invalid promise at index '%v'", i))
-		} else if pr.Started() {
-			panic(fmt.Errorf("The promise at index '%v' has already started!", i))
+			panic(fmt.Errorf("invalid promise at index '%v'", i))
+		} else if pr.Pending() {
+			panic(fmt.Errorf("the promise at index '%v' has already started", i))
 		}
 		wg.Add(1)
 		pr.Then(func(interface{}, error) {
@@ -32,9 +32,9 @@ func goQueue(p *Promise, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Promise)
 		if !ok {
-			panic(fmt.Errorf("Invalid promise at index '%v'", i))
-		} else if pr.Started() {
-			panic(fmt.Errorf("The promise at index '%v' has already started!", i))
+			panic(fmt.Errorf("invalid promise at index '%v'", i))
+		} else if pr.Pending() {
+			panic(fmt.Errorf("the promise at index '%v' has already started", i))
 		}
 		pr.Await()
 	}
@@ -44,9 +44,9 @@ func goQueue(p *Promise, args ...interface{}) {
 // Create a prmise that executes single handler
 func create(fn PromiseHandler, args ...interface{}) *Promise {
 	return &Promise{
-		fn:            fn,
-		args:          args,
-		wg:            sync.WaitGroup{}
+		fn:   fn,
+		args: args,
+		wg:   sync.WaitGroup{},
 	}
 }
 

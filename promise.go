@@ -5,9 +5,11 @@ import (
 )
 
 // Promise status
-const notStarted byte = 0
-const pending byte = 1
-const finished byte = 3
+const (
+	notStarted uint8 = iota
+	pending
+	finished
+)
 
 // PromiseHandler provides a signature validation for
 // promise function.
@@ -58,7 +60,7 @@ type Promise struct {
 }
 
 // Start executes the promise in the new go routine
-func (p *Promise) start() {
+func (p *Promise) Start() {
 
 	// Proceed only when the promise has not yet started.
 	if p.status != notStarted {
@@ -101,8 +103,8 @@ func (p *Promise) Await() (interface{}, error) {
 	}
 
 	// The promise has not yet started, start it!
-	if p.Pending() {
-		p.start()
+	if p.NotStarted() {
+		p.Start()
 	}
 
 	p.wg.Wait()
@@ -113,6 +115,12 @@ func (p *Promise) Await() (interface{}, error) {
 // has finished procesing.
 func (p *Promise) Then(fn ThenHandler) {
 	p.then = fn
+}
+
+// NotStarted returns `true` if the promise exection has
+// not yet started. It returns `false`.
+func (p *Promise) NotStarted() bool {
+	return p.status == notStarted
 }
 
 // Pending returns `true` if the promise exection has
