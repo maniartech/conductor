@@ -1,6 +1,7 @@
 package async_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +9,41 @@ import (
 	"github.com/maniartech/async"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGoPromiseBase(t *testing.T) {
+	promise := async.Go(processAsync, "A", 1000)
+
+	isPromise := false
+
+	if _, ok := interface{}(promise).(*async.Promise); ok {
+		isPromise = true
+	}
+
+	assert.Equal(t, true, isPromise)
+	assert.Equal(t, true, promise.NotStarted())
+	assert.Equal(t, false, promise.Pending())
+	assert.Equal(t, false, promise.Finished())
+
+}
+
+func TestGoPromise(t *testing.T) {
+	promise := async.Go(processAsync, "A", 1000)
+	result, err := promise.Await()
+
+	assert.Equal(t, true, promise.Finished())
+
+	assert.Equal(t, "A", result)
+	assert.Equal(t, nil, err)
+
+	promise = async.Go(processAsync, "A", 1000, errors.New("invalid-action"))
+	result, err = promise.Await()
+
+	assert.Equal(t, true, promise.Finished())
+
+	assert.Equal(t, nil, result)
+	assert.EqualError(t, err, "invalid-action")
+
+}
 
 func TestBatchGo(t *testing.T) {
 
@@ -38,9 +74,22 @@ func TestBatchGo(t *testing.T) {
 func processAsync(p *async.Promise, args ...interface{}) {
 	s := args[0].(string)
 	ms := args[1].(int)
-	cb := args[2].(func(string))
 
 	time.Sleep(time.Duration(ms) * time.Millisecond)
-	cb(s)
+
+	// If callback is supplied, call it by passing s!
+	if len(args) == 3 {
+		switch args[2].(type) {
+		case func(string):
+			p.Done(s)
+			cb := args[2].(func(string))
+			cb(s)
+		case error:
+			p.Done(args[2])
+		default:
+			p.Done(s)
+		}
+		return
+	}
 	p.Done(s)
 }

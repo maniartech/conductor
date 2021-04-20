@@ -1,12 +1,13 @@
 package async
 
 // Go creates a new promise which provides easy to await mechanism.
-// It can be started either by using calling`Start` or `Await` method.
+// It can be started either by using calling a `Start` or `Await` method.
 //
 //    func(fn PromiseHandler, args ...interface{}) *Promsie
 //
 // Example: Immediate start and await
 //
+//    // Starts a new process and awaits for it to finish.
 //    v, err := async.Go(process, 1).Await()
 //    if err != nil {
 //      println("An error occurred while processing the promise.")
@@ -14,6 +15,8 @@ package async
 //    print(v) // Print the resulted value
 //
 // Example: Delayed start
+//
+//    // Create a new promise
 //    p := async.Go(process, 1)
 //    p.Then(func (v interface{}, e error) {
 //      println("The process 1 finished.")

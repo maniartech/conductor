@@ -45,13 +45,12 @@ type Promise struct {
 	args []interface{}
 
 	// Not Started: 0
-	// Started: 1
+	// Pending: 1
 	// Finished: 2
 	status byte
 	wg     sync.WaitGroup
 
 	then ThenHandler
-
 	// Result
 	result interface{}
 
@@ -82,7 +81,7 @@ func (p *Promise) Done(v ...interface{}) {
 		if val, ok := v[i].(error); ok {
 			p.err = val
 		} else {
-			p.result = val
+			p.result = v[i]
 		}
 	}
 	p.wg.Done()
