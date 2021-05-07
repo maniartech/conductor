@@ -50,7 +50,7 @@ import "github.com/maniartech/async"
 // are executed using their own go routines and
 // in an orchastrated manner.
 //
-// This orchestration provides the parallel, faster yet
+// This orchestration provides the concurrent, faster yet
 // controlled execution of various activities.
 //      |------Go--------------|
 //      |                      |
