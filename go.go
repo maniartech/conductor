@@ -26,7 +26,7 @@ func Go(fn PromiseHandler, args ...interface{}) *Promise {
 	return create(fn, args...)
 }
 
-// GoP creates a new promise form list of promises and run them in parallel go routines.
+// GoC creates a new promise form list of promises and run them in parallel go routines.
 // It returns the pointer to the newly created promise.
 //
 //    //
@@ -34,12 +34,12 @@ func Go(fn PromiseHandler, args ...interface{}) *Promise {
 //
 // Example: (1)
 //
-//    async.GoP(
+//    async.GoC(
 //      async.Go(process, 1),
 //      async.Go(sendEmail, 2)
 //    ).Await()
 //
-func GoP(promises ...*Promise) *Promise {
+func GoC(promises ...*Promise) *Promise {
 	return createBatch(false, promises...)
 }
 

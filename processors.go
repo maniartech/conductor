@@ -5,8 +5,8 @@ import (
 	"sync"
 )
 
-// goParallel starts the specified promises in parallel go routines.
-func goParallel(p *Promise, args ...interface{}) {
+// goConcurrent starts the specified promises in parallel go routines.
+func goConcurrent(p *Promise, args ...interface{}) {
 	wg := sync.WaitGroup{}
 
 	for i := 0; i < len(args); i++ {
@@ -64,5 +64,5 @@ func createBatch(q bool, promises ...*Promise) *Promise {
 	if q {
 		return create(goQueue, interfaces...)
 	}
-	return create(goParallel, interfaces...)
+	return create(goConcurrent, interfaces...)
 }
