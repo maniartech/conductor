@@ -54,11 +54,11 @@ import "github.com/maniartech/async"
 // controlled execution of various activities.
 //      |------Go--------------|
 //      |                      |
-// ----GoC----GoQ->>-Go->>-Go->|--- Await ----
+// ----GoC----GoQ->>-Go->>-Go--|--- Await ----
 //      |                      |
-//      |      |-----Go--|     |
-//      |-----GoC        |-----|
-//             |-----Go--|
+//      |      |---Go--|       |
+//      |-----GoC      |-------|
+//             |---Go--|
 //
 func HandleResource(resourceId int) {
   async.GoC( // GoC: Concurrent execution
