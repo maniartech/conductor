@@ -33,7 +33,7 @@ func main() {
     panic("An error occured while executing Process2")
   }
 
-  print(p1.Result.Value, p2.Result.value)
+  println(p1.Result.Value, p2.Result.value)
 }
 ```
 
@@ -52,14 +52,22 @@ import "github.com/maniartech/async"
 //
 // This orchestration provides the parallel, faster yet
 // controlled execution of various activities.
+//      |------Go--------------|
+//      |                      |
+// ----GoC----GoQ->>-Go->>-Go->|--- Await ----
+//      |                      |
+//      |      |-----Go--|     |
+//      |-----GoC        |-----|
+//             |-----Go--|
+//
 func HandleResource(resourceId int) {
-  async.GoP( // Go: Parallel execution
+  async.GoC( // GoC: Concurrent execution
     async.Go(fetchResource,  resourceId),
     async.GoQ( // GoQ: Sequential execution
       async.Go(processResource),
       async.Go(submitResource),
     ),
-    async.GoP(
+    async.GoC(
       async.Go(emailResource, resourceId),
       async.Go(publishResource, resourceId),
     ),
