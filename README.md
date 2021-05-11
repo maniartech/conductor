@@ -1,6 +1,10 @@
 # Async, Await, Go Promise (WIP)
 
-The `github.com/maniartech/async` is a tiny go library that aims to simplify the go routine orchestration using easy to handle Async/Await pattern. This library is currently under development and very soon it will be available during April 2021.
+The `github.com/maniartech/async` is a tiny go library that aims to simplify the goroutine orchestration using easy to handle Async/Await pattern. 
+
+> This library provides a super-easy way to orchestrate the Goroutines using a promise-oriented approach but the Golang way.
+
+**It will be available in May 2021**
 
 ## Getting Started
 
@@ -20,14 +24,14 @@ import "github.com/maniartech/async"
 
 
 func main() {
-  // Executes the async function in a new go routine and
+  // Executes the async function in a new goroutine and
   // awaits for the result.
   result, err := async.Go(Process).Await()
   if err != nil {
     panic("An error occured while executing Process")
   }
 
-  // Pass the result of previous go routine to the next one!
+  // Pass the result of previous goroutine to the next one!
   result, err = async.Go(Process2, result).Await()
   if err != nil {
     panic("An error occured while executing Process2")
@@ -37,9 +41,9 @@ func main() {
 }
 ```
 
-## Complex Go Routine Orchestration
+## Complex Goroutine Orchestration
 
-The following example shows how a complex go routines' pipeline can be orachastrated using simple structure!
+The following example shows how a complex goroutines' pipeline can be orachastrated using simple structure!
 
 ```go
 import "github.com/maniartech/async"
@@ -47,7 +51,7 @@ import "github.com/maniartech/async"
 
 // HandleResource processes the various activities
 // on the specified resouce. All these activities
-// are executed using their own go routines and
+// are executed using their own goroutines and
 // in an orchastrated manner.
 //
 // This orchestration provides the concurrent, faster yet
@@ -81,7 +85,7 @@ func HandleResource(resourceId int) {
 
 * `async.Go(PromiseHandler, ...interfaces{}) *Promsie`
 
-  Eecutes the funciton in new go routine and returns a promsie. The promise can be awaited until the execution is finised and results are retunred.
+  Eecutes the funciton in new goroutine and returns a promsie. The promise can be awaited until the execution is finised and results are retunred.
 
   ```go
   // process is a prmise handler function
@@ -91,7 +95,7 @@ func HandleResource(resourceId int) {
     p.Done(value, err)
   }
 
-  // Execute the promise in a new go routine and wait for the results.
+  // Execute the promise in a new goroutine and wait for the results.
   result, err := aysnc.Go(prosess, 1).Await()
 
   if err != nil {
