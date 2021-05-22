@@ -1,6 +1,7 @@
 package async
 
 import (
+	"errors"
 	"sync"
 )
 
@@ -56,6 +57,8 @@ type Promise struct {
 
 	// Error
 	err error
+
+	batch bool
 }
 
 // Start executes the promise in the new go routine
@@ -117,13 +120,13 @@ func (p *Promise) Then(fn ThenHandler) {
 }
 
 // NotStarted returns `true` if the promise exection has
-// not yet started. It returns `false`.
+// not yet started. Otherwise it returns `false`.
 func (p *Promise) NotStarted() bool {
 	return p.status == notStarted
 }
 
 // Pending returns `true` if the promise exection has
-// not yet started. It returns `false`.
+// not yet started. Otherwise it returns `false`.
 func (p *Promise) Pending() bool {
 	return p.status == pending
 }
@@ -148,20 +151,20 @@ func (p *Promise) Err() error {
 
 // Promises returns the associated child promises when created with GoP or GoQ functions!
 // It returns nil otherwise.
-func (p *Promise) Promises() []*Promise {
-	l := len(p.args)
-
-	if l == 0 {
-		return nil
+func (p *Promise) Promises() ([]*Promise, error) {
+	if !p.batch {
+		return nil, errors.New(errNotABatch)
 	}
 
+	l := len(p.args)
 	promises := make([]*Promise, l)
+
 	for i := 0; i < l; i++ {
 		if promise, ok := p.args[0].(*Promise); ok {
 			promises[i] = promise
 		} else {
-			return nil
+			return nil, errors.New(errInvalidOperation)
 		}
 	}
-	return promises
+	return promises, nil
 }

@@ -43,6 +43,8 @@ func TestGoPromise(t *testing.T) {
 	assert.Equal(t, nil, result)
 	assert.EqualError(t, err, "invalid-action")
 
+	_, err = promise.Promises()
+	assert.Error(t, err, "not-a-batch")
 }
 
 func TestBatchGo(t *testing.T) {
@@ -54,7 +56,7 @@ func TestBatchGo(t *testing.T) {
 		}
 	}
 
-	async.GoC(
+	p := async.GoC(
 		async.Go(processAsync, "A", 3000, newCB()),
 		async.Go(processAsync, "B", 2000, newCB()),
 		async.GoQ( // Calls Go routines in queue!
@@ -66,8 +68,15 @@ func TestBatchGo(t *testing.T) {
 			async.Go(processAsync, "F", 200, newCB()),
 			async.Go(processAsync, "G", 0, newCB()),
 		),
-	).Await()
+	)
 
+	assert.Equal(t, true, p.NotStarted())
+	p.Await()
+	childPromises, err := p.Promises()
+
+	assert.Equal(t, true, p.Finished())
+	assert.Equal(t, true, err == nil)
+	assert.Equal(t, 4, len(childPromises))
 	assert.Equal(t, "G,F,C,D,E,B,A", strings.Join(vals, ","))
 }
 
