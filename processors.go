@@ -12,9 +12,9 @@ func goConcurrent(p *Promise, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Promise)
 		if !ok {
-			panic(fmt.Errorf("invalid promise at index '%v'", i))
+			panic(fmt.Errorf("%s at '%v'", errInvalidPromise, i))
 		} else if pr.Pending() {
-			panic(fmt.Errorf("the promise at index '%v' has already started", i))
+			panic(fmt.Errorf("%s at '%v'", errInvalidState, i))
 		}
 		wg.Add(1)
 		pr.Then(func(interface{}, error) {
@@ -32,9 +32,9 @@ func goQueue(p *Promise, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Promise)
 		if !ok {
-			panic(fmt.Errorf("invalid promise at index '%v'", i))
+			panic(fmt.Errorf("%s at '%v'", errInvalidPromise, i))
 		} else if pr.Pending() {
-			panic(fmt.Errorf("the promise at index '%v' has already started", i))
+			panic(fmt.Errorf("%s at '%v'", errInvalidState, i))
 		}
 		pr.Await()
 	}
@@ -53,7 +53,7 @@ func create(fn PromiseHandler, args ...interface{}) *Promise {
 // Creates a promise that executes one or more handlers
 func createBatch(q bool, promises ...*Promise) *Promise {
 	if len(promises) == 0 {
-		panic("arguments-missing")
+		panic(errInvalidArguments)
 	}
 
 	interfaces := make([]interface{}, len(promises))
@@ -61,8 +61,13 @@ func createBatch(q bool, promises ...*Promise) *Promise {
 		interfaces[i] = promises[i]
 	}
 
+	var p *Promise
+
 	if q {
-		return create(goQueue, interfaces...)
+		p = create(goQueue, interfaces...)
+	} else {
+		p = create(goConcurrent, interfaces...)
 	}
-	return create(goConcurrent, interfaces...)
+	p.batch = true
+	return p
 }
