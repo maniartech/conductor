@@ -1,4 +1,4 @@
-# Async, Await, Go Promise
+# Async, Await, Go Promise [![Build Status](https://travis-ci.com/maniartech/webdoodling-1.0.svg?token=Jz9Ud44mdz3WEp9A1izJ&branch=master)](https://travis-ci.com/maniartech/webdoodling-1.0)
 
 The `github.com/maniartech/async` is a tiny go library that aims to simplify the goroutine orchestration using easy to handle Async/Await pattern. 
 
