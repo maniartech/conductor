@@ -114,6 +114,6 @@ func HandleResource(resourceId int) {
       async.Go(sendNotifications),
       async.Go(submitReport),
     )
-  )
+  ).Await()
 }
 ```
