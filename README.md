@@ -63,7 +63,6 @@ func main() {
 
   Executes the specified promises in the concurrent manner. Returns the promise which can be used to await
 
-
 * `async.GoQ(promises ...*Promise) *Promise`
 
   Executes the specified promises in the sequencial manner. Returns the promise which can be used to await
@@ -84,35 +83,33 @@ import "github.com/maniartech/async"
 // This orchestration provides the concurrent, faster yet
 // controlled execution of various activities.
 //
-//      |------Go--------------------|
-//      |                            |
-// ----GoC----GoQ->>-Go->>-Go->>-Go--|--- Await ----
-//      |                            |
-//      |      |----Go---|           |
-//      |      |         |           |
-//      |-----GoC---Go---|-----------|
-//             |         |
-//             |----Go---|
+//             |-----Go---------------------|     |-----Go----|
+//             |                            |     |           |
+// ----GoQ----GoC----GoQ->>-Go->>-Go->>-Go--|----GoC----Go----|----Await----
+//             |                            |     |           |
+//             |      |-----Go----|         |     |-----Go----|
+//             |      |           |         |
+//             |-----GoC----Go----|---------|
+//                    |           |
+//                    |-----Go----|
 //
-func HandleResource(resourceId int) {
-  async.GoC( // GoC: Concurrent execution
-    async.Go(prepareData),
-    async.GoQ( // GoQ: Sequential execution
-      async.Go(fetchResource, resourceId),
-      async.Go(processResource),
-      async.Go(submitResource),
-      async.GoC(
-        async.Go(sentToApiGateway)
-        async.Go(postToSocialMedia)
-        async.Go(notifyUsers)
-      ),
-    ),
-    async.Go(prepareAsynData)
-  ).Await()
-}
 
-async.GoC(
-      async.Go(emailResource, resourceId),
-      async.Go(publishResource, resourceId),
+func HandleResource(resourceId int) {
+  async.GoQ(
+    async.GoC( // GoC: Concurrent execution
+      async.Go(keepInfraReady),
+      async.GoQ( // GoQ: Sequential execution
+        async.Go(fetchResource, resourceId),
+        async.Go(processResource),
+        async.Go(submitResource),
+      ),
+      async.Go(prepareDependencies)
     ),
+    async.GoC(
+      async.Go(postToSocialMedia),
+      async.Go(sendNotifications),
+      async.Go(submitReport),
+    )
+  )
+}
 ```
