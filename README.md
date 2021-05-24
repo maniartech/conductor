@@ -103,7 +103,11 @@ func HandleResource(resourceId int) {
         async.Go(processResource),
         async.Go(submitResource),
       ),
-      async.Go(prepareDependencies)
+      async.GoC(
+        async.Go(prepareDependencyA)
+        async.Go(prepareDependencyB)
+        async.Go(prepareDependencyC)
+      )
     ),
     async.GoC(
       async.Go(postToSocialMedia),
