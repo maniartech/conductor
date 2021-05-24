@@ -69,7 +69,7 @@ func main() {
 
 ## Complex Goroutine Orchestration
 
-The following example shows how a complex goroutines pipeline can be orchestrated using a simple structure!
+The following hypothetical example shows how a complex goroutines pipeline can be orchestrated using a simple structure!
 
 ```go
 import "github.com/maniartech/async"
