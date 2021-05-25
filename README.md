@@ -1,4 +1,4 @@
-# Async Await the Go Way  [![Build Status](https://travis-ci.com/maniartech/async.svg?branch=master)](https://travis-ci.com/maniartech/async)
+# Easy go routines synchronization and orchestration!  [![Build Status](https://travis-ci.com/maniartech/async.svg?branch=master)](https://travis-ci.com/maniartech/async)
 
 The `github.com/maniartech/async` is a tiny go library that aims to simplify the goroutine orchestration using easy to handle Async/Await pattern. This library provides a super-easy way to orchestrate the Goroutines using easily readable declarative syntax.
 
