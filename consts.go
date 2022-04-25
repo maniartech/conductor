@@ -6,7 +6,7 @@ const errNotABatch = "not-a-batch"
 
 const errInvalidOperation = "invalid-operation"
 
-const errInvalidPromise = "invalid-promise"
+const errInvalidFuture = "invalid-future"
 
 const errInvalidState = "invalid-state"
 
