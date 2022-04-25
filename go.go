@@ -1,36 +1,36 @@
 package async
 
-// Go creates a new promise which provides easy to await mechanism.
+// Go creates a new future which provides easy to await mechanism.
 // It can be started either by using calling a `Start` or `Await` method.
 //
-//    func(fn PromiseHandler, args ...interface{}) *Promsie
+//    func(fn FutureHandler, args ...interface{}) *Promsie
 //
 // Example: Immediate start and await
 //
 //    // Starts a new process and awaits for it to finish.
 //    v, err := async.Go(process, 1).Await()
 //    if err != nil {
-//      println("An error occurred while processing the promise.")
+//      println("An error occurred while processing the future.")
 //    }
 //    print(v) // Print the resulted value
 //
 // Example: Delayed start
 //
-//    // Create a new promise
+//    // Create a new future
 //    p := async.Go(process, 1)
 //    p.Then(func (v interface{}, e error) {
 //      println("The process 1 finished.")
 //    })
 //
-func Go(fn PromiseHandler, args ...interface{}) *Promise {
+func Go(fn FutureHandler, args ...interface{}) *Future {
 	return create(fn, args...)
 }
 
-// GoC creates a new promise form list of promises and run them in parallel go routines.
-// It returns the pointer to the newly created promise.
+// GoC creates a new future form list of futures and run them in parallel go routines.
+// It returns the pointer to the newly created future.
 //
 //    //
-//    func(promises ...*Promise) *Promise
+//    func(futures ...*Future) *Future
 //
 // Example: (1)
 //
@@ -39,26 +39,26 @@ func Go(fn PromiseHandler, args ...interface{}) *Promise {
 //      async.Go(sendEmail, 2)
 //    ).Await()
 //
-func GoC(promises ...*Promise) *Promise {
-	return createBatch(false, promises...)
+func GoC(futures ...*Future) *Future {
+	return createBatch(false, futures...)
 }
 
-// GoQ creates a new promise form list of promises and run them in sequencial
-// go routines! It returns the pointer to the newly created promise.
+// GoQ creates a new future form list of futures and run them in sequencial
+// go routines! It returns the pointer to the newly created future.
 //
 // It accepts following function signatures.
 //
-//     1) func(promises ...*Promise) *Promise
-//     2) func(hanlderFn PromiseHandler, args ...interface{}) *Promsie
+//     1) func(futures ...*Future) *Future
+//     2) func(hanlderFn FutureHandler, args ...interface{}) *Promsie
 //
 // Example: (1)
 //   async.Go(async.Go(process, 1), async.Go(sendEmail, 2))
-//  async.Go(async.NewPromise(process, 1), async.NewPromsie(process, 2))
+//  async.Go(async.NewFuture(process, 1), async.NewPromsie(process, 2))
 //
 // Example: (2)
 //   async.Go(process, 1) // Just runs the go routine
 //   async.Go(process, 2).Await() // Runs the go routine and await for it to finish.
 //
-func GoQ(promises ...*Promise) *Promise {
-	return createBatch(true, promises...)
+func GoQ(futures ...*Future) *Future {
+	return createBatch(true, futures...)
 }
