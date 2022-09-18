@@ -52,7 +52,7 @@ func GoC(futures ...*Future) *Future {
 //     2) func(hanlderFn FutureHandler, args ...interface{}) *Promsie
 //
 // Example: (1)
-//   async.Go(async.Go(process, 1), async.Go(sendEmail, 2))
+//  async.Go(async.Go(process, 1), async.Go(sendEmail, 2))
 //  async.Go(async.NewFuture(process, 1), async.NewPromsie(process, 2))
 //
 // Example: (2)

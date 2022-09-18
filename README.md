@@ -40,32 +40,32 @@ func main() {
 
 
 
-* `async.Go(PromiseHandler, ...interfaces{}) *Promsie`
+* `async.Go(FutureHandler, ...interfaces{}) *Promsie`
 
-  Executes the function in a new goroutine and returns a promise. The promise can be awaited until the execution is finished and results are returned.
+  Executes the function in a new goroutine and returns a future. The future can be awaited until the execution is finished and results are returned.
 
   **Example:**
 
   ```go
-  // Return the pointer to Promise
-  promise := async.Go(complexFunction)
-  promise.Await() // Awaits here!
-  fmt.Printf("Result: %+v", promise.Result)
+  // Return the pointer to Future
+  future := async.Go(complexFunction)
+  future.Await() // Awaits here!
+  fmt.Printf("Result: %+v", future.Result)
 
   // Use await to return the results and error
   result, err := async.Go(complexFunction).Await()
   if err == nil {
-    fmt.Printf("Result: %+v", promise.Result)
+    fmt.Printf("Result: %+v", future.Result)
   }
   ```
 
-* `async.GoC(promises ...*Promise) *Promise`
+* `async.GoC(futures ...*Future) *Future`
 
-  Executes the specified promises in the concurrent manner. Returns the promise which can be used to await
+  Executes the specified futures in the concurrent manner. Returns the future which can be used to await
 
-* `async.GoQ(promises ...*Promise) *Promise`
+* `async.GoQ(futures ...*Future) *Future`
 
-  Executes the specified promises in the sequencial manner. Returns the promise which can be used to await
+  Executes the specified futures in the sequencial manner. Returns the future which can be used to await
 
 ## Complex Goroutine Orchestration
 
@@ -113,6 +113,31 @@ func HandleResource(resourceId int) {
       async.Go(postToSocialMedia),
       async.Go(sendNotifications),
       async.Go(submitReport),
+    )
+  ).Await()
+}
+
+import "github.com/maniartech/conductor"
+
+func HandleResource(resourceId int) {
+  conductor.Async(
+    conductor.Sync(
+      conductor.Func(keepInfraReady),
+      conductor.Sync(
+        conductor.Func(fetchResource, resourceId),
+        conductor.Func(processResource),
+        conductor.Func(submitResource),
+      ),
+      conductor.Async(
+        conductor.Func(prepareDependencyA)
+        conductor.Func(prepareDependencyB)
+        conductor.Func(prepareDependencyC)
+      )
+    ),
+    conductor.Async(
+      conductor.Func(postToSocialMedia),
+      conductor.Func(sendNotifications),
+      conductor.Func(submitReport),
     )
   ).Await()
 }
