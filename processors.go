@@ -1,12 +1,12 @@
-package async
+package conductor
 
 import (
 	"fmt"
 	"sync"
 )
 
-// goConcurrent starts the specified futures in parallel go routines.
-func goConcurrent(p *Future, args ...interface{}) {
+// startAsync starts the specified futures in parallel go routines.
+func startAsync(p *Future, args ...interface{}) {
 	wg := sync.WaitGroup{}
 
 	for i := 0; i < len(args); i++ {
@@ -26,9 +26,9 @@ func goConcurrent(p *Future, args ...interface{}) {
 	p.Done()
 }
 
-// goQueue starts the specified futures in new go routines with queued mannger.
+// startSync starts the specified futures in new go routines with queued mannger.
 // That is it starts the future only after the preview future has finished.
-func goQueue(p *Future, args ...interface{}) {
+func startSync(p *Future, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
 		pr, ok := args[i].(*Future)
 		if !ok {
@@ -64,9 +64,9 @@ func createBatch(q bool, futures ...*Future) *Future {
 	var p *Future
 
 	if q {
-		p = create(goQueue, interfaces...)
+		p = create(startSync, interfaces...)
 	} else {
-		p = create(goConcurrent, interfaces...)
+		p = create(startAsync, interfaces...)
 	}
 	p.batch = true
 	return p

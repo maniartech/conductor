@@ -1,4 +1,4 @@
-package async
+package conductor
 
 // Go creates a new future which provides easy to await mechanism.
 // It can be started either by using calling a `Start` or `Await` method.
@@ -22,11 +22,11 @@ package async
 //      println("The process 1 finished.")
 //    })
 //
-func Go(fn FutureHandler, args ...interface{}) *Future {
+func Func(fn FutureHandler, args ...interface{}) *Future {
 	return create(fn, args...)
 }
 
-// GoC creates a new future form list of futures and run them in parallel go routines.
+// Async creates a new future form list of futures and run them in parallel go routines.
 // It returns the pointer to the newly created future.
 //
 //    //
@@ -39,7 +39,7 @@ func Go(fn FutureHandler, args ...interface{}) *Future {
 //      async.Go(sendEmail, 2)
 //    ).Await()
 //
-func GoC(futures ...*Future) *Future {
+func Async(futures ...*Future) *Future {
 	return createBatch(false, futures...)
 }
 
@@ -59,6 +59,6 @@ func GoC(futures ...*Future) *Future {
 //   async.Go(process, 1) // Just runs the go routine
 //   async.Go(process, 2).Await() // Runs the go routine and await for it to finish.
 //
-func GoQ(futures ...*Future) *Future {
+func Sync(futures ...*Future) *Future {
 	return createBatch(true, futures...)
 }
