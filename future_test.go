@@ -1,4 +1,4 @@
-package async_test
+package conductor_test
 
 import (
 	"errors"
@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/async"
+	conductor "github.com/maniartech/async"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGoFutureBase(t *testing.T) {
-	future := async.Go(processAsync, "A", 1000)
+	future := conductor.Func(processAsync, "A", 1000)
 
 	isFuture := false
 
-	if _, ok := interface{}(future).(*async.Future); ok {
+	if _, ok := interface{}(future).(*conductor.Future); ok {
 		isFuture = true
 	}
 
@@ -26,7 +26,7 @@ func TestGoFutureBase(t *testing.T) {
 }
 
 func TestGoFuture(t *testing.T) {
-	future := async.Go(processAsync, "A", 1000)
+	future := conductor.Func(processAsync, "A", 1000)
 	result, err := future.Await()
 
 	assert.Equal(t, true, future.Finished())
@@ -34,7 +34,7 @@ func TestGoFuture(t *testing.T) {
 	assert.Equal(t, "A", result)
 	assert.Equal(t, nil, err)
 
-	future = async.Go(processAsync, "A", 1000, errors.New("invalid-action"))
+	future = conductor.Func(processAsync, "A", 1000, errors.New("invalid-action"))
 	result, err = future.Await()
 
 	assert.Equal(t, true, future.Finished())
@@ -47,7 +47,6 @@ func TestGoFuture(t *testing.T) {
 }
 
 func TestBatchGo(t *testing.T) {
-
 	vals := make([]string, 0)
 	newCB := func() func(string) {
 		return func(s string) {
@@ -55,17 +54,17 @@ func TestBatchGo(t *testing.T) {
 		}
 	}
 
-	p := async.GoC(
-		async.Go(processAsync, "A", 3000, newCB()),
-		async.Go(processAsync, "B", 2000, newCB()),
-		async.GoQ( // Calls Go routines in queue!
-			async.Go(processAsync, "C", 1000, newCB()),
-			async.Go(processAsync, "D", 500, newCB()),
-			async.Go(processAsync, "E", 100, newCB()),
+	p := conductor.Async(
+		conductor.Func(processAsync, "A", 3000, newCB()),
+		conductor.Func(processAsync, "B", 2000, newCB()),
+		conductor.Sync( // Calls Func routines in queue!
+			conductor.Func(processAsync, "C", 1000, newCB()),
+			conductor.Func(processAsync, "D", 500, newCB()),
+			conductor.Func(processAsync, "E", 100, newCB()),
 		),
-		async.GoC(
-			async.Go(processAsync, "F", 200, newCB()),
-			async.Go(processAsync, "G", 0, newCB()),
+		conductor.Async(
+			conductor.Func(processAsync, "F", 200, newCB()),
+			conductor.Func(processAsync, "G", 0, newCB()),
 		),
 	)
 
@@ -79,7 +78,7 @@ func TestBatchGo(t *testing.T) {
 	assert.Equal(t, "G,F,C,D,E,B,A", strings.Join(vals, ","))
 }
 
-func processAsync(p *async.Future, args ...interface{}) {
+func processAsync(p *conductor.Future, args ...interface{}) {
 	s := args[0].(string)
 	ms := args[1].(int)
 

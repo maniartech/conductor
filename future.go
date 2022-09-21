@@ -1,6 +1,7 @@
-package async
+package conductor
 
 import (
+	"context"
 	"errors"
 	"sync"
 )
@@ -12,18 +13,46 @@ const (
 	finished
 )
 
+type Player interface {
+	Play(context.Context) (interface{}, error)
+}
+
+type HandlerFunc func(ctx context.Context) (interface{}, error)
+
+func (f HandlerFunc) Start(ctx context.Context) (interface{}, error) {
+	return f(ctx)
+}
+
+type ActivityHandler[T any] func(T) bool
+
+type ErrorHandler[T any] func(string, T, error)
+
+type Activity[T any] interface {
+	Name() string
+
+	Start(ctx context.Context, args ...T) error
+
+	OnStart(ActivityHandler[T])
+
+	OnFinish(ActivityHandler[T])
+
+	OnError(ErrorHandler[T])
+
+	Await()
+}
+
 // FutureHandler provides a signature validation for
 // future function.
 //
 // Example:
 //
-//  func Process(p *Future, ...v interface()) {
-//    processId := v.(int)
-//    result, err := SendRequest(processId)
-//    // When finished processing, call Done by passing
-//    // result and error details
-//    p.Done(result, err)
-//  }
+//	func Process(p *Future, ...v interface()) {
+//	  processId := v.(int)
+//	  result, err := SendRequest(processId)
+//	  // When finished processing, call Done by passing
+//	  // result and error details
+//	  p.Done(result, err)
+//	}
 type FutureHandler func(*Future, ...interface{})
 
 // ThenHandler is a callback which will be
@@ -31,14 +60,15 @@ type FutureHandler func(*Future, ...interface{})
 //
 // Example
 //
-//   p := async.Go(process, 1)
-//   p.Then(func(v interface{}, e error) {
-//     print("The future has just finished!")
-//   })
-//
+//	p := async.Go(process, 1)
+//	p.Then(func(v interface{}, e error) {
+//	  print("The future has just finished!")
+//	})
 type ThenHandler func(interface{}, error)
 
 type Future struct {
+	conductor *conductor
+
 	// Fn represent the underlaying futured function
 	fn func(*Future, ...interface{})
 
