@@ -123,22 +123,26 @@ func HandleResource(resourceId int) {
   conductor.Async(
     conductor.Sync(
       conductor.Func(keepInfraReady),
-      conductor.Sync(
-        conductor.Func(fetchResource, resourceId),
-        conductor.Func(processResource),
-        conductor.Func(submitResource),
-      ),
+      conductor.Func(fetchResource, resourceId),
       conductor.Async(
-        conductor.Func(prepareDependencyA)
-        conductor.Func(prepareDependencyB)
-        conductor.Func(prepareDependencyC)
-      )
-    ),
+        conductor.Sync(
+          conductor.Func(processA),
+          conductor.Func(submitA),
+        ).Name("Process A"),
+        conductor.Sync(
+          conductor.Func(processB),
+          conductor.Func(submitB),
+        ).Name("ProcessB"),
+        conductor.Sync(
+          conductor.Func(processC).OnError(handleError).Retry(3, 5*time.Second).Timeout(10*time.Second),
+          conductor.Func(submitC).Delay(5*time.Second),
+        ).Name("ProcessC"),
+      ),
+    ).Name("Update Resource"),
     conductor.Async(
-      conductor.Func(postToSocialMedia),
-      conductor.Func(sendNotifications),
-      conductor.Func(submitReport),
-    )
+      conductor.Func(sendEmails),
+      conductor.Func(sendMessages),
+    ).Name("Send Notification")
   ).Await()
 }
 ```
