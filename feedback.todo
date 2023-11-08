@@ -1,7 +1,7 @@
 
 
 TODO: Pie.Taste(); — Today at 17:34 @Aamir not sure if I'm being silly, but I think
-there are possible race conditions in your Future code, you don't lock any of the
+there are possible race conditions in your Choreography code, you don't lock any of the
 internal future structure whilst doing things.
 
 TODO: You check to see if the future isn't started by reading a non synchronised value,

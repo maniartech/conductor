@@ -1,4 +1,4 @@
-package conductor
+package choreo
 
 // Errors
 
@@ -6,7 +6,7 @@ const errNotABatch = "not-a-batch"
 
 const errInvalidOperation = "invalid-operation"
 
-const errInvalidFuture = "invalid-future"
+const errInvalidChoreography = "invalid-future"
 
 const errInvalidState = "invalid-state"
 
