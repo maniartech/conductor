@@ -1,4 +1,4 @@
-package conductor
+package choreo
 
 import (
 	"fmt"
@@ -6,13 +6,13 @@ import (
 )
 
 // startAsync starts the specified futures in parallel go routines.
-func startAsync(p *Future, args ...interface{}) {
+func startAsync(p *Choreography, args ...interface{}) {
 	wg := sync.WaitGroup{}
 
 	for i := 0; i < len(args); i++ {
-		pr, ok := args[i].(*Future)
+		pr, ok := args[i].(*Choreography)
 		if !ok {
-			panic(fmt.Errorf("%s at '%v'", errInvalidFuture, i))
+			panic(fmt.Errorf("%s at '%v'", errInvalidChoreography, i))
 		} else if pr.Pending() {
 			panic(fmt.Errorf("%s at '%v'", errInvalidState, i))
 		}
@@ -28,11 +28,11 @@ func startAsync(p *Future, args ...interface{}) {
 
 // startSync starts the specified futures in new go routines with queued mannger.
 // That is it starts the future only after the preview future has finished.
-func startSync(p *Future, args ...interface{}) {
+func startSync(p *Choreography, args ...interface{}) {
 	for i := 0; i < len(args); i++ {
-		pr, ok := args[i].(*Future)
+		pr, ok := args[i].(*Choreography)
 		if !ok {
-			panic(fmt.Errorf("%s at '%v'", errInvalidFuture, i))
+			panic(fmt.Errorf("%s at '%v'", errInvalidChoreography, i))
 		} else if pr.Pending() {
 			panic(fmt.Errorf("%s at '%v'", errInvalidState, i))
 		}
@@ -42,8 +42,8 @@ func startSync(p *Future, args ...interface{}) {
 }
 
 // Create creates a future task runner that executes single task.
-func create(fn FutureHandler, args ...interface{}) *Future {
-	return &Future{
+func create(fn ChoreographyHandler, args ...interface{}) *Choreography {
+	return &Choreography{
 		fn:   fn,
 		args: args,
 		wg:   sync.WaitGroup{},
@@ -51,7 +51,7 @@ func create(fn FutureHandler, args ...interface{}) *Future {
 }
 
 // Creates a future that executes one or more handlers
-func createBatch(q bool, futures ...*Future) *Future {
+func createBatch(q bool, futures ...*Choreography) *Choreography {
 	if len(futures) == 0 {
 		panic(errInvalidArguments)
 	}
@@ -61,7 +61,7 @@ func createBatch(q bool, futures ...*Future) *Future {
 		interfaces[i] = futures[i]
 	}
 
-	var p *Future
+	var p *Choreography
 
 	if q {
 		p = create(startSync, interfaces...)

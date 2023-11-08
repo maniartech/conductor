@@ -40,14 +40,14 @@ func main() {
 
 
 
-* `async.Go(FutureHandler, ...interfaces{}) *Promsie`
+* `async.Go(ChoreographyHandler, ...interfaces{}) *Promsie`
 
   Executes the function in a new goroutine and returns a future. The future can be awaited until the execution is finished and results are returned.
 
   **Example:**
 
   ```go
-  // Return the pointer to Future
+  // Return the pointer to Choreography
   future := async.Go(complexFunction)
   future.Await() // Awaits here!
   fmt.Printf("Result: %+v", future.Result)
@@ -59,11 +59,11 @@ func main() {
   }
   ```
 
-* `async.GoC(futures ...*Future) *Future`
+* `async.GoC(futures ...*Choreography) *Choreography`
 
   Executes the specified futures in the concurrent manner. Returns the future which can be used to await
 
-* `async.GoQ(futures ...*Future) *Future`
+* `async.GoQ(futures ...*Choreography) *Choreography`
 
   Executes the specified futures in the sequencial manner. Returns the future which can be used to await
 
@@ -120,28 +120,28 @@ func HandleResource(resourceId int) {
 import "github.com/maniartech/conductor"
 
 func HandleResource(resourceId int) {
-  conductor.Async(
-    conductor.Sync(
-      conductor.Func(keepInfraReady),
-      conductor.Func(fetchResource, resourceId),
-      conductor.Async(
-        conductor.Sync(
-          conductor.Func(processA),
-          conductor.Func(submitA),
+  choreographer.Async(
+    choreographer.Sync(
+      choreographer.Func(keepInfraReady),
+      choreographer.Func(fetchResource, resourceId),
+      choreographer.Async(
+        choreographer.Sync(
+          choreographer.Func(processA),
+          choreographer.Func(submitA),
         ).Name("Process A"),
-        conductor.Sync(
-          conductor.Func(processB),
-          conductor.Func(submitB),
+        choreographer.Sync(
+          choreographer.Func(processB),
+          choreographer.Func(submitB),
         ).Name("ProcessB"),
-        conductor.Sync(
-          conductor.Func(processC).OnError(handleError).Retry(3, 5*time.Second).Timeout(10*time.Second),
-          conductor.Func(submitC).Delay(5*time.Second),
+        choreographer.Sync(
+          choreographer.Func(processC).OnError(handleError).Retry(3, 5*time.Second).Timeout(10*time.Second),
+          choreographer.Func(submitC).Delay(5*time.Second),
         ).Name("ProcessC"),
       ),
     ).Name("Update Resource"),
-    conductor.Async(
-      conductor.Func(sendEmails),
-      conductor.Func(sendMessages),
+    choreographer.Async(
+      choreographer.Func(sendEmails),
+      choreographer.Func(sendMessages),
     ).Name("Send Notification")
   ).Await()
 }
