@@ -1,9 +1,9 @@
-package conductor
+package choreo
 
 // Go creates a new future which provides easy to await mechanism.
 // It can be started either by using calling a `Start` or `Await` method.
 //
-//    func(fn FutureHandler, args ...interface{}) *Promsie
+//    func(fn ChoreographyHandler, args ...interface{}) *Promsie
 //
 // Example: Immediate start and await
 //
@@ -22,7 +22,7 @@ package conductor
 //      println("The process 1 finished.")
 //    })
 //
-func Func(fn FutureHandler, args ...interface{}) *Future {
+func Func(fn ChoreographyHandler, args ...interface{}) *Choreography {
 	return create(fn, args...)
 }
 
@@ -30,7 +30,7 @@ func Func(fn FutureHandler, args ...interface{}) *Future {
 // It returns the pointer to the newly created future.
 //
 //    //
-//    func(futures ...*Future) *Future
+//    func(futures ...*Choreography) *Choreography
 //
 // Example: (1)
 //
@@ -39,7 +39,7 @@ func Func(fn FutureHandler, args ...interface{}) *Future {
 //      async.Go(sendEmail, 2)
 //    ).Await()
 //
-func Async(futures ...*Future) *Future {
+func Async(futures ...*Choreography) *Choreography {
 	return createBatch(false, futures...)
 }
 
@@ -48,17 +48,17 @@ func Async(futures ...*Future) *Future {
 //
 // It accepts following function signatures.
 //
-//     1) func(futures ...*Future) *Future
-//     2) func(hanlderFn FutureHandler, args ...interface{}) *Promsie
+//     1) func(futures ...*Choreography) *Choreography
+//     2) func(hanlderFn ChoreographyHandler, args ...interface{}) *Promsie
 //
 // Example: (1)
 //  async.Go(async.Go(process, 1), async.Go(sendEmail, 2))
-//  async.Go(async.NewFuture(process, 1), async.NewPromsie(process, 2))
+//  async.Go(async.NewChoreography(process, 1), async.NewPromsie(process, 2))
 //
 // Example: (2)
 //   async.Go(process, 1) // Just runs the go routine
 //   async.Go(process, 2).Await() // Runs the go routine and await for it to finish.
 //
-func Sync(futures ...*Future) *Future {
+func Sync(futures ...*Choreography) *Choreography {
 	return createBatch(true, futures...)
 }
