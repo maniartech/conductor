@@ -1,6 +1,6 @@
-package conductor
+package choreo
 
-// Like orchestra conductor, this package provides a way to
+// Like orchestra choreographer, this package provides a way to
 // orchestrate the execution of multiple functions in a senchronous or
 // asynchronus manner. It also provides a way to handle errors and
 // provide a way to handle the result of the function execution. It
@@ -10,17 +10,17 @@ package conductor
 // These results can be accessed by the functions which are executed
 // after the function which produced the result. It also provides a way
 // to cancel the entire execution or a specific function execution. While
-// execution, each function receives the conductor context which provides
+// execution, each function receives the choreographer context which provides
 // the access to the result of the functions which are executed before it.
-type conductor struct {
-	future *Future
+type choreographer struct {
+	future *Choreography
 
 	Results map[string]interface{}
 }
 
-// New creates a new conductor instance.
-func New(future *Future) *conductor {
-	return &conductor{
+// New creates a new choreographer instance.
+func New(future *Choreography) *choreographer {
+	return &choreographer{
 		future: future,
 	}
 }
