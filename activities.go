@@ -23,10 +23,6 @@ func (f HandlerFunc) Start(ctx context.Context) (interface{}, error) {
 	return f(ctx)
 }
 
-type ActivityHandler[T any] func(T) bool
-
-type ErrorHandler[T any] func(string, T, error)
-
 type Activity[T any] interface {
 	Name() string
 
