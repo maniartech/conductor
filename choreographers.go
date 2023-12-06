@@ -1,7 +1,7 @@
 package choreo
 
-// Like orchestra choreographer, this package provides a way to
-// orchestrate the execution of multiple functions in a senchronous or
+// Choreographer provides a way to
+// choreograph the execution of multiple functions in a senchronous or
 // asynchronus manner. It also provides a way to handle errors and
 // provide a way to handle the result of the function execution. It
 // manages the root context and provides a way to cancel the execution.
@@ -13,14 +13,14 @@ package choreo
 // execution, each function receives the choreographer context which provides
 // the access to the result of the functions which are executed before it.
 type choreographer struct {
-	future *Choreography
+	choreography *Choreography
 
 	Results map[string]interface{}
 }
 
 // New creates a new choreographer instance.
-func New(future *Choreography) *choreographer {
+func New(choreography *Choreography) *choreographer {
 	return &choreographer{
-		future: future,
+		choreography: choreography,
 	}
 }
