@@ -1,4 +1,4 @@
-package choreo
+package orchestrator
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func (f HandlerFunc) Start(ctx context.Context) (interface{}, error) {
 	return f(ctx)
 }
 
-type Step interface {
+type Activity interface {
 	Name() string
 
 	Start(ctx context.Context, args ...any) error
@@ -30,13 +30,11 @@ type Step interface {
 	Await()
 }
 
-type Choreography struct {
-	// choreographer *choreographer
+type Orchestration struct {
+	// Fn represent the underlying future function
+	fn func(*Orchestration, ...interface{})
 
-	// Fn represent the underlaying futured function
-	fn func(*Choreography, ...interface{})
-
-	// Args represents the arguments that needs to be passed when the future is invoked
+	// Args represents the arguments that need to be passed when the future is invoked
 	args []interface{}
 
 	// Not Started: 0
@@ -57,107 +55,107 @@ type Choreography struct {
 	batch bool
 }
 
-// Start executes the future in the new go routine
-func (c *Choreography) Start() {
+// Start executes the future in a new goroutine
+func (o *Orchestration) Start() {
 
-	// Proceed only when the choreography is not started yet.
-	if c.status != notStarted {
+	// Proceed only when the orchestration has not started yet.
+	if o.status != notStarted {
 		return
 	}
 
 	// Add a wait group counter.
-	c.wg.Add(1)
+	o.wg.Add(1)
 
-	c.status = pending
+	o.status = pending
 
-	// Execute the associated function in a new go routine
-	go c.fn(c, c.args...)
+	// Execute the associated function in a new goroutine
+	go o.fn(o, o.args...)
 }
 
 // Done is designed to be executed by the
-// invoker when the futured task is finished.
-func (c *Choreography) Done(v ...interface{}) {
+// invoker when the future task is finished.
+func (o *Orchestration) Done(v ...interface{}) {
 	for i := 0; i < len(v); i++ {
 		if val, ok := v[i].(error); ok {
-			c.err = val
+			o.err = val
 		} else {
-			c.result = v[i]
+			o.result = v[i]
 		}
 	}
-	c.wg.Done()
-	c.status = finished
+	o.wg.Done()
+	o.status = finished
 
 	// Invoke then function!
-	if c.then != nil {
-		c.then(c.result, c.err)
+	if o.then != nil {
+		o.then(o.result, o.err)
 	}
 }
 
-// Await waits for future to finish and returns a resulting value.
-func (c *Choreography) Await() (interface{}, error) {
+// Await waits for the future to finish and returns a resulting value.
+func (o *Orchestration) Await() (interface{}, error) {
 	// If the future has already finished
 	// do not wait further.
-	if c.Finished() {
-		return c.result, c.err
+	if o.Finished() {
+		return o.result, o.err
 	}
 
-	// The future has not yet started, start it!
-	if c.NotStarted() {
-		c.Start()
+	// If the future has not yet started, start it!
+	if o.NotStarted() {
+		o.Start()
 	}
 
-	c.wg.Wait()
-	return c.result, c.err
+	o.wg.Wait()
+	return o.result, o.err
 }
 
 // Then is invoked when the associated future
-// has finished procesing.
-func (c *Choreography) Then(fn ThenHandler) {
-	c.then = fn
+// has finished processing.
+func (o *Orchestration) Then(fn ThenHandler) {
+	o.then = fn
 }
 
-// NotStarted returns `true` if the future exection has
-// not yet started. Otherwise it returns `false`.
-func (c *Choreography) NotStarted() bool {
-	return c.status == notStarted
+// NotStarted returns `true` if the future execution has
+// not yet started. Otherwise, it returns `false`.
+func (o *Orchestration) NotStarted() bool {
+	return o.status == notStarted
 }
 
-// Pending returns `true` if the future exection has
-// not yet started. Otherwise it returns `false`.
-func (c *Choreography) Pending() bool {
-	return c.status == pending
+// Pending returns `true` if the future execution is
+// in progress. Otherwise, it returns `false`.
+func (o *Orchestration) Pending() bool {
+	return o.status == pending
 }
 
 // Finished returns `true` if the future has finished the
 // function execution. It returns `false` otherwise.
-func (c *Choreography) Finished() bool {
-	return c.status == finished
+func (o *Orchestration) Finished() bool {
+	return o.status == finished
 }
 
 // Result returns the value which is received after the successful
 // execution of the associated function.
-func (c *Choreography) Result() interface{} {
-	return c.result
+func (o *Orchestration) Result() interface{} {
+	return o.result
 }
 
-// Err returns the error that is reported when future has failed.
+// Err returns the error that is reported when the future has failed.
 // When the future is successful or not yet finished, Err() will return `nil`.
-func (c *Choreography) Err() error {
-	return c.err
+func (o *Orchestration) Err() error {
+	return o.err
 }
 
-// Choreographys returns the associated child futures when created with GoP or GoQ functions!
+// Orchestrations returns the associated child futures when created with GoP or GoQ functions!
 // It returns nil otherwise.
-func (c *Choreography) Choreographys() ([]*Choreography, error) {
-	if !c.batch {
+func (o *Orchestration) Orchestrations() ([]*Orchestration, error) {
+	if !o.batch {
 		return nil, errors.New(errNotABatch)
 	}
 
-	l := len(c.args)
-	futures := make([]*Choreography, l)
+	l := len(o.args)
+	futures := make([]*Orchestration, l)
 
 	for i := 0; i < l; i++ {
-		if future, ok := c.args[0].(*Choreography); ok {
+		if future, ok := o.args[0].(*Orchestration); ok {
 			futures[i] = future
 		} else {
 			return nil, errors.New(errInvalidOperation)
