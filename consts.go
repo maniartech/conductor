@@ -1,4 +1,4 @@
-package choreo
+package orchestrator
 
 // Errors
 

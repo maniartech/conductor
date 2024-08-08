@@ -1,14 +1,14 @@
-package choreo
+package orchestrator
 
-// Go creates a new future which provides easy to await mechanism.
-// It can be started either by using calling a `Start` or `Await` method.
+// Func creates a new future which provides an easy await mechanism.
+// It can be started either by calling the `Start` or `Await` method.
 //
-//    func(fn ChoreographyHandler, args ...interface{}) *Promsie
+//    func(fn OrchestrationHandler, args ...interface{}) *Promise
 //
 // Example: Immediate start and await
 //
 //    // Starts a new process and awaits for it to finish.
-//    v, err := async.Go(process, 1).Await()
+//    v, err := async.Func(process, 1).Await()
 //    if err != nil {
 //      println("An error occurred while processing the future.")
 //    }
@@ -17,48 +17,48 @@ package choreo
 // Example: Delayed start
 //
 //    // Create a new future
-//    p := async.Go(process, 1)
+//    p := async.Func(process, 1)
 //    p.Then(func (v interface{}, e error) {
 //      println("The process 1 finished.")
 //    })
 //
-func Func(fn ChoreographyHandler, args ...interface{}) *Choreography {
+func Func(fn OrchestrationHandler, args ...interface{}) *Orchestration {
 	return create(fn, args...)
 }
 
-// Async creates a new future form list of futures and run them in parallel go routines.
+// Async creates a new future from a list of futures and runs them in parallel goroutines.
 // It returns the pointer to the newly created future.
 //
 //    //
-//    func(futures ...*Choreography) *Choreography
+//    func(futures ...*Orchestration) *Orchestration
 //
 // Example: (1)
 //
-//    async.GoC(
-//      async.Go(process, 1),
-//      async.Go(sendEmail, 2)
+//    async.Async(
+//      async.Func(process, 1),
+//      async.Func(sendEmail, 2)
 //    ).Await()
 //
-func Async(futures ...*Choreography) *Choreography {
+func Async(futures ...*Orchestration) *Orchestration {
 	return createBatch(false, futures...)
 }
 
-// GoQ creates a new future form list of futures and run them in sequencial
-// go routines! It returns the pointer to the newly created future.
+// Sync creates a new future from a list of futures and runs them in sequential
+// goroutines! It returns the pointer to the newly created future.
 //
-// It accepts following function signatures.
+// It accepts the following function signatures.
 //
-//     1) func(futures ...*Choreography) *Choreography
-//     2) func(hanlderFn ChoreographyHandler, args ...interface{}) *Promsie
+//     1) func(futures ...*Orchestration) *Orchestration
+//     2) func(handlerFn OrchestrationHandler, args ...interface{}) *Promise
 //
 // Example: (1)
-//  async.Go(async.Go(process, 1), async.Go(sendEmail, 2))
-//  async.Go(async.NewChoreography(process, 1), async.NewPromsie(process, 2))
+//  async.Sync(async.Func(process, 1), async.Func(sendEmail, 2))
+//  async.Sync(async.NewOrchestration(process, 1), async.NewPromise(process, 2))
 //
 // Example: (2)
-//   async.Go(process, 1) // Just runs the go routine
-//   async.Go(process, 2).Await() // Runs the go routine and await for it to finish.
+//   async.Func(process, 1) // Just runs the goroutine
+//   async.Func(process, 2).Await() // Runs the goroutine and awaits for it to finish.
 //
-func Sync(futures ...*Choreography) *Choreography {
+func Sync(futures ...*Orchestration) *Orchestration {
 	return createBatch(true, futures...)
 }
