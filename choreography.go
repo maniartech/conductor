@@ -59,14 +59,15 @@ type Orchestration struct {
 func (o *Orchestration) Start() {
 
 	// Proceed only when the orchestration has not started yet.
-	if o.status != notStarted {
+	if o.status != uint8(NotStarted) {
+
 		return
 	}
 
 	// Add a wait group counter.
 	o.wg.Add(1)
 
-	o.status = pending
+	o.status = uint8(Pending)
 
 	// Execute the associated function in a new goroutine
 	go o.fn(o, o.args...)
@@ -83,7 +84,7 @@ func (o *Orchestration) Done(v ...interface{}) {
 		}
 	}
 	o.wg.Done()
-	o.status = finished
+	o.status = uint8(Finished)
 
 	// Invoke then function!
 	if o.then != nil {
@@ -117,19 +118,19 @@ func (o *Orchestration) Then(fn ThenHandler) {
 // NotStarted returns `true` if the future execution has
 // not yet started. Otherwise, it returns `false`.
 func (o *Orchestration) NotStarted() bool {
-	return o.status == notStarted
+	return o.status == uint8(NotStarted)
 }
 
 // Pending returns `true` if the future execution is
 // in progress. Otherwise, it returns `false`.
 func (o *Orchestration) Pending() bool {
-	return o.status == pending
+	return o.status == uint8(Pending)
 }
 
 // Finished returns `true` if the future has finished the
 // function execution. It returns `false` otherwise.
 func (o *Orchestration) Finished() bool {
-	return o.status == finished
+	return o.status == uint8(Finished)
 }
 
 // Result returns the value which is received after the successful

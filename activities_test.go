@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator" // Update with the correct module path
 	"github.com/stretchr/testify/assert"
-	"gihtub.com/maniartech/orchestrator" // Update with the correct module path
 )
 
 func TestGoOrchestrationBase(t *testing.T) {
