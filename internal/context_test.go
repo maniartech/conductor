@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/maniartech/async/internal"
+	"github.com/maniartech/orchestrator/internal"
 )
 
 func TestSetAndGet(t *testing.T) {
