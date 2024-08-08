@@ -1,4 +1,4 @@
-package choreo_test
+package orchestrator_test
 
 import (
 	"errors"
@@ -7,25 +7,26 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"gihtub.com/maniartech/orchestrator" // Update with the correct module path
 )
 
-func TestGoChoreographyBase(t *testing.T) {
-	future := choreographer.Func(processAsync, "A", 1000)
+func TestGoOrchestrationBase(t *testing.T) {
+	future := orchestrator.Func(processAsync, "A", 1000)
 
-	isChoreography := false
+	isOrchestration := false
 
-	if _, ok := interface{}(future).(*choreographer.Choreography); ok {
-		isChoreography = true
+	if _, ok := interface{}(future).(*orchestrator.Orchestration); ok {
+		isOrchestration = true
 	}
 
-	assert.Equal(t, true, isChoreography)
+	assert.Equal(t, true, isOrchestration)
 	assert.Equal(t, true, future.NotStarted())
 	assert.Equal(t, false, future.Pending())
 	assert.Equal(t, false, future.Finished())
 }
 
-func TestGoChoreography(t *testing.T) {
-	future := choreographer.Func(processAsync, "A", 1000)
+func TestGoOrchestration(t *testing.T) {
+	future := orchestrator.Func(processAsync, "A", 1000)
 	result, err := future.Await()
 
 	assert.Equal(t, true, future.Finished())
@@ -33,7 +34,7 @@ func TestGoChoreography(t *testing.T) {
 	assert.Equal(t, "A", result)
 	assert.Equal(t, nil, err)
 
-	future = choreographer.Func(processAsync, "A", 1000, errors.New("invalid-action"))
+	future = orchestrator.Func(processAsync, "A", 1000, errors.New("invalid-action"))
 	result, err = future.Await()
 
 	assert.Equal(t, true, future.Finished())
@@ -41,7 +42,7 @@ func TestGoChoreography(t *testing.T) {
 	assert.Equal(t, nil, result)
 	assert.EqualError(t, err, "invalid-action")
 
-	_, err = future.Choreographys()
+	_, err = future.Orchestrations()
 	assert.Error(t, err, "not-a-batch")
 }
 
@@ -53,31 +54,31 @@ func TestBatchGo(t *testing.T) {
 		}
 	}
 
-	p := choreographer.Async(
-		choreographer.Func(processAsync, "A", 3000, newCB()),
-		choreographer.Func(processAsync, "B", 2000, newCB()),
-		choreographer.Sync( // Calls Func routines in queue!
-			choreographer.Func(processAsync, "C", 1000, newCB()),
-			choreographer.Func(processAsync, "D", 500, newCB()),
-			choreographer.Func(processAsync, "E", 100, newCB()),
+	p := orchestrator.Async(
+		orchestrator.Func(processAsync, "A", 3000, newCB()),
+		orchestrator.Func(processAsync, "B", 2000, newCB()),
+		orchestrator.Sync( // Calls Func routines in sequence!
+			orchestrator.Func(processAsync, "C", 1000, newCB()),
+			orchestrator.Func(processAsync, "D", 500, newCB()),
+			orchestrator.Func(processAsync, "E", 100, newCB()),
 		),
-		choreographer.Async(
-			choreographer.Func(processAsync, "F", 200, newCB()),
-			choreographer.Func(processAsync, "G", 0, newCB()),
+		orchestrator.Async(
+			orchestrator.Func(processAsync, "F", 200, newCB()),
+			orchestrator.Func(processAsync, "G", 0, newCB()),
 		),
 	)
 
 	assert.Equal(t, true, p.NotStarted())
 	p.Await()
-	childChoreographys, err := p.Choreographys()
+	childOrchestrations, err := p.Orchestrations()
 
 	assert.Equal(t, true, p.Finished())
 	assert.Equal(t, true, err == nil)
-	assert.Equal(t, 4, len(childChoreographys))
+	assert.Equal(t, 4, len(childOrchestrations))
 	assert.Equal(t, "G,F,C,D,E,B,A", strings.Join(vals, ","))
 }
 
-func processAsync(p *choreographer.Choreography, args ...interface{}) {
+func processAsync(p *orchestrator.Orchestration, args ...interface{}) {
 	s := args[0].(string)
 	ms := args[1].(int)
 
