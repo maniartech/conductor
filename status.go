@@ -1,10 +1,9 @@
-package choreo
+package orchestrator
 
-type Status int
+type Status uint8
 
-// Choreography status
+// Orchestration status
 const (
-
 	// Not Started
 	NotStarted Status = iota
 

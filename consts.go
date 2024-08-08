@@ -6,7 +6,7 @@ const errNotABatch = "not-a-batch"
 
 const errInvalidOperation = "invalid-operation"
 
-const errInvalidChoreography = "invalid-future"
+const errInvalidOrchestration = "invalid-future"
 
 const errInvalidState = "invalid-state"
 
