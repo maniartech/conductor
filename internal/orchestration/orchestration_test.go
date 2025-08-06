@@ -1,9 +1,13 @@
-package core
+package orchestration
 
 import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/maniartech/orchestrator/internal/config"
+	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/internal/result"
 )
 
 // Test that our interface is properly defined
@@ -15,8 +19,8 @@ func TestOrchestrationInterface(t *testing.T) {
 // mockOrchestration is a test implementation of Orchestration
 type mockOrchestration struct {
 	name          string
-	config        *Config
-	errorBoundary *ErrorStrategy
+	config        *config.Config
+	errorBoundary *errors.ErrorStrategy
 }
 
 func (m *mockOrchestration) Named(name string) Orchestration {
@@ -24,18 +28,18 @@ func (m *mockOrchestration) Named(name string) Orchestration {
 	return m
 }
 
-func (m *mockOrchestration) With(config Config) Orchestration {
+func (m *mockOrchestration) With(config config.Config) Orchestration {
 	m.config = &config
 	return m
 }
 
-func (m *mockOrchestration) ErrorBoundary(strategy ErrorStrategy) Orchestration {
+func (m *mockOrchestration) ErrorBoundary(strategy errors.ErrorStrategy) Orchestration {
 	m.errorBoundary = &strategy
 	return m
 }
 
-func (m *mockOrchestration) Execute(ctx context.Context, config Config) (*Result, error) {
-	result := NewResult()
+func (m *mockOrchestration) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
+	result := result.NewResult()
 	result.Set("mock_result", "mock_value")
 	return result, nil
 }
@@ -46,8 +50,8 @@ func TestOrchestrationFluentAPI(t *testing.T) {
 	// Test fluent API chaining
 	result := mock.
 		Named("test-orchestration").
-		With(Config{Timeout: 5 * time.Second}).
-		ErrorBoundary(CollectAll)
+		With(config.Config{Timeout: 5 * time.Second}).
+		ErrorBoundary(errors.CollectAll)
 
 	// Verify the result is still the same instance (fluent API)
 	if result.(*mockOrchestration) != mock {
@@ -60,7 +64,7 @@ func TestOrchestrationFluentAPI(t *testing.T) {
 	}
 
 	if mock.config == nil {
-		t.Fatal("Config should not be nil")
+		t.Fatal("config.Config should not be nil")
 	}
 
 	if mock.config.Timeout != 5*time.Second {
@@ -71,8 +75,8 @@ func TestOrchestrationFluentAPI(t *testing.T) {
 		t.Fatal("ErrorBoundary should not be nil")
 	}
 
-	if *mock.errorBoundary != CollectAll {
-		t.Errorf("Expected CollectAll, got %v", *mock.errorBoundary)
+	if *mock.errorBoundary != errors.CollectAll {
+		t.Errorf("Expected errors.CollectAll, got %v", *mock.errorBoundary)
 	}
 }
 
@@ -106,26 +110,26 @@ func TestOrchestrationNamed(t *testing.T) {
 func TestOrchestrationWith(t *testing.T) {
 	mock := &mockOrchestration{}
 
-	config := Config{
-		ErrorStrategy:  FailFast,
+	cfg := config.Config{
+		ErrorStrategy:  errors.FailFast,
 		Timeout:        30 * time.Second,
 		Retries:        3,
 		MaxConcurrency: 50,
 	}
 
 	// Test setting config
-	result := mock.With(config)
+	result := mock.With(cfg)
 
 	if result != mock {
 		t.Error("With should return the same instance")
 	}
 
 	if mock.config == nil {
-		t.Fatal("Config should not be nil")
+		t.Fatal("config.Config should not be nil")
 	}
 
-	if mock.config.ErrorStrategy != FailFast {
-		t.Error("ErrorStrategy should be set")
+	if mock.config.ErrorStrategy != errors.FailFast {
+		t.Error("errors.ErrorStrategy should be set")
 	}
 
 	if mock.config.Timeout != 30*time.Second {
@@ -141,15 +145,15 @@ func TestOrchestrationWith(t *testing.T) {
 	}
 
 	// Test overwriting config
-	newConfig := Config{
-		ErrorStrategy: CollectAll,
+	newConfig := config.Config{
+		ErrorStrategy: errors.CollectAll,
 		Timeout:       60 * time.Second,
 	}
 
 	mock.With(newConfig)
 
-	if mock.config.ErrorStrategy != CollectAll {
-		t.Error("ErrorStrategy should be updated")
+	if mock.config.ErrorStrategy != errors.CollectAll {
+		t.Error("errors.ErrorStrategy should be updated")
 	}
 
 	if mock.config.Timeout != 60*time.Second {
@@ -161,7 +165,7 @@ func TestOrchestrationErrorBoundary(t *testing.T) {
 	mock := &mockOrchestration{}
 
 	// Test setting error boundary
-	result := mock.ErrorBoundary(CollectAll)
+	result := mock.ErrorBoundary(errors.CollectAll)
 
 	if result != mock {
 		t.Error("ErrorBoundary should return the same instance")
@@ -171,15 +175,15 @@ func TestOrchestrationErrorBoundary(t *testing.T) {
 		t.Fatal("ErrorBoundary should not be nil")
 	}
 
-	if *mock.errorBoundary != CollectAll {
-		t.Errorf("Expected CollectAll, got %v", *mock.errorBoundary)
+	if *mock.errorBoundary != errors.CollectAll {
+		t.Errorf("Expected errors.CollectAll, got %v", *mock.errorBoundary)
 	}
 
 	// Test changing error boundary
-	mock.ErrorBoundary(FailFast)
+	mock.ErrorBoundary(errors.FailFast)
 
-	if *mock.errorBoundary != FailFast {
-		t.Errorf("Expected FailFast, got %v", *mock.errorBoundary)
+	if *mock.errorBoundary != errors.FailFast {
+		t.Errorf("Expected errors.FailFast, got %v", *mock.errorBoundary)
 	}
 }
 
@@ -187,7 +191,7 @@ func TestOrchestrationExecute(t *testing.T) {
 	mock := &mockOrchestration{}
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	result, err := mock.Execute(ctx, config)
 
@@ -196,7 +200,7 @@ func TestOrchestrationExecute(t *testing.T) {
 	}
 
 	if result == nil {
-		t.Fatal("Result should not be nil")
+		t.Fatal("result.Result should not be nil")
 	}
 
 	// Check mock result
@@ -211,20 +215,20 @@ func TestOrchestrationChainedExecution(t *testing.T) {
 
 	// Test full chain with execution
 	ctx := context.Background()
-	config := DefaultConfig()
+	cfg := config.DefaultConfig()
 
 	result, err := mock.
 		Named("chained-execution").
-		With(Config{Timeout: 10 * time.Second}).
-		ErrorBoundary(CollectAll).
-		Execute(ctx, config)
+		With(config.Config{Timeout: 10 * time.Second}).
+		ErrorBoundary(errors.CollectAll).
+		Execute(ctx, cfg)
 
 	if err != nil {
 		t.Errorf("Chained execution should not return error, got: %v", err)
 	}
 
 	if result == nil {
-		t.Fatal("Result should not be nil")
+		t.Fatal("result.Result should not be nil")
 	}
 
 	// Verify configuration was applied
@@ -233,10 +237,10 @@ func TestOrchestrationChainedExecution(t *testing.T) {
 	}
 
 	if mock.config == nil || mock.config.Timeout != 10*time.Second {
-		t.Error("Config should be set from chain")
+		t.Error("config.Config should be set from chain")
 	}
 
-	if mock.errorBoundary == nil || *mock.errorBoundary != CollectAll {
+	if mock.errorBoundary == nil || *mock.errorBoundary != errors.CollectAll {
 		t.Error("ErrorBoundary should be set from chain")
 	}
 }
@@ -244,8 +248,8 @@ func TestOrchestrationChainedExecution(t *testing.T) {
 func TestOrchestrationConfigurationPropagation(t *testing.T) {
 	mock := &mockOrchestration{}
 
-	baseConfig := Config{
-		ErrorStrategy:  FailFast,
+	baseConfig := config.Config{
+		ErrorStrategy:  errors.FailFast,
 		Timeout:        30 * time.Second,
 		MaxConcurrency: 100,
 	}
@@ -254,9 +258,9 @@ func TestOrchestrationConfigurationPropagation(t *testing.T) {
 	mock.With(baseConfig)
 
 	// Override specific settings
-	overrideConfig := Config{
+	overrideConfig := config.Config{
 		Timeout: 10 * time.Second,
-		// Should inherit ErrorStrategy and MaxConcurrency
+		// Should inherit errors.ErrorStrategy and MaxConcurrency
 	}
 
 	mock.With(overrideConfig)
@@ -283,20 +287,20 @@ func TestOrchestrationInterfaceCompliance(t *testing.T) {
 	}
 
 	// With should return Orchestration
-	orch = mock.With(DefaultConfig())
+	orch = mock.With(config.DefaultConfig())
 	if orch == nil {
 		t.Error("With should return Orchestration interface")
 	}
 
 	// ErrorBoundary should return Orchestration
-	orch = mock.ErrorBoundary(FailFast)
+	orch = mock.ErrorBoundary(errors.FailFast)
 	if orch == nil {
 		t.Error("ErrorBoundary should return Orchestration interface")
 	}
 
 	// Execute should work with interface
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 	result, err := orch.Execute(ctx, config)
 
 	if err != nil {
@@ -315,9 +319,9 @@ func TestOrchestrationMethodOrder(t *testing.T) {
 	mock3 := &mockOrchestration{}
 
 	// Different orders should all work
-	mock1.Named("test1").With(DefaultConfig()).ErrorBoundary(FailFast)
-	mock2.With(DefaultConfig()).ErrorBoundary(CollectAll).Named("test2")
-	mock3.ErrorBoundary(FailFast).Named("test3").With(DefaultConfig())
+	mock1.Named("test1").With(config.DefaultConfig()).ErrorBoundary(errors.FailFast)
+	mock2.With(config.DefaultConfig()).ErrorBoundary(errors.CollectAll).Named("test2")
+	mock3.ErrorBoundary(errors.FailFast).Named("test3").With(config.DefaultConfig())
 
 	// All should have their values set correctly
 	if mock1.name != "test1" {
@@ -349,11 +353,11 @@ func ExampleOrchestration() {
 
 	// Fluent API usage
 	orchestration := mock.Named("user-processing").
-		With(Config{Timeout: 30 * time.Second}).
-		ErrorBoundary(CollectAll)
+		With(config.Config{Timeout: 30 * time.Second}).
+		ErrorBoundary(errors.CollectAll)
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	result, err := orchestration.Execute(ctx, config)
 	if err != nil {
@@ -367,8 +371,8 @@ func ExampleOrchestration() {
 
 // Benchmark tests
 func BenchmarkOrchestrationFluentAPI(b *testing.B) {
-	config := Config{
-		ErrorStrategy:  CollectAll,
+	config := config.Config{
+		ErrorStrategy:  errors.CollectAll,
 		Timeout:        30 * time.Second,
 		MaxConcurrency: 100,
 	}
@@ -378,7 +382,7 @@ func BenchmarkOrchestrationFluentAPI(b *testing.B) {
 		mock := &mockOrchestration{}
 		mock.Named("benchmark-test").
 			With(config).
-			ErrorBoundary(FailFast)
+			ErrorBoundary(errors.FailFast)
 	}
 }
 
@@ -387,7 +391,7 @@ func BenchmarkOrchestrationExecution(b *testing.B) {
 	mock.Named("benchmark-execution")
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

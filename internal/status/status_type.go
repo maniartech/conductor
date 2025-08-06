@@ -1,5 +1,3 @@
-// Package status provides atomic-based status management system following
-// Go concurrency patterns for the orchestrator library.
 package status
 
 // Status represents the execution state of an orchestration

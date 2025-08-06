@@ -1,6 +1,4 @@
-// Package core provides the fundamental types and interfaces for the
-// orchestrator library following Go best practices and KISS principles.
-package core
+package task
 
 // TaskStatus represents the execution status of a task using atomic operations
 type TaskStatus uint32

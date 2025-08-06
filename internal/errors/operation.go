@@ -1,6 +1,4 @@
-// Package core provides the fundamental types and interfaces for the
-// orchestrator library following Go best practices and KISS principles.
-package core
+package errors
 
 import (
 	"time"

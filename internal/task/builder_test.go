@@ -1,11 +1,14 @@
-package core
+package task
 
 import (
 	"context"
-	"errors"
+	systemErrors "errors"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/maniartech/orchestrator/internal/config"
+	"github.com/maniartech/orchestrator/internal/errors"
 )
 
 func TestTask(t *testing.T) {
@@ -189,8 +192,8 @@ func TestTaskBuilderWith(t *testing.T) {
 		return "test", nil
 	})
 
-	config := Config{
-		ErrorStrategy:  CollectAll,
+	config := config.Config{
+		ErrorStrategy:  errors.CollectAll,
 		Timeout:        30 * time.Second,
 		MaxConcurrency: 50,
 	}
@@ -205,19 +208,19 @@ func TestTaskBuilderWith(t *testing.T) {
 
 	// Should set the config
 	if task.config == nil {
-		t.Fatal("Config should not be nil after With()")
+		t.Fatal("config.Config should not be nil after With()")
 	}
 
-	if task.config.ErrorStrategy != CollectAll {
-		t.Error("Config ErrorStrategy should be set")
+	if task.config.ErrorStrategy != errors.CollectAll {
+		t.Error("config.Config ErrorStrategy should be set")
 	}
 
 	if task.config.Timeout != 30*time.Second {
-		t.Error("Config Timeout should be set")
+		t.Error("config.Config Timeout should be set")
 	}
 
 	if task.config.MaxConcurrency != 50 {
-		t.Error("Config MaxConcurrency should be set")
+		t.Error("config.Config MaxConcurrency should be set")
 	}
 
 	// Test GetConfig method
@@ -226,7 +229,7 @@ func TestTaskBuilderWith(t *testing.T) {
 		t.Fatal("GetConfig() should not return nil")
 	}
 
-	if retrievedConfig.ErrorStrategy != CollectAll {
+	if retrievedConfig.ErrorStrategy != errors.CollectAll {
 		t.Error("GetConfig() should return correct ErrorStrategy")
 	}
 }
@@ -237,7 +240,7 @@ func TestTaskBuilderErrorBoundary(t *testing.T) {
 	})
 
 	// Test ErrorBoundary method
-	result := task.ErrorBoundary(CollectAll)
+	result := task.ErrorBoundary(errors.CollectAll)
 
 	// Should return the same instance (cast back to TaskBuilder to check)
 	if result.(*TaskBuilder[string]) != task {
@@ -246,18 +249,18 @@ func TestTaskBuilderErrorBoundary(t *testing.T) {
 
 	// Should create config if it doesn't exist
 	if task.config == nil {
-		t.Fatal("Config should be created by ErrorBoundary()")
+		t.Fatal("config.Config should be created by ErrorBoundary()")
 	}
 
-	if task.config.ErrorStrategy != CollectAll {
+	if task.config.ErrorStrategy != errors.CollectAll {
 		t.Error("ErrorStrategy should be set by ErrorBoundary()")
 	}
 
 	// Test ErrorBoundary with existing config
-	task.With(Config{Timeout: 60 * time.Second})
-	task.ErrorBoundary(FailFast)
+	task.With(config.Config{Timeout: 60 * time.Second})
+	task.ErrorBoundary(errors.FailFast)
 
-	if task.config.ErrorStrategy != FailFast {
+	if task.config.ErrorStrategy != errors.FailFast {
 		t.Error("ErrorStrategy should be updated by ErrorBoundary()")
 	}
 
@@ -271,8 +274,8 @@ func TestTaskBuilderFluentAPI(t *testing.T) {
 	result := Task(func() (string, error) {
 		return "test", nil
 	}).Named("chained-task").
-		With(Config{Timeout: 30 * time.Second}).
-		ErrorBoundary(CollectAll)
+		With(config.Config{Timeout: 30 * time.Second}).
+		ErrorBoundary(errors.CollectAll)
 
 	// Cast back to TaskBuilder to access fields
 	task := result.(*TaskBuilder[string])
@@ -282,14 +285,14 @@ func TestTaskBuilderFluentAPI(t *testing.T) {
 	}
 
 	if task.config == nil {
-		t.Fatal("Config should be set through chaining")
+		t.Fatal("config.Config should be set through chaining")
 	}
 
 	if task.config.Timeout != 30*time.Second {
 		t.Error("Timeout should be set through chaining")
 	}
 
-	if task.config.ErrorStrategy != CollectAll {
+	if task.config.ErrorStrategy != errors.CollectAll {
 		t.Error("ErrorStrategy should be set through chaining")
 	}
 }
@@ -333,7 +336,7 @@ func TestTaskBuilderSingleExecution(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	// First execution should succeed
 	result1, err1 := task.Execute(ctx, config)
@@ -385,7 +388,7 @@ func TestTaskBuilderExecute(t *testing.T) {
 		{
 			name: "execution with error",
 			taskFunc: func() (interface{}, error) {
-				return nil, errors.New("task error")
+				return nil, systemErrors.New("task error")
 			},
 			expectedResult: nil,
 			expectedError:  true,
@@ -406,7 +409,7 @@ func TestTaskBuilderExecute(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			task := Task(test.taskFunc).Named(test.taskName)
 			ctx := context.Background()
-			config := DefaultConfig()
+			config := config.DefaultConfig()
 
 			result, err := task.Execute(ctx, config)
 
@@ -451,7 +454,7 @@ func TestTaskBuilderExecuteWithTimeout(t *testing.T) {
 	}).Named("timeout-task")
 
 	ctx := context.Background()
-	config := Config{
+	config := config.Config{
 		Timeout: 50 * time.Millisecond, // Shorter than task duration
 	}
 
@@ -461,7 +464,7 @@ func TestTaskBuilderExecuteWithTimeout(t *testing.T) {
 		t.Error("Expected timeout error")
 	}
 
-	if !errors.Is(err, context.DeadlineExceeded) {
+	if !systemErrors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("Expected context.DeadlineExceeded, got %v", err)
 	}
 
@@ -485,7 +488,7 @@ func TestTaskBuilderExecuteWithCancellation(t *testing.T) {
 		return "completed", nil
 	}).Named("cancel-task")
 
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	result, err := task.Execute(ctx, config)
 
@@ -493,7 +496,7 @@ func TestTaskBuilderExecuteWithCancellation(t *testing.T) {
 		t.Error("Expected cancellation error")
 	}
 
-	if !errors.Is(err, context.Canceled) {
+	if !systemErrors.Is(err, context.Canceled) {
 		t.Errorf("Expected context.Canceled, got %v", err)
 	}
 
@@ -523,15 +526,15 @@ func BenchmarkTaskBuilderFluentAPI(b *testing.B) {
 		return "test", nil
 	}
 
-	config := Config{
-		ErrorStrategy:  CollectAll,
+	config := config.Config{
+		ErrorStrategy:  errors.CollectAll,
 		Timeout:        30 * time.Second,
 		MaxConcurrency: 100,
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Task(fn).Named("benchmark-task").With(config).ErrorBoundary(FailFast)
+		Task(fn).Named("benchmark-task").With(config).ErrorBoundary(errors.FailFast)
 	}
 }
 
@@ -541,7 +544,7 @@ func BenchmarkTaskExecution(b *testing.B) {
 	}).Named("benchmark-task")
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -557,7 +560,7 @@ func ExampleTask() {
 	})
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	result, err := task.Execute(ctx, config)
 	if err != nil {
@@ -578,7 +581,7 @@ func ExampleTaskBuilder_Named() {
 	}).Named("answer-task")
 
 	ctx := context.Background()
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	result, err := task.Execute(ctx, config)
 	if err != nil {
@@ -591,4 +594,19 @@ func ExampleTaskBuilder_Named() {
 
 	// Output:
 	// Answer: 42
+}
+
+// Helper function for string contains check (same as in task_builder_test.go)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > len(substr) && containsHelper(s, substr)))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

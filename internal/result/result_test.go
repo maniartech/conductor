@@ -1,11 +1,13 @@
-package core
+package result
 
 import (
-	"errors"
+	systemErrors "errors"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/maniartech/orchestrator/internal/errors"
 )
 
 func TestNewResult(t *testing.T) {
@@ -114,8 +116,8 @@ func TestResultErrors(t *testing.T) {
 	}
 
 	// Add an error
-	opErr := OperationError{
-		Error:     errors.New("test error"),
+	opErr := errors.OperationError{
+		Error:     systemErrors.New("test error"),
 		Index:     0,
 		Duration:  time.Millisecond,
 		Timestamp: time.Now(),
@@ -162,8 +164,8 @@ func TestResultConcurrentAccess(t *testing.T) {
 				result.Set(key, j)
 
 				if j%10 == 0 {
-					opErr := OperationError{
-						Error: errors.New("test error"),
+					opErr := errors.OperationError{
+						Error: systemErrors.New("test error"),
 						Index: j,
 					}
 					result.AddError(opErr)

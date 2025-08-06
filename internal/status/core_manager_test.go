@@ -1,9 +1,7 @@
-package core
+package status
 
 import (
 	"testing"
-
-	"github.com/maniartech/orchestrator/internal/status"
 )
 
 func TestNewStatusManager(t *testing.T) {
@@ -19,7 +17,7 @@ func TestNewStatusManager(t *testing.T) {
 }
 
 func TestStatusManagerWithCustomManager(t *testing.T) {
-	customManager := status.NewManager()
+	customManager := NewManager()
 	sm := &StatusManager{
 		Manager: customManager,
 	}
@@ -33,13 +31,13 @@ func TestStatusManagerIntegration(t *testing.T) {
 	sm := NewStatusManager()
 
 	// Test that we can use the status manager through StatusManager
-	// Since status.Manager is embedded, we can call its methods directly
+	// Since Manager is embedded, we can call its methods directly
 	if sm.Manager == nil {
 		t.Error("Should have access to status manager through StatusManager")
 	}
 
 	// Test that the embedded manager works
-	// Note: We would need to check what methods are available on status.Manager
+	// Note: We would need to check what methods are available on Manager
 	// For now, just verify the manager is accessible
 }
 

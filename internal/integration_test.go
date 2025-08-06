@@ -2,14 +2,17 @@
 package internal
 
 import (
-	"context"
+	systemContext "context"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/core"
+	"github.com/maniartech/orchestrator/internal/config"
+	"github.com/maniartech/orchestrator/internal/context"
+	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/pool"
+	"github.com/maniartech/orchestrator/internal/result"
 	"github.com/maniartech/orchestrator/internal/status"
 )
 
@@ -22,15 +25,15 @@ func TestInfrastructureIntegration(t *testing.T) {
 	statusManager := status.NewManager()
 
 	// Create configuration
-	config := core.DefaultConfig()
+	config := config.DefaultConfig()
 	config.MaxConcurrency = 10
 	config.Timeout = 5 * time.Second
 
 	// Create context
-	ctx := core.NewContext(config)
+	ctx := context.NewContext(config)
 
 	// Create result container
-	result := core.NewResult()
+	result := result.NewResult()
 
 	// Test integration scenario
 	const numOperations = 100
@@ -106,16 +109,16 @@ func TestInfrastructureIntegration(t *testing.T) {
 
 // TestConfigurationInheritance tests hierarchical configuration
 func TestConfigurationInheritance(t *testing.T) {
-	parent := core.Config{
-		ErrorStrategy:  core.FailFast,
+	parent := config.Config{
+		ErrorStrategy:  errors.FailFast,
 		Timeout:        10 * time.Second,
 		Retries:        3,
 		MaxConcurrency: 50,
-		Context:        context.Background(),
+		Context:        systemContext.Background(),
 	}
 
-	child := core.Config{
-		ErrorStrategy: core.CollectAll,
+	child := config.Config{
+		ErrorStrategy: errors.CollectAll,
 		Timeout:       5 * time.Second,
 		// Retries and MaxConcurrency should inherit from parent
 	}
@@ -123,7 +126,7 @@ func TestConfigurationInheritance(t *testing.T) {
 	result := child.Inherit(parent)
 
 	// Verify inheritance
-	if result.ErrorStrategy != core.CollectAll {
+	if result.ErrorStrategy != errors.CollectAll {
 		t.Error("Child should override ErrorStrategy")
 	}
 
@@ -142,11 +145,11 @@ func TestConfigurationInheritance(t *testing.T) {
 
 // TestErrorHandlingIntegration tests error handling across components
 func TestErrorHandlingIntegration(t *testing.T) {
-	result := core.NewResult()
+	result := result.NewResult()
 
 	// Add multiple errors
 	for i := 0; i < 5; i++ {
-		opErr := core.OperationError{
+		opErr := errors.OperationError{
 			Error:     fmt.Errorf("error %d", i),
 			Index:     i,
 			Duration:  time.Duration(i) * time.Millisecond,
@@ -180,8 +183,8 @@ func TestErrorHandlingIntegration(t *testing.T) {
 
 // TestContextCancellation tests context cancellation propagation
 func TestContextCancellation(t *testing.T) {
-	config := core.DefaultConfig()
-	ctx := core.NewContext(config)
+	config := config.DefaultConfig()
+	ctx := context.NewContext(config)
 
 	// Start a goroutine that waits for cancellation
 	done := make(chan bool)
@@ -274,9 +277,9 @@ func TestResourceCleanup(t *testing.T) {
 func BenchmarkIntegratedOperations(b *testing.B) {
 	poolManager := pool.NewManager()
 	statusManager := status.NewManager()
-	config := core.DefaultConfig()
-	ctx := core.NewContext(config)
-	result := core.NewResult()
+	config := config.DefaultConfig()
+	ctx := context.NewContext(config)
+	result := result.NewResult()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -307,9 +310,9 @@ func BenchmarkIntegratedOperations(b *testing.B) {
 // BenchmarkConcurrentIntegratedOperations benchmarks concurrent integrated operations
 func BenchmarkConcurrentIntegratedOperations(b *testing.B) {
 	poolManager := pool.NewManager()
-	config := core.DefaultConfig()
-	ctx := core.NewContext(config)
-	result := core.NewResult()
+	config := config.DefaultConfig()
+	ctx := context.NewContext(config)
+	result := result.NewResult()
 
 	b.ResetTimer()
 	b.ReportAllocs()

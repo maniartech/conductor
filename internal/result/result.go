@@ -1,9 +1,12 @@
-// Package core provides the fundamental types and interfaces for the
-// orchestrator library following Go best practices and KISS principles.
-package core
+// Package result provides result handling and storage for orchestration operations.
+// It includes the Result type for collecting operation outputs and errors,
+// with thread-safe operations and type-safe value retrieval.
+package result
 
 import (
 	"sync"
+
+	"github.com/maniartech/orchestrator/internal/errors"
 )
 
 // Result contains named outputs and errors from orchestration execution.
@@ -18,7 +21,7 @@ import (
 //	}
 type Result struct {
 	entries map[string]any
-	errors  []OperationError
+	errors  []errors.OperationError
 	mu      sync.RWMutex
 }
 
@@ -31,7 +34,7 @@ type Result struct {
 func NewResult() *Result {
 	return &Result{
 		entries: make(map[string]any),
-		errors:  make([]OperationError, 0),
+		errors:  make([]errors.OperationError, 0),
 	}
 }
 
@@ -97,7 +100,7 @@ func (r *Result) HasErrors() bool {
 }
 
 // Errors returns a copy of all errors
-func (r *Result) Errors() []OperationError {
+func (r *Result) Errors() []errors.OperationError {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -106,13 +109,13 @@ func (r *Result) Errors() []OperationError {
 	}
 
 	// Return a copy to prevent external modification
-	errors := make([]OperationError, len(r.errors))
+	errors := make([]errors.OperationError, len(r.errors))
 	copy(errors, r.errors)
 	return errors
 }
 
 // AddError adds an error to the result
-func (r *Result) AddError(err OperationError) {
+func (r *Result) AddError(err errors.OperationError) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.errors = append(r.errors, err)

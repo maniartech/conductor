@@ -1,6 +1,7 @@
-// Package core provides the fundamental types and interfaces for the
-// orchestrator library following Go best practices and KISS principles.
-package core
+// Package errors provides error handling types and strategies for the orchestrator library.
+// It includes ErrorStrategy for controlling error propagation and OperationError
+// for detailed error reporting with context and stack traces.
+package errors
 
 // ErrorStrategy defines how errors should be handled during orchestration.
 // It controls whether execution stops on the first error or continues to collect all errors.

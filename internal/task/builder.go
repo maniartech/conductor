@@ -1,6 +1,7 @@
-// Package core provides the fundamental types and interfaces for the
-// orchestrator library following Go best practices and KISS principles.
-package core
+// Package task provides task execution and management for the orchestrator library.
+// It includes the TaskBuilder for creating and executing individual tasks with
+// generic type support, atomic status management, and comprehensive error handling.
+package task
 
 import (
 	"context"
@@ -8,6 +9,11 @@ import (
 	"runtime"
 	"sync/atomic"
 	"time"
+
+	"github.com/maniartech/orchestrator/internal/config"
+	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/internal/orchestration"
+	"github.com/maniartech/orchestrator/internal/result"
 )
 
 // TaskBuilder provides a fluent API for creating and configuring individual tasks.
@@ -19,11 +25,11 @@ import (
 //	task := Task(func() (string, error) {
 //	    return "Hello, World!", nil
 //	}).Named("greeting-task").
-//	With(Config{Timeout: 5*time.Second})
+//	With(config.Config{Timeout: 5*time.Second})
 type TaskBuilder[T any] struct {
 	fn     func() (T, error)
 	name   string
-	config *Config
+	config *config.Config
 	status atomic.Uint32 // Atomic status management
 }
 
@@ -63,7 +69,7 @@ func Task[T any](fn func() (T, error)) *TaskBuilder[T] {
 // Example:
 //
 //	task := Task(fetchUserData).Named("fetch-user")
-func (tb *TaskBuilder[T]) Named(name string) Orchestration {
+func (tb *TaskBuilder[T]) Named(name string) orchestration.Orchestration {
 	tb.name = name
 	return tb
 }
@@ -75,8 +81,8 @@ func (tb *TaskBuilder[T]) Named(name string) Orchestration {
 // Example:
 //
 //	task := Task(longRunningOperation).
-//	    With(Config{Timeout: 60*time.Second})
-func (tb *TaskBuilder[T]) With(config Config) Orchestration {
+//	    With(config.Config{Timeout: 60*time.Second})
+func (tb *TaskBuilder[T]) With(config config.Config) orchestration.Orchestration {
 	tb.config = &config
 	return tb
 }
@@ -88,9 +94,9 @@ func (tb *TaskBuilder[T]) With(config Config) Orchestration {
 // Example:
 //
 //	task := Task(riskyOperation).ErrorBoundary(CollectAll)
-func (tb *TaskBuilder[T]) ErrorBoundary(strategy ErrorStrategy) Orchestration {
+func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) orchestration.Orchestration {
 	if tb.config == nil {
-		tb.config = &Config{ErrorStrategy: strategy}
+		tb.config = &config.Config{ErrorStrategy: strategy}
 	} else {
 		// Create a new config with the updated error strategy
 		newConfig := *tb.config
@@ -116,7 +122,7 @@ func (tb *TaskBuilder[T]) ErrorBoundary(strategy ErrorStrategy) Orchestration {
 //	if err != nil {
 //	    log.Printf("Task failed: %v", err)
 //	}
-func (tb *TaskBuilder[T]) Execute(ctx context.Context, config Config) (*Result, error) {
+func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
 	// Ensure task can only be executed once
 	if !tb.compareAndSwapStatus(TaskNotStarted, TaskRunning) {
 		return nil, fmt.Errorf("task already executed or in progress, current status: %v", tb.GetStatus())
@@ -145,7 +151,7 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config Config) (*Result, 
 	}
 
 	// Create result container
-	result := NewResult()
+	result := result.NewResult()
 
 	// Execute with comprehensive error handling
 	taskResult, taskError := tb.safeExecute(execCtx)
@@ -159,7 +165,7 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config Config) (*Result, 
 			tb.setStatus(TaskCompleted)
 		}
 
-		result.AddError(OperationError{
+		result.AddError(errors.OperationError{
 			Error:     taskError,
 			Index:     0,
 			Duration:  duration,
@@ -258,7 +264,7 @@ func (tb *TaskBuilder[T]) GetName() string {
 
 // GetConfig returns the task's configuration.
 // Returns nil if no configuration was set.
-func (tb *TaskBuilder[T]) GetConfig() *Config {
+func (tb *TaskBuilder[T]) GetConfig() *config.Config {
 	return tb.config
 }
 
