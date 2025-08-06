@@ -2,6 +2,8 @@
 
 The `github.com/maniartech/async` is a tiny go library that aims to simplify the goroutine orchestration using easy to handle Async/Await pattern. This library provides a super-easy way to orchestrate the Goroutines using easily readable declarative syntax.
 
+> This repository is not stable and may change without notice.
+
 ## Getting Started
 
 Run the following command in your project to get the `async`.
