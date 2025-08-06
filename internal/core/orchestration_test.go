@@ -1,0 +1,396 @@
+package core
+
+import (
+	"context"
+	"testing"
+	"time"
+)
+
+// Test that our interface is properly defined
+func TestOrchestrationInterface(t *testing.T) {
+	// Test that our mock implementation satisfies the interface
+	var _ Orchestration = (*mockOrchestration)(nil)
+}
+
+// mockOrchestration is a test implementation of Orchestration
+type mockOrchestration struct {
+	name          string
+	config        *Config
+	errorBoundary *ErrorStrategy
+}
+
+func (m *mockOrchestration) Named(name string) Orchestration {
+	m.name = name
+	return m
+}
+
+func (m *mockOrchestration) With(config Config) Orchestration {
+	m.config = &config
+	return m
+}
+
+func (m *mockOrchestration) ErrorBoundary(strategy ErrorStrategy) Orchestration {
+	m.errorBoundary = &strategy
+	return m
+}
+
+func (m *mockOrchestration) Execute(ctx context.Context, config Config) (*Result, error) {
+	result := NewResult()
+	result.Set("mock_result", "mock_value")
+	return result, nil
+}
+
+func TestOrchestrationFluentAPI(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	// Test fluent API chaining
+	result := mock.
+		Named("test-orchestration").
+		With(Config{Timeout: 5 * time.Second}).
+		ErrorBoundary(CollectAll)
+
+	// Verify the result is still the same instance (fluent API)
+	if result.(*mockOrchestration) != mock {
+		t.Error("Fluent API should return the same instance")
+	}
+
+	// Verify values were set
+	if mock.name != "test-orchestration" {
+		t.Errorf("Expected name 'test-orchestration', got %q", mock.name)
+	}
+
+	if mock.config == nil {
+		t.Fatal("Config should not be nil")
+	}
+
+	if mock.config.Timeout != 5*time.Second {
+		t.Errorf("Expected timeout 5s, got %v", mock.config.Timeout)
+	}
+
+	if mock.errorBoundary == nil {
+		t.Fatal("ErrorBoundary should not be nil")
+	}
+
+	if *mock.errorBoundary != CollectAll {
+		t.Errorf("Expected CollectAll, got %v", *mock.errorBoundary)
+	}
+}
+
+func TestOrchestrationNamed(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	// Test setting name
+	result := mock.Named("my-orchestration")
+
+	if result != mock {
+		t.Error("Named should return the same instance")
+	}
+
+	if mock.name != "my-orchestration" {
+		t.Errorf("Expected name 'my-orchestration', got %q", mock.name)
+	}
+
+	// Test overwriting name
+	mock.Named("updated-name")
+	if mock.name != "updated-name" {
+		t.Errorf("Expected name 'updated-name', got %q", mock.name)
+	}
+
+	// Test empty name
+	mock.Named("")
+	if mock.name != "" {
+		t.Errorf("Expected empty name, got %q", mock.name)
+	}
+}
+
+func TestOrchestrationWith(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	config := Config{
+		ErrorStrategy:  FailFast,
+		Timeout:        30 * time.Second,
+		Retries:        3,
+		MaxConcurrency: 50,
+	}
+
+	// Test setting config
+	result := mock.With(config)
+
+	if result != mock {
+		t.Error("With should return the same instance")
+	}
+
+	if mock.config == nil {
+		t.Fatal("Config should not be nil")
+	}
+
+	if mock.config.ErrorStrategy != FailFast {
+		t.Error("ErrorStrategy should be set")
+	}
+
+	if mock.config.Timeout != 30*time.Second {
+		t.Error("Timeout should be set")
+	}
+
+	if mock.config.Retries != 3 {
+		t.Error("Retries should be set")
+	}
+
+	if mock.config.MaxConcurrency != 50 {
+		t.Error("MaxConcurrency should be set")
+	}
+
+	// Test overwriting config
+	newConfig := Config{
+		ErrorStrategy: CollectAll,
+		Timeout:       60 * time.Second,
+	}
+
+	mock.With(newConfig)
+
+	if mock.config.ErrorStrategy != CollectAll {
+		t.Error("ErrorStrategy should be updated")
+	}
+
+	if mock.config.Timeout != 60*time.Second {
+		t.Error("Timeout should be updated")
+	}
+}
+
+func TestOrchestrationErrorBoundary(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	// Test setting error boundary
+	result := mock.ErrorBoundary(CollectAll)
+
+	if result != mock {
+		t.Error("ErrorBoundary should return the same instance")
+	}
+
+	if mock.errorBoundary == nil {
+		t.Fatal("ErrorBoundary should not be nil")
+	}
+
+	if *mock.errorBoundary != CollectAll {
+		t.Errorf("Expected CollectAll, got %v", *mock.errorBoundary)
+	}
+
+	// Test changing error boundary
+	mock.ErrorBoundary(FailFast)
+
+	if *mock.errorBoundary != FailFast {
+		t.Errorf("Expected FailFast, got %v", *mock.errorBoundary)
+	}
+}
+
+func TestOrchestrationExecute(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	ctx := context.Background()
+	config := DefaultConfig()
+
+	result, err := mock.Execute(ctx, config)
+
+	if err != nil {
+		t.Errorf("Execute should not return error, got: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Result should not be nil")
+	}
+
+	// Check mock result
+	value := result.Get("mock_result")
+	if value != "mock_value" {
+		t.Errorf("Expected 'mock_value', got %v", value)
+	}
+}
+
+func TestOrchestrationChainedExecution(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	// Test full chain with execution
+	ctx := context.Background()
+	config := DefaultConfig()
+
+	result, err := mock.
+		Named("chained-execution").
+		With(Config{Timeout: 10 * time.Second}).
+		ErrorBoundary(CollectAll).
+		Execute(ctx, config)
+
+	if err != nil {
+		t.Errorf("Chained execution should not return error, got: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Result should not be nil")
+	}
+
+	// Verify configuration was applied
+	if mock.name != "chained-execution" {
+		t.Error("Name should be set from chain")
+	}
+
+	if mock.config == nil || mock.config.Timeout != 10*time.Second {
+		t.Error("Config should be set from chain")
+	}
+
+	if mock.errorBoundary == nil || *mock.errorBoundary != CollectAll {
+		t.Error("ErrorBoundary should be set from chain")
+	}
+}
+
+func TestOrchestrationConfigurationPropagation(t *testing.T) {
+	mock := &mockOrchestration{}
+
+	baseConfig := Config{
+		ErrorStrategy:  FailFast,
+		Timeout:        30 * time.Second,
+		MaxConcurrency: 100,
+	}
+
+	// Apply base configuration
+	mock.With(baseConfig)
+
+	// Override specific settings
+	overrideConfig := Config{
+		Timeout: 10 * time.Second,
+		// Should inherit ErrorStrategy and MaxConcurrency
+	}
+
+	mock.With(overrideConfig)
+
+	// Verify the final configuration has the override
+	if mock.config.Timeout != 10*time.Second {
+		t.Error("Should have overridden timeout")
+	}
+
+	// Note: In a real implementation, the With method would need to handle inheritance
+	// This test demonstrates the expected behavior pattern
+}
+
+func TestOrchestrationInterfaceCompliance(t *testing.T) {
+	// Test that all methods return Orchestration interface
+	mock := &mockOrchestration{}
+
+	var orch Orchestration
+
+	// Named should return Orchestration
+	orch = mock.Named("test")
+	if orch == nil {
+		t.Error("Named should return Orchestration interface")
+	}
+
+	// With should return Orchestration
+	orch = mock.With(DefaultConfig())
+	if orch == nil {
+		t.Error("With should return Orchestration interface")
+	}
+
+	// ErrorBoundary should return Orchestration
+	orch = mock.ErrorBoundary(FailFast)
+	if orch == nil {
+		t.Error("ErrorBoundary should return Orchestration interface")
+	}
+
+	// Execute should work with interface
+	ctx := context.Background()
+	config := DefaultConfig()
+	result, err := orch.Execute(ctx, config)
+
+	if err != nil {
+		t.Errorf("Execute should work with interface, got error: %v", err)
+	}
+
+	if result == nil {
+		t.Error("Execute should return result")
+	}
+}
+
+func TestOrchestrationMethodOrder(t *testing.T) {
+	// Test that methods can be called in any order
+	mock1 := &mockOrchestration{}
+	mock2 := &mockOrchestration{}
+	mock3 := &mockOrchestration{}
+
+	// Different orders should all work
+	mock1.Named("test1").With(DefaultConfig()).ErrorBoundary(FailFast)
+	mock2.With(DefaultConfig()).ErrorBoundary(CollectAll).Named("test2")
+	mock3.ErrorBoundary(FailFast).Named("test3").With(DefaultConfig())
+
+	// All should have their values set correctly
+	if mock1.name != "test1" {
+		t.Error("mock1 name should be set")
+	}
+
+	if mock2.name != "test2" {
+		t.Error("mock2 name should be set")
+	}
+
+	if mock3.name != "test3" {
+		t.Error("mock3 name should be set")
+	}
+
+	// All should have configs
+	if mock1.config == nil || mock2.config == nil || mock3.config == nil {
+		t.Error("All mocks should have configs")
+	}
+
+	// All should have error boundaries
+	if mock1.errorBoundary == nil || mock2.errorBoundary == nil || mock3.errorBoundary == nil {
+		t.Error("All mocks should have error boundaries")
+	}
+}
+
+// Example tests for documentation
+func ExampleOrchestration() {
+	mock := &mockOrchestration{}
+
+	// Fluent API usage
+	orchestration := mock.Named("user-processing").
+		With(Config{Timeout: 30 * time.Second}).
+		ErrorBoundary(CollectAll)
+
+	ctx := context.Background()
+	config := DefaultConfig()
+
+	result, err := orchestration.Execute(ctx, config)
+	if err != nil {
+		// Handle error
+		return
+	}
+
+	// Use result
+	_ = result.Get("mock_result")
+}
+
+// Benchmark tests
+func BenchmarkOrchestrationFluentAPI(b *testing.B) {
+	config := Config{
+		ErrorStrategy:  CollectAll,
+		Timeout:        30 * time.Second,
+		MaxConcurrency: 100,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mock := &mockOrchestration{}
+		mock.Named("benchmark-test").
+			With(config).
+			ErrorBoundary(FailFast)
+	}
+}
+
+func BenchmarkOrchestrationExecution(b *testing.B) {
+	mock := &mockOrchestration{}
+	mock.Named("benchmark-execution")
+
+	ctx := context.Background()
+	config := DefaultConfig()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mock.Execute(ctx, config)
+	}
+}
