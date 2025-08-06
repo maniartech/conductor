@@ -21,38 +21,11 @@ type Manager struct {
 	slicePuts        atomic.Int64
 }
 
-// OrchestratorItem represents a pooled orchestrator component
-type OrchestratorItem struct {
-	WG     sync.WaitGroup
-	Status atomic.Uint32
-	Result interface{}
-	Error  error
-}
-
-// SliceItem represents a pooled slice for results
-type SliceItem struct {
-	Data []interface{}
-	Cap  int
-}
-
-// ContextItem represents a pooled context component
-type ContextItem struct {
-	Values map[string]interface{}
-	Done   chan struct{}
-}
-
-// ResultItem represents a pooled result container
-type ResultItem struct {
-	Entries map[string]interface{}
-	Errors  []error
-	Mutex   sync.RWMutex
-}
-
 // NewManager creates a new pool manager with proper initialization
 func NewManager() *Manager {
 	m := &Manager{
 		orchestratorPool: &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &OrchestratorItem{
 					WG:     sync.WaitGroup{},
 					Status: atomic.Uint32{},
@@ -60,25 +33,25 @@ func NewManager() *Manager {
 			},
 		},
 		slicePool: &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &SliceItem{
-					Data: make([]interface{}, 0, 16),
+					Data: make([]any, 0, 16),
 					Cap:  16,
 				}
 			},
 		},
 		contextPool: &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &ContextItem{
-					Values: make(map[string]interface{}, 8),
+					Values: make(map[string]any, 8),
 					Done:   make(chan struct{}),
 				}
 			},
 		},
 		resultPool: &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &ResultItem{
-					Entries: make(map[string]interface{}, 8),
+					Entries: make(map[string]any, 8),
 					Errors:  make([]error, 0, 4),
 					Mutex:   sync.RWMutex{},
 				}
@@ -115,7 +88,7 @@ func (m *Manager) GetSlice(minCap int) *SliceItem {
 
 	// Ensure capacity is sufficient
 	if cap(item.Data) < minCap {
-		item.Data = make([]interface{}, 0, minCap)
+		item.Data = make([]any, 0, minCap)
 		item.Cap = minCap
 	} else {
 		// Reset slice to zero length but keep capacity
@@ -190,14 +163,6 @@ func (m *Manager) Stats() PoolStats {
 		SliceGets:        m.sliceGets.Load(),
 		SlicePuts:        m.slicePuts.Load(),
 	}
-}
-
-// PoolStats contains pool usage metrics
-type PoolStats struct {
-	OrchestratorGets int64
-	OrchestratorPuts int64
-	SliceGets        int64
-	SlicePuts        int64
 }
 
 // Reset clears all pool statistics

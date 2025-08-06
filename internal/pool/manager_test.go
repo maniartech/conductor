@@ -322,6 +322,20 @@ func TestSliceCapacityLimit(t *testing.T) {
 	}
 }
 
+func TestDefaultManager(t *testing.T) {
+	if DefaultManager == nil {
+		t.Fatal("DefaultManager is nil")
+	}
+
+	// Test that default manager works
+	item := DefaultManager.GetOrchestrator()
+	if item == nil {
+		t.Error("DefaultManager.GetOrchestrator() returned nil")
+	}
+
+	DefaultManager.PutOrchestrator(item)
+}
+
 // Benchmark tests
 func BenchmarkOrchestratorPoolGet(b *testing.B) {
 	manager := NewManager()
@@ -360,18 +374,4 @@ type testError struct{}
 
 func (e *testError) Error() string {
 	return "test error"
-}
-
-func TestDefaultManager(t *testing.T) {
-	if DefaultManager == nil {
-		t.Fatal("DefaultManager is nil")
-	}
-
-	// Test that default manager works
-	item := DefaultManager.GetOrchestrator()
-	if item == nil {
-		t.Error("DefaultManager.GetOrchestrator() returned nil")
-	}
-
-	DefaultManager.PutOrchestrator(item)
 }
