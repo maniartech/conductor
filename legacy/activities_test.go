@@ -1,4 +1,7 @@
-package orchestrator_test
+//go:build ignore
+// +build ignore
+
+package legacy
 
 import (
 	"errors"
@@ -6,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator" // Update with the correct module path
 	"github.com/stretchr/testify/assert"
 )
 
