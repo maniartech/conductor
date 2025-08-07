@@ -2,6 +2,7 @@ package pool
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -72,7 +73,7 @@ func TestPoolStatsConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < operationsPerGoroutine; j++ {
-				stats.OrchestratorGets++
+				atomic.AddInt64(&stats.OrchestratorGets, 1)
 			}
 		}()
 
@@ -80,7 +81,7 @@ func TestPoolStatsConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < operationsPerGoroutine; j++ {
-				stats.OrchestratorPuts++
+				atomic.AddInt64(&stats.OrchestratorPuts, 1)
 			}
 		}()
 
@@ -88,7 +89,7 @@ func TestPoolStatsConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < operationsPerGoroutine; j++ {
-				stats.SliceGets++
+				atomic.AddInt64(&stats.SliceGets, 1)
 			}
 		}()
 
@@ -96,28 +97,27 @@ func TestPoolStatsConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < operationsPerGoroutine; j++ {
-				stats.SlicePuts++
+				atomic.AddInt64(&stats.SlicePuts, 1)
 			}
 		}()
 	}
 
 	wg.Wait()
 
-	// Due to race conditions, we can't guarantee exact counts
-	// Just verify that some increments happened
-	if stats.OrchestratorGets == 0 {
+	// Verify that increments happened using atomic reads
+	if atomic.LoadInt64(&stats.OrchestratorGets) == 0 {
 		t.Error("OrchestratorGets should be greater than 0")
 	}
 
-	if stats.OrchestratorPuts == 0 {
+	if atomic.LoadInt64(&stats.OrchestratorPuts) == 0 {
 		t.Error("OrchestratorPuts should be greater than 0")
 	}
 
-	if stats.SliceGets == 0 {
+	if atomic.LoadInt64(&stats.SliceGets) == 0 {
 		t.Error("SliceGets should be greater than 0")
 	}
 
-	if stats.SlicePuts == 0 {
+	if atomic.LoadInt64(&stats.SlicePuts) == 0 {
 		t.Error("SlicePuts should be greater than 0")
 	}
 }
