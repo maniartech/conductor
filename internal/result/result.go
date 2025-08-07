@@ -5,6 +5,7 @@ package result
 
 import (
 	"sync"
+	"unsafe"
 
 	"github.com/maniartech/orchestrator/internal/errors"
 )
@@ -119,4 +120,46 @@ func (r *Result) AddError(err errors.OperationError) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.errors = append(r.errors, err)
+}
+
+// Merge combines another result into this result.
+// Copies all entries and errors from the other result.
+// Thread-safe operation that can be called concurrently.
+//
+// Example:
+//
+//	result1 := NewResult()
+//	result1.Set("task1", "completed")
+//
+//	result2 := NewResult()
+//	result2.Set("task2", "completed")
+//
+//	result1.Merge(result2)
+//	// result1 now contains both task1 and task2
+func (r *Result) Merge(other *Result) {
+	if other == nil {
+		return
+	}
+
+	// Lock both results in consistent order to prevent deadlock
+	// Always lock the result with lower memory address first
+	if uintptr(unsafe.Pointer(r)) < uintptr(unsafe.Pointer(other)) {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		other.mu.RLock()
+		defer other.mu.RUnlock()
+	} else {
+		other.mu.RLock()
+		defer other.mu.RUnlock()
+		r.mu.Lock()
+		defer r.mu.Unlock()
+	}
+
+	// Copy entries
+	for key, value := range other.entries {
+		r.entries[key] = value
+	}
+
+	// Copy errors
+	r.errors = append(r.errors, other.errors...)
 }
