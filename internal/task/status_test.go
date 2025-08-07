@@ -2,24 +2,26 @@ package task
 
 import (
 	"testing"
+
+	"github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 func TestTaskStatus(t *testing.T) {
-	// Test TaskStatus string representation
+	// Test Status string representation
 	tests := []struct {
-		status   TaskStatus
+		status   orchestration.Status
 		expected string
 	}{
-		{TaskNotStarted, "NotStarted"},
-		{TaskRunning, "Running"},
-		{TaskCompleted, "Completed"},
-		{TaskCancelled, "Cancelled"},
-		{TaskStatus(999), "Unknown"},
+		{orchestration.NotStarted, "NotStarted"},
+		{orchestration.Running, "Running"},
+		{orchestration.Completed, "Completed"},
+		{orchestration.Cancelled, "Cancelled"},
+		{orchestration.Status(999), "Unknown"},
 	}
 
 	for _, test := range tests {
 		if got := test.status.String(); got != test.expected {
-			t.Errorf("TaskStatus(%d).String() = %q, want %q", test.status, got, test.expected)
+			t.Errorf("Status(%d).String() = %q, want %q", test.status, got, test.expected)
 		}
 	}
 }
