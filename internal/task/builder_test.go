@@ -4,11 +4,13 @@ import (
 	"context"
 	systemErrors "errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 func TestTask(t *testing.T) {
@@ -303,27 +305,27 @@ func TestTaskBuilderAtomicStatusManagement(t *testing.T) {
 	})
 
 	// Initial status should be NotStarted
-	if status := task.GetStatus(); status != TaskNotStarted {
+	if status := task.GetStatus(); status != orchestration.NotStarted {
 		t.Errorf("Initial status should be NotStarted, got %v", status)
 	}
 
 	// Test compareAndSwapStatus
-	if !task.compareAndSwapStatus(TaskNotStarted, TaskRunning) {
+	if !task.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
 		t.Error("compareAndSwapStatus should succeed for valid transition")
 	}
 
-	if status := task.GetStatus(); status != TaskRunning {
+	if status := task.GetStatus(); status != orchestration.Running {
 		t.Errorf("Status should be Running after swap, got %v", status)
 	}
 
 	// Test that same swap fails now
-	if task.compareAndSwapStatus(TaskNotStarted, TaskRunning) {
+	if task.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
 		t.Error("compareAndSwapStatus should fail for invalid transition")
 	}
 
 	// Test setStatus
-	task.setStatus(TaskCompleted)
-	if status := task.GetStatus(); status != TaskCompleted {
+	task.setStatus(orchestration.Completed)
+	if status := task.GetStatus(); status != orchestration.Completed {
 		t.Errorf("Status should be Completed after setStatus, got %v", status)
 	}
 }
@@ -509,7 +511,7 @@ func TestTaskBuilderExecuteWithCancellation(t *testing.T) {
 	}
 }
 
-// Benchmark tests for TaskBuilder
+// Benchmark tests for TaskBuilder creation and fluent API performance
 func BenchmarkTaskCreation(b *testing.B) {
 	fn := func() (string, error) {
 		return "test", nil
@@ -596,7 +598,7 @@ func ExampleTaskBuilder_Named() {
 	// Answer: 42
 }
 
-// Helper function for string contains check (same as in task_builder_test.go)
+// Helper function for string contains check
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > len(substr) && containsHelper(s, substr)))
@@ -609,4 +611,514 @@ func containsHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// Race condition tests for concurrent status access during task execution
+func TestTaskBuilderConcurrentStatusAccess(t *testing.T) {
+	task := Task(func() (string, error) {
+		time.Sleep(10 * time.Millisecond)
+		return "test", nil
+	})
+
+	const numGoroutines = 100
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	// Multiple goroutines trying to read status concurrently
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			status := task.GetStatus()
+			// Status should be one of the valid values
+			if status != orchestration.NotStarted && status != orchestration.Running && status != orchestration.Completed && status != orchestration.Cancelled {
+				t.Errorf("Invalid status: %v", status)
+			}
+		}()
+	}
+
+	// Start execution in background
+	go func() {
+		ctx := context.Background()
+		config := config.DefaultConfig()
+		task.Execute(ctx, config)
+	}()
+
+	wg.Wait()
+}
+
+func TestTaskBuilderPanicRecoveryWithStackTrace(t *testing.T) {
+	task := Task(func() (string, error) {
+		panic("test panic for stack trace")
+	})
+	task.Named("panic-task")
+
+	ctx := context.Background()
+	cfg := config.DefaultConfig()
+
+	result, err := task.Execute(ctx, cfg)
+
+	// Should recover from panic
+	if err == nil {
+		t.Error("Expected error from panic recovery")
+	}
+
+	// Should contain panic message
+	if !contains(err.Error(), "test panic for stack trace") {
+		t.Errorf("Error should contain panic message, got: %v", err)
+	}
+
+	// Should contain stack trace
+	if !contains(err.Error(), "Stack trace:") {
+		t.Errorf("Error should contain stack trace, got: %v", err)
+	}
+
+	// Result should have errors
+	if result == nil {
+		t.Fatal("Result should not be nil even on panic")
+	}
+
+	if !result.HasErrors() {
+		t.Error("Result should have errors on panic")
+	}
+
+	// Check OperationError has stack trace
+	errors := result.Errors()
+	if len(errors) != 1 {
+		t.Fatalf("Expected 1 error, got %d", len(errors))
+	}
+
+	if len(errors[0].Stack) == 0 {
+		t.Error("OperationError should have stack trace")
+	}
+
+	// Task status should be Completed (even with panic)
+	if status := task.GetStatus(); status != orchestration.Completed {
+		t.Errorf("Task status should be Completed after panic, got %v", status)
+	}
+}
+
+func TestTaskBuilderTimeoutHandling(t *testing.T) {
+	task := Task(func() (string, error) {
+		time.Sleep(100 * time.Millisecond)
+		return "completed", nil
+	})
+	task.Named("timeout-task")
+
+	ctx := context.Background()
+	cfg := config.Config{
+		Timeout: 50 * time.Millisecond, // Shorter than task duration
+	}
+
+	start := time.Now()
+	result, err := task.Execute(ctx, cfg)
+	duration := time.Since(start)
+
+	// Should timeout
+	if err == nil {
+		t.Error("Expected timeout error")
+	}
+
+	if !systemErrors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Expected context.DeadlineExceeded, got %v", err)
+	}
+
+	// Should timeout quickly (within reasonable bounds)
+	if duration > 80*time.Millisecond {
+		t.Errorf("Timeout took too long: %v", duration)
+	}
+
+	// Task status should be Cancelled
+	if status := task.GetStatus(); status != orchestration.Cancelled {
+		t.Errorf("Task status should be Cancelled after timeout, got %v", status)
+	}
+
+	// Result should have errors with timing information
+	if result == nil {
+		t.Fatal("Result should not be nil even on timeout")
+	}
+
+	errors := result.Errors()
+	if len(errors) != 1 {
+		t.Fatalf("Expected 1 error, got %d", len(errors))
+	}
+
+	if errors[0].Duration <= 0 {
+		t.Error("OperationError should have positive duration")
+	}
+}
+
+func TestTaskBuilderCancellationHandling(t *testing.T) {
+	task := Task(func() (string, error) {
+		return "completed", nil
+	})
+	task.Named("cancel-task")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	cfg := config.DefaultConfig()
+
+	result, err := task.Execute(ctx, cfg)
+
+	// Should be cancelled
+	if err == nil {
+		t.Error("Expected cancellation error")
+	}
+
+	if !systemErrors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled, got %v", err)
+	}
+
+	// Task status should be Cancelled
+	if status := task.GetStatus(); status != orchestration.Cancelled {
+		t.Errorf("Task status should be Cancelled, got %v", status)
+	}
+
+	// Result should have errors
+	if result == nil {
+		t.Fatal("Result should not be nil even on cancellation")
+	}
+
+	if !result.HasErrors() {
+		t.Error("Result should have errors on cancellation")
+	}
+}
+
+func TestTaskBuilderSafeExecute(t *testing.T) {
+	tests := []struct {
+		name        string
+		taskFunc    func() (string, error)
+		expectError bool
+		expectPanic bool
+	}{
+		{
+			name: "successful execution",
+			taskFunc: func() (string, error) {
+				return "success", nil
+			},
+			expectError: false,
+			expectPanic: false,
+		},
+		{
+			name: "execution with error",
+			taskFunc: func() (string, error) {
+				return "", systemErrors.New("task error")
+			},
+			expectError: true,
+			expectPanic: false,
+		},
+		{
+			name: "execution with panic",
+			taskFunc: func() (string, error) {
+				panic("task panic")
+			},
+			expectError: true,
+			expectPanic: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			task := Task(test.taskFunc)
+			ctx := context.Background()
+
+			result, err := task.safeExecute(ctx)
+
+			if test.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				if test.expectPanic && !contains(err.Error(), "panic recovered") {
+					t.Error("Expected panic recovery message")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+				if result != "success" {
+					t.Errorf("Expected 'success', got %v", result)
+				}
+			}
+		})
+	}
+}
+
+func TestTaskBuilderCaptureStack(t *testing.T) {
+	task := Task(func() (string, error) {
+		return "test", nil
+	})
+
+	stack := task.captureStack()
+
+	if len(stack) == 0 {
+		t.Error("Stack trace should not be empty")
+	}
+
+	// Stack trace should contain function names
+	stackStr := string(stack)
+	if !contains(stackStr, "TestTaskBuilderCaptureStack") {
+		t.Error("Stack trace should contain test function name")
+	}
+}
+
+func TestTaskBuilderErrorMetadata(t *testing.T) {
+	task := Task(func() (string, error) {
+		time.Sleep(1 * time.Millisecond) // Ensure some duration
+		return "", systemErrors.New("test error")
+	})
+	task.Named("metadata-task")
+
+	ctx := context.Background()
+	cfg := config.DefaultConfig()
+
+	start := time.Now()
+	result, err := task.Execute(ctx, cfg)
+	end := time.Now()
+
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+
+	if result == nil {
+		t.Fatal("Result should not be nil")
+	}
+
+	errors := result.Errors()
+	if len(errors) != 1 {
+		t.Fatalf("Expected 1 error, got %d", len(errors))
+	}
+
+	opErr := errors[0]
+
+	// Check error metadata
+	if opErr.Error.Error() != "test error" {
+		t.Errorf("Expected 'test error', got %q", opErr.Error.Error())
+	}
+
+	if opErr.Index != 0 {
+		t.Errorf("Expected Index 0, got %d", opErr.Index)
+	}
+
+	if opErr.Duration <= 0 {
+		t.Error("Duration should be positive")
+	}
+
+	if opErr.Timestamp.Before(start) || opErr.Timestamp.After(end) {
+		t.Error("Timestamp should be within execution window")
+	}
+
+	if opErr.OpID != "task-metadata-task" {
+		t.Errorf("Expected OpID 'task-metadata-task', got %q", opErr.OpID)
+	}
+
+	if len(opErr.Stack) == 0 {
+		t.Error("Stack should not be empty")
+	}
+}
+
+// Stress tests for concurrent execution
+func TestTaskBuilderStressConcurrentExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	const numTasks = 1000
+	const concurrency = 100
+
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, concurrency)
+
+	for i := 0; i < numTasks; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			semaphore <- struct{}{}        // Acquire
+			defer func() { <-semaphore }() // Release
+
+			task := Task(func() (int, error) {
+				// Simulate some work
+				time.Sleep(time.Microsecond * time.Duration(id%10))
+				return id, nil
+			})
+			task.Named(fmt.Sprintf("stress-task-%d", id))
+
+			ctx := context.Background()
+			cfg := config.DefaultConfig()
+
+			result, err := task.Execute(ctx, cfg)
+
+			if err != nil {
+				t.Errorf("Task %d failed: %v", id, err)
+				return
+			}
+
+			if result == nil {
+				t.Errorf("Task %d returned nil result", id)
+				return
+			}
+
+			if value, ok := result.Get(fmt.Sprintf("stress-task-%d", id)).(int); !ok || value != id {
+				t.Errorf("Task %d returned wrong value: expected %d, got %v", id, id, value)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+func TestTaskBuilderStressErrorHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	const numTasks = 500
+	var wg sync.WaitGroup
+
+	for i := 0; i < numTasks; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+
+			var task *TaskBuilder[string]
+			if id%3 == 0 {
+				// Panic task
+				task = Task(func() (string, error) {
+					panic(fmt.Sprintf("panic-%d", id))
+				})
+			} else if id%3 == 1 {
+				// Error task
+				task = Task(func() (string, error) {
+					return "", fmt.Errorf("error-%d", id)
+				})
+			} else {
+				// Success task
+				task = Task(func() (string, error) {
+					return fmt.Sprintf("success-%d", id), nil
+				})
+			}
+
+			task.Named(fmt.Sprintf("stress-error-task-%d", id))
+
+			ctx := context.Background()
+			cfg := config.DefaultConfig()
+
+			result, err := task.Execute(ctx, cfg)
+
+			// All tasks should return a result (even failed ones)
+			if result == nil {
+				t.Errorf("Task %d returned nil result", id)
+				return
+			}
+
+			// Check expected behavior based on task type
+			if id%3 == 2 { // Success task
+				if err != nil {
+					t.Errorf("Success task %d should not have error: %v", id, err)
+				}
+				if result.HasErrors() {
+					t.Errorf("Success task %d should not have errors in result", id)
+				}
+			} else { // Error or panic task
+				if err == nil {
+					t.Errorf("Error/panic task %d should have error", id)
+				}
+				if !result.HasErrors() {
+					t.Errorf("Error/panic task %d should have errors in result", id)
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+// Benchmark tests for execution engine performance
+func BenchmarkTaskBuilderSafeExecute(b *testing.B) {
+	task := Task(func() (string, error) {
+		return "benchmark", nil
+	})
+
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		task.safeExecute(ctx)
+	}
+}
+
+func BenchmarkTaskBuilderStatusOperations(b *testing.B) {
+	task := Task(func() (string, error) {
+		return "test", nil
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		task.GetStatus()
+		task.setStatus(orchestration.Running)
+		task.compareAndSwapStatus(orchestration.Running, orchestration.Completed)
+	}
+}
+
+func BenchmarkTaskBuilderStackCapture(b *testing.B) {
+	task := Task(func() (string, error) {
+		return "test", nil
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		task.captureStack()
+	}
+}
+
+func BenchmarkTaskBuilderConcurrentExecution(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			task := Task(func() (string, error) {
+				return "benchmark", nil
+			})
+
+			ctx := context.Background()
+			cfg := config.DefaultConfig()
+
+			task.Execute(ctx, cfg)
+		}
+	})
+}
+
+// Example tests for execution engine documentation
+func ExampleTaskBuilder_GetStatus() {
+	task := Task(func() (string, error) {
+		return "Hello, World!", nil
+	})
+
+	fmt.Printf("Initial status: %v\n", task.GetStatus())
+
+	ctx := context.Background()
+	cfg := config.DefaultConfig()
+	task.Execute(ctx, cfg)
+
+	fmt.Printf("Final status: %v\n", task.GetStatus())
+
+	// Output:
+	// Initial status: NotStarted
+	// Final status: Completed
+}
+
+func ExampleTaskBuilder_safeExecute() {
+	task := Task(func() (string, error) {
+		return "Safe execution", nil
+	})
+
+	ctx := context.Background()
+	result, err := task.safeExecute(ctx)
+
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Result: %v\n", result)
+
+	// Output:
+	// Result: Safe execution
 }

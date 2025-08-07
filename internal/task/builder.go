@@ -1,6 +1,54 @@
 // Package task provides task execution and management for the orchestrator library.
 // It includes the TaskBuilder for creating and executing individual tasks with
 // generic type support, atomic status management, and comprehensive error handling.
+//
+// # Task Execution Lifecycle
+//
+// Tasks follow a well-defined execution lifecycle with atomic status management:
+//
+//  1. NotStarted - Initial state when task is created
+//  2. Running - Task is currently executing
+//  3. Completed - Task finished (successfully or with error)
+//  4. Cancelled - Task was cancelled or timed out
+//
+// # Error Handling
+//
+// The task execution engine provides comprehensive error handling:
+//
+//   - Panic Recovery: All panics are caught and converted to errors with stack traces
+//   - Timeout Handling: Tasks respect context timeouts with graceful termination
+//   - Cancellation Support: Tasks can be cancelled via context cancellation
+//   - Error Metadata: Rich error information including timing, operation IDs, and stack traces
+//
+// # Thread Safety
+//
+// All task operations are thread-safe using atomic operations for status management.
+// Tasks can be safely accessed from multiple goroutines concurrently.
+//
+// # Generic Type Support
+//
+// Tasks support generic types for type-safe execution:
+//
+//	stringTask := Task(func() (string, error) { return "hello", nil })
+//	intTask := Task(func() (int, error) { return 42, nil })
+//	userTask := Task(func() (User, error) { return User{ID: 1}, nil })
+//
+// # Configuration Inheritance
+//
+// Tasks support hierarchical configuration with local overrides:
+//
+//	task := Task(myFunc).
+//	    Named("my-task").
+//	    With(config.Config{Timeout: 30*time.Second}).
+//	    ErrorBoundary(errors.CollectAll)
+//
+// # Performance Characteristics
+//
+// The task execution engine is designed for high performance:
+//   - Zero-allocation status operations using atomic primitives
+//   - Minimal memory overhead with object pooling support
+//   - Efficient goroutine lifecycle management
+//   - Lock-free status management
 package task
 
 import (
@@ -124,7 +172,7 @@ func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) orchestra
 //	}
 func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
 	// Ensure task can only be executed once
-	if !tb.compareAndSwapStatus(TaskNotStarted, TaskRunning) {
+	if !tb.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
 		return nil, fmt.Errorf("task already executed or in progress, current status: %v", tb.GetStatus())
 	}
 
@@ -160,9 +208,9 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 	// Update status based on outcome
 	if taskError != nil {
 		if execCtx.Err() != nil {
-			tb.setStatus(TaskCancelled)
+			tb.setStatus(orchestration.Cancelled)
 		} else {
-			tb.setStatus(TaskCompleted)
+			tb.setStatus(orchestration.Completed)
 		}
 
 		result.AddError(errors.OperationError{
@@ -177,7 +225,7 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 	}
 
 	// Task completed successfully
-	tb.setStatus(TaskCompleted)
+	tb.setStatus(orchestration.Completed)
 
 	// Store result with task name or default name
 	resultName := tb.name
@@ -190,6 +238,37 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 
 // safeExecute runs the task function with comprehensive panic recovery and cancellation support.
 // This method implements the core execution logic with proper error handling and resource cleanup.
+//
+// # Execution Process
+//
+// The safeExecute method follows these steps:
+//  1. Creates a completion channel for goroutine coordination
+//  2. Launches the task function in a separate goroutine with panic recovery
+//  3. Monitors for context cancellation or timeout
+//  4. Returns results or errors with proper cleanup
+//
+// # Panic Recovery
+//
+// All panics are caught and converted to errors with full stack traces:
+//   - Captures 4KB stack trace for debugging
+//   - Preserves original panic message
+//   - Returns zero value for the generic type T
+//   - Ensures no goroutine leaks on panic
+//
+// # Cancellation Handling
+//
+// Context cancellation is handled at multiple points:
+//   - Before task execution begins
+//   - During task execution via select statement
+//   - Proper cleanup of goroutines and resources
+//
+// # Resource Management
+//
+// The method ensures proper resource cleanup:
+//   - Goroutines are properly terminated
+//   - Channels are closed to prevent leaks
+//   - Context cancellation is respected
+//   - Memory allocations are minimized
 func (tb *TaskBuilder[T]) safeExecute(ctx context.Context) (T, error) {
 	// Channel for task completion
 	done := make(chan struct{})
@@ -270,19 +349,19 @@ func (tb *TaskBuilder[T]) GetConfig() *config.Config {
 
 // GetStatus returns the current task status using atomic operations.
 // This method is thread-safe and can be called concurrently.
-func (tb *TaskBuilder[T]) GetStatus() TaskStatus {
-	return TaskStatus(tb.status.Load())
+func (tb *TaskBuilder[T]) GetStatus() orchestration.Status {
+	return orchestration.Status(tb.status.Load())
 }
 
 // setStatus atomically sets the task status.
 // This is an internal method used during task execution.
-func (tb *TaskBuilder[T]) setStatus(status TaskStatus) {
+func (tb *TaskBuilder[T]) setStatus(status orchestration.Status) {
 	tb.status.Store(uint32(status))
 }
 
 // compareAndSwapStatus atomically compares and swaps the task status.
 // Returns true if the swap was successful, false otherwise.
 // This ensures thread-safe status transitions.
-func (tb *TaskBuilder[T]) compareAndSwapStatus(old, new TaskStatus) bool {
+func (tb *TaskBuilder[T]) compareAndSwapStatus(old, new orchestration.Status) bool {
 	return tb.status.CompareAndSwap(uint32(old), uint32(new))
 }
