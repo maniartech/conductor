@@ -21,6 +21,7 @@ type mockOrchestration struct {
 	name          string
 	config        *config.Config
 	errorBoundary *errors.ErrorStrategy
+	status        Status
 }
 
 func (m *mockOrchestration) Named(name string) Orchestration {
@@ -39,9 +40,23 @@ func (m *mockOrchestration) ErrorBoundary(strategy errors.ErrorStrategy) Orchest
 }
 
 func (m *mockOrchestration) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
+	m.status = Running
 	result := result.NewResult()
 	result.Set("mock_result", "mock_value")
+	m.status = Completed
 	return result, nil
+}
+
+func (m *mockOrchestration) GetName() string {
+	return m.name
+}
+
+func (m *mockOrchestration) GetConfig() *config.Config {
+	return m.config
+}
+
+func (m *mockOrchestration) GetStatus() Status {
+	return m.status
 }
 
 func TestOrchestrationFluentAPI(t *testing.T) {

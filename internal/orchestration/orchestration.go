@@ -36,6 +36,18 @@ type Orchestration interface {
 
 	// Execute runs the orchestration and returns the result
 	Execute(ctx context.Context, config config.Config) (*result.Result, error)
+
+	// GetName returns the orchestration name for debugging and observability.
+	// Returns empty string if no name was set.
+	GetName() string
+
+	// GetConfig returns the orchestration's configuration.
+	// Returns nil if no configuration was set.
+	GetConfig() *config.Config
+
+	// GetStatus returns the current orchestration status using atomic operations.
+	// This method is thread-safe and can be called concurrently.
+	GetStatus() Status
 }
 
 // Executor defines the interface for executing orchestrations
