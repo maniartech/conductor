@@ -74,6 +74,7 @@ import (
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/internal/result"
+	"github.com/maniartech/orchestrator/types"
 )
 
 // SequentialBuilder provides a fluent API for creating and configuring sequential orchestrations.
@@ -89,14 +90,14 @@ import (
 //	).Named("data-pipeline").
 //	With(config.Config{Timeout: 30*time.Second})
 type SequentialBuilder struct {
-	orchestrations []orchestration.Orchestration
+	orchestrations []types.Orchestration
 	name           string
 	config         *config.Config
 	errorBoundary  *errors.ErrorStrategy
-	status         atomic.Uint32                    // Atomic status management
-	namer          *orchestration.HierarchicalNamer // Hierarchical naming system
-	parentContext  *orchestration.NamingContext     // Parent naming context for nested orchestrations
-	pathResolver   *orchestration.PathResolverBase  // Path-based orchestration resolution
+	status         atomic.Uint32                   // Atomic status management
+	namer          *types.HierarchicalNamer        // Hierarchical naming system
+	parentContext  *types.NamingContext            // Parent naming context for nested orchestrations
+	pathResolver   *orchestration.PathResolverBase // Path-based orchestration resolution
 }
 
 // Sequential creates a new SequentialBuilder with the provided orchestrations.
@@ -128,7 +129,7 @@ type SequentialBuilder struct {
 //	    Concurrent(validateData, enrichData),
 //	    Task(saveUserData),
 //	)
-func Sequential(orchestrations ...orchestration.Orchestration) *SequentialBuilder {
+func Sequential(orchestrations ...types.Orchestration) *SequentialBuilder {
 	if len(orchestrations) == 0 {
 		panic("sequential orchestration requires at least one orchestration")
 	}
@@ -152,8 +153,8 @@ func Sequential(orchestrations ...orchestration.Orchestration) *SequentialBuilde
 	sb.pathResolver = orchestration.NewPathResolverBase()
 	sb.pathResolver.SetCallbacks(
 		func() string { return sb.GetCurrentPath() },
-		func() []orchestration.Orchestration { return sb.GetChildren() },
-		func(child orchestration.Orchestration, index int) string { return sb.getChildName(child, index) },
+		func() []types.Orchestration { return sb.GetChildren() },
+		func(child types.Orchestration, index int) string { return sb.getChildName(child, index) },
 	)
 
 	return sb
@@ -163,14 +164,14 @@ func Sequential(orchestrations ...orchestration.Orchestration) *SequentialBuilde
 // This method sets up the naming context and hierarchical namer.
 func (sb *SequentialBuilder) initializeNaming() {
 	// Initialize with default naming (will be updated if Named() is called)
-	sb.namer = orchestration.NewHierarchicalNamer(sb.parentContext, sb.name, "sequential", 0)
+	sb.namer = types.NewHierarchicalNamer(sb.parentContext, sb.name, "sequential", 0)
 }
 
 // SetParentContext sets the parent naming context for nested orchestrations.
 // This method is used internally when this sequential is used as a child orchestration.
-func (sb *SequentialBuilder) SetParentContext(parentContext *orchestration.NamingContext, index int) {
+func (sb *SequentialBuilder) SetParentContext(parentContext *types.NamingContext, index int) {
 	sb.parentContext = parentContext
-	sb.namer = orchestration.NewHierarchicalNamer(parentContext, sb.name, "sequential", index)
+	sb.namer = types.NewHierarchicalNamer(parentContext, sb.name, "sequential", index)
 }
 
 // Named sets a name for the sequential orchestration for observability and debugging.
@@ -180,7 +181,7 @@ func (sb *SequentialBuilder) SetParentContext(parentContext *orchestration.Namin
 // Example:
 //
 //	seq := Sequential(tasks...).Named("user-processing-pipeline")
-func (sb *SequentialBuilder) Named(name string) orchestration.Orchestration {
+func (sb *SequentialBuilder) Named(name string) types.Orchestration {
 	sb.name = name
 	// Refresh the naming system with the new name
 	sb.initializeNaming()
@@ -199,7 +200,7 @@ func (sb *SequentialBuilder) Named(name string) orchestration.Orchestration {
 //	        Timeout: 60*time.Second,
 //	        ErrorStrategy: errors.CollectAll,
 //	    })
-func (sb *SequentialBuilder) With(config config.Config) orchestration.Orchestration {
+func (sb *SequentialBuilder) With(config config.Config) types.Orchestration {
 	sb.config = &config
 	return sb
 }
@@ -215,7 +216,7 @@ func (sb *SequentialBuilder) With(config config.Config) orchestration.Orchestrat
 // Example:
 //
 //	seq := Sequential(tasks...).ErrorBoundary(errors.CollectAll)
-func (sb *SequentialBuilder) ErrorBoundary(strategy errors.ErrorStrategy) orchestration.Orchestration {
+func (sb *SequentialBuilder) ErrorBoundary(strategy errors.ErrorStrategy) types.Orchestration {
 	sb.errorBoundary = &strategy
 	return sb
 }
@@ -285,12 +286,12 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 	// Update status based on outcome
 	if executionError != nil {
 		if ctx.Err() != nil {
-			sb.setStatus(orchestration.Cancelled)
+			sb.setStatus(types.Cancelled)
 		} else {
-			sb.setStatus(orchestration.Completed)
+			sb.setStatus(types.Completed)
 		}
 	} else {
-		sb.setStatus(orchestration.Completed)
+		sb.setStatus(types.Completed)
 	}
 
 	// Add execution metadata if there were errors
@@ -530,7 +531,7 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 
 // getChildName returns a descriptive name for a child orchestration.
 // Uses the orchestration's name if available, otherwise generates a consistent name.
-func (sb *SequentialBuilder) getChildName(orch orchestration.Orchestration, index int) string {
+func (sb *SequentialBuilder) getChildName(orch types.Orchestration, index int) string {
 	if name := orch.GetName(); name != "" {
 		return name
 	}
@@ -571,8 +572,8 @@ func (sb *SequentialBuilder) GetConfig() *config.Config {
 
 // GetStatus returns the current sequential orchestration status using atomic operations.
 // This method is thread-safe and can be called concurrently.
-func (sb *SequentialBuilder) GetStatus() orchestration.Status {
-	return orchestration.Status(sb.status.Load())
+func (sb *SequentialBuilder) GetStatus() types.Status {
+	return types.Status(sb.status.Load())
 }
 
 // GetChildAt returns the child orchestration at the specified index.
@@ -601,7 +602,7 @@ func (sb *SequentialBuilder) GetStatus() orchestration.Status {
 //	} else {
 //	    log.Printf("Child name: %s", child.GetName()) // "second-task"
 //	}
-func (sb *SequentialBuilder) GetChildAt(index int) (orchestration.Orchestration, error) {
+func (sb *SequentialBuilder) GetChildAt(index int) (types.Orchestration, error) {
 	if index < 0 || index >= len(sb.orchestrations) {
 		return nil, fmt.Errorf("index %d out of bounds: sequential has %d orchestrations (valid range: 0-%d)",
 			index, len(sb.orchestrations), len(sb.orchestrations)-1)
@@ -637,9 +638,9 @@ func (sb *SequentialBuilder) GetChildCount() int {
 //	for i, child := range children {
 //	    log.Printf("Child %d: %s (status: %v)", i, child.GetName(), child.GetStatus())
 //	}
-func (sb *SequentialBuilder) GetChildren() []orchestration.Orchestration {
+func (sb *SequentialBuilder) GetChildren() []types.Orchestration {
 	// Return a copy to prevent external modification
-	children := make([]orchestration.Orchestration, len(sb.orchestrations))
+	children := make([]types.Orchestration, len(sb.orchestrations))
 	copy(children, sb.orchestrations)
 	return children
 }
@@ -667,7 +668,7 @@ func (sb *SequentialBuilder) GetChildren() []orchestration.Orchestration {
 //	} else {
 //	    log.Println("Child not found")
 //	}
-func (sb *SequentialBuilder) FindChildByName(name string) (int, orchestration.Orchestration) {
+func (sb *SequentialBuilder) FindChildByName(name string) (int, types.Orchestration) {
 	for i, orch := range sb.orchestrations {
 		if sb.getChildName(orch, i) == name {
 			return i, orch
@@ -703,7 +704,7 @@ func (sb *SequentialBuilder) GetChildNames() []string {
 
 // setStatus atomically sets the sequential orchestration status.
 // This is an internal method used during sequential execution.
-func (sb *SequentialBuilder) setStatus(status orchestration.Status) {
+func (sb *SequentialBuilder) setStatus(status types.Status) {
 	sb.status.Store(uint32(status))
 }
 
@@ -737,7 +738,7 @@ func (sb *SequentialBuilder) compareAndSwapStatus(old, new orchestration.Status)
 //	} else {
 //	    log.Printf("Found task: %s", task.GetName())
 //	}
-func (sb *SequentialBuilder) GetByPath(path string) (orchestration.Orchestration, error) {
+func (sb *SequentialBuilder) GetByPath(path string) (types.Orchestration, error) {
 	// Handle self-reference
 	if path == sb.GetCurrentPath() {
 		return sb, nil
@@ -790,7 +791,7 @@ func (sb *SequentialBuilder) ListAllPaths() []string {
 //	for _, match := range matches {
 //	    log.Printf("Found '%s' at path: %s (depth: %d)", name, match.Path, match.Depth)
 //	}
-func (sb *SequentialBuilder) FindByName(name string) []orchestration.PathMatch {
+func (sb *SequentialBuilder) FindByName(name string) []types.PathMatch {
 	matches := sb.pathResolver.FindByName(name)
 
 	// Check if current orchestration matches
@@ -823,9 +824,9 @@ func (sb *SequentialBuilder) FindByName(name string) []orchestration.PathMatch {
 //	query := sequential.Query()
 //	authTasks := query.FindByPattern("*.auth.*")
 //	sequentialOrchestrations := query.FindByType("sequential")
-func (sb *SequentialBuilder) Query() *orchestration.PathQuery {
+func (sb *SequentialBuilder) Query() *types.PathQuery {
 	tree := sb.GetOrchestrationTree()
-	return orchestration.NewPathQuery(tree)
+	return types.NewPathQuery(tree)
 }
 
 // GetOrchestrationTree returns a tree representation of the orchestration hierarchy.
@@ -838,14 +839,14 @@ func (sb *SequentialBuilder) Query() *orchestration.PathQuery {
 //
 //	tree := sequential.GetOrchestrationTree()
 //	tree.Print() // Prints the tree structure
-func (sb *SequentialBuilder) GetOrchestrationTree() *orchestration.OrchestrationTree {
-	tree := &orchestration.OrchestrationTree{
+func (sb *SequentialBuilder) GetOrchestrationTree() *types.OrchestrationTree {
+	tree := &types.OrchestrationTree{
 		Name:          sb.GetName(),
 		Path:          sb.GetCurrentPath(),
 		Type:          "sequential",
 		Depth:         sb.namer.GetDepth(),
 		Orchestration: sb,
-		Children:      make([]*orchestration.OrchestrationTree, 0, len(sb.orchestrations)),
+		Children:      make([]*types.OrchestrationTree, 0, len(sb.orchestrations)),
 	}
 
 	// Add children to tree
@@ -853,7 +854,7 @@ func (sb *SequentialBuilder) GetOrchestrationTree() *orchestration.Orchestration
 		childName := sb.getChildName(child, i)
 		childPath := sb.GetCurrentPath() + "." + childName
 
-		childTree := &orchestration.OrchestrationTree{
+		childTree := &types.OrchestrationTree{
 			Name:          childName,
 			Path:          childPath,
 			Type:          "unknown", // Will be determined by child type
@@ -864,7 +865,7 @@ func (sb *SequentialBuilder) GetOrchestrationTree() *orchestration.Orchestration
 		}
 
 		// If child implements PathResolver, get its tree recursively
-		if pathResolver, ok := child.(orchestration.PathResolver); ok {
+		if pathResolver, ok := child.(types.PathResolver); ok {
 			childTree = pathResolver.GetOrchestrationTree()
 			childTree.Parent = tree
 		}

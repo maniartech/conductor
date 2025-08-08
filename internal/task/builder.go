@@ -60,8 +60,8 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
-	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/internal/result"
+	"github.com/maniartech/orchestrator/types"
 )
 
 // TaskBuilder provides a fluent API for creating and configuring individual tasks.
@@ -117,7 +117,7 @@ func Task[T any](fn func() (T, error)) *TaskBuilder[T] {
 // Example:
 //
 //	task := Task(fetchUserData).Named("fetch-user")
-func (tb *TaskBuilder[T]) Named(name string) orchestration.Orchestration {
+func (tb *TaskBuilder[T]) Named(name string) types.Orchestration {
 	tb.name = name
 	return tb
 }
@@ -130,7 +130,7 @@ func (tb *TaskBuilder[T]) Named(name string) orchestration.Orchestration {
 //
 //	task := Task(longRunningOperation).
 //	    With(config.Config{Timeout: 60*time.Second})
-func (tb *TaskBuilder[T]) With(config config.Config) orchestration.Orchestration {
+func (tb *TaskBuilder[T]) With(config config.Config) types.Orchestration {
 	tb.config = &config
 	return tb
 }
@@ -142,7 +142,7 @@ func (tb *TaskBuilder[T]) With(config config.Config) orchestration.Orchestration
 // Example:
 //
 //	task := Task(riskyOperation).ErrorBoundary(CollectAll)
-func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) orchestration.Orchestration {
+func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) types.Orchestration {
 	if tb.config == nil {
 		tb.config = &config.Config{ErrorStrategy: strategy}
 	} else {
@@ -172,7 +172,7 @@ func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) orchestra
 //	}
 func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
 	// Ensure task can only be executed once
-	if !tb.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
+	if !tb.compareAndSwapStatus(types.NotStarted, types.Running) {
 		return nil, fmt.Errorf("task already executed or in progress, current status: %v", tb.GetStatus())
 	}
 
@@ -208,9 +208,9 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 	// Update status based on outcome
 	if taskError != nil {
 		if execCtx.Err() != nil {
-			tb.setStatus(orchestration.Cancelled)
+			tb.setStatus(types.Cancelled)
 		} else {
-			tb.setStatus(orchestration.Completed)
+			tb.setStatus(types.Completed)
 		}
 
 		result.AddError(errors.OperationError{
@@ -225,7 +225,7 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 	}
 
 	// Task completed successfully
-	tb.setStatus(orchestration.Completed)
+	tb.setStatus(types.Completed)
 
 	// Store result with task name or default name
 	resultName := tb.name
@@ -349,20 +349,20 @@ func (tb *TaskBuilder[T]) GetConfig() *config.Config {
 
 // GetStatus returns the current task status using atomic operations.
 // This method is thread-safe and can be called concurrently.
-func (tb *TaskBuilder[T]) GetStatus() orchestration.Status {
-	return orchestration.Status(tb.status.Load())
+func (tb *TaskBuilder[T]) GetStatus() types.Status {
+	return types.Status(tb.status.Load())
 }
 
 // setStatus atomically sets the task status.
 // This is an internal method used during task execution.
-func (tb *TaskBuilder[T]) setStatus(status orchestration.Status) {
+func (tb *TaskBuilder[T]) setStatus(status types.Status) {
 	tb.status.Store(uint32(status))
 }
 
 // compareAndSwapStatus atomically compares and swaps the task status.
 // Returns true if the swap was successful, false otherwise.
 // This ensures thread-safe status transitions.
-func (tb *TaskBuilder[T]) compareAndSwapStatus(old, new orchestration.Status) bool {
+func (tb *TaskBuilder[T]) compareAndSwapStatus(old, new types.Status) bool {
 	return tb.status.CompareAndSwap(uint32(old), uint32(new))
 }
 
@@ -380,7 +380,7 @@ func (tb *TaskBuilder[T]) GetCurrentPath() string {
 
 // GetByPath finds an orchestration by its hierarchical path.
 // For tasks (leaf nodes), this only matches if the path equals the task's path.
-func (tb *TaskBuilder[T]) GetByPath(path string) (orchestration.Orchestration, error) {
+func (tb *TaskBuilder[T]) GetByPath(path string) (types.Orchestration, error) {
 	currentPath := tb.GetCurrentPath()
 	if path == currentPath {
 		return tb, nil
@@ -396,9 +396,9 @@ func (tb *TaskBuilder[T]) ListAllPaths() []string {
 
 // FindByName searches for orchestrations by name.
 // For tasks, this returns the task itself if the name matches.
-func (tb *TaskBuilder[T]) FindByName(name string) []orchestration.PathMatch {
+func (tb *TaskBuilder[T]) FindByName(name string) []types.PathMatch {
 	if tb.name == name {
-		return []orchestration.PathMatch{
+		return []types.PathMatch{
 			{
 				Path:          tb.GetCurrentPath(),
 				Orchestration: tb,
@@ -407,25 +407,25 @@ func (tb *TaskBuilder[T]) FindByName(name string) []orchestration.PathMatch {
 			},
 		}
 	}
-	return []orchestration.PathMatch{}
+	return []types.PathMatch{}
 }
 
 // GetOrchestrationTree returns a tree representation of the task.
 // For tasks, this is a single-node tree.
-func (tb *TaskBuilder[T]) GetOrchestrationTree() *orchestration.OrchestrationTree {
-	return &orchestration.OrchestrationTree{
+func (tb *TaskBuilder[T]) GetOrchestrationTree() *types.OrchestrationTree {
+	return &types.OrchestrationTree{
 		Name:          tb.GetName(),
 		Path:          tb.GetCurrentPath(),
 		Type:          "task",
 		Depth:         0,
 		Orchestration: tb,
-		Children:      []*orchestration.OrchestrationTree{}, // Tasks have no children
+		Children:      []*types.OrchestrationTree{}, // Tasks have no children
 	}
 }
 
 // Query returns a PathQuery instance for advanced path-based queries.
 // For tasks, this provides limited functionality since tasks are leaf nodes.
-func (tb *TaskBuilder[T]) Query() *orchestration.PathQuery {
+func (tb *TaskBuilder[T]) Query() *types.PathQuery {
 	tree := tb.GetOrchestrationTree()
-	return orchestration.NewPathQuery(tree)
+	return types.NewPathQuery(tree)
 }
