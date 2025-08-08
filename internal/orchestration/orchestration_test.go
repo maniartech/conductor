@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -57,6 +58,55 @@ func (m *mockOrchestration) GetConfig() *config.Config {
 
 func (m *mockOrchestration) GetStatus() Status {
 	return m.status
+}
+
+// PathResolver interface implementation for mockOrchestration
+func (m *mockOrchestration) GetCurrentPath() string {
+	if m.name != "" {
+		return m.name
+	}
+	return "mock"
+}
+
+func (m *mockOrchestration) GetByPath(path string) (Orchestration, error) {
+	if path == m.GetCurrentPath() {
+		return m, nil
+	}
+	return nil, fmt.Errorf("path not found: %s", path)
+}
+
+func (m *mockOrchestration) ListAllPaths() []string {
+	return []string{m.GetCurrentPath()}
+}
+
+func (m *mockOrchestration) FindByName(name string) []PathMatch {
+	if m.name == name {
+		return []PathMatch{
+			{
+				Path:          m.GetCurrentPath(),
+				Orchestration: m,
+				Depth:         0,
+				Type:          "mock",
+			},
+		}
+	}
+	return []PathMatch{}
+}
+
+func (m *mockOrchestration) GetOrchestrationTree() *OrchestrationTree {
+	return &OrchestrationTree{
+		Name:          m.GetName(),
+		Path:          m.GetCurrentPath(),
+		Type:          "mock",
+		Depth:         0,
+		Orchestration: m,
+		Children:      []*OrchestrationTree{},
+	}
+}
+
+func (m *mockOrchestration) Query() *PathQuery {
+	tree := m.GetOrchestrationTree()
+	return NewPathQuery(tree)
 }
 
 func TestOrchestrationFluentAPI(t *testing.T) {

@@ -365,3 +365,67 @@ func (tb *TaskBuilder[T]) setStatus(status orchestration.Status) {
 func (tb *TaskBuilder[T]) compareAndSwapStatus(old, new orchestration.Status) bool {
 	return tb.status.CompareAndSwap(uint32(old), uint32(new))
 }
+
+// PathResolver interface implementation for TaskBuilder
+// Tasks are leaf nodes in the orchestration tree, so most path operations are simple
+
+// GetCurrentPath returns the current task's path.
+// For tasks, this is just the task name or a generated ID.
+func (tb *TaskBuilder[T]) GetCurrentPath() string {
+	if tb.name != "" {
+		return tb.name
+	}
+	return tb.getOperationID()
+}
+
+// GetByPath finds an orchestration by its hierarchical path.
+// For tasks (leaf nodes), this only matches if the path equals the task's path.
+func (tb *TaskBuilder[T]) GetByPath(path string) (orchestration.Orchestration, error) {
+	currentPath := tb.GetCurrentPath()
+	if path == currentPath {
+		return tb, nil
+	}
+	return nil, fmt.Errorf("path not found: %s", path)
+}
+
+// ListAllPaths returns all available paths in the task subtree.
+// For tasks, this is just the task's own path.
+func (tb *TaskBuilder[T]) ListAllPaths() []string {
+	return []string{tb.GetCurrentPath()}
+}
+
+// FindByName searches for orchestrations by name.
+// For tasks, this returns the task itself if the name matches.
+func (tb *TaskBuilder[T]) FindByName(name string) []orchestration.PathMatch {
+	if tb.name == name {
+		return []orchestration.PathMatch{
+			{
+				Path:          tb.GetCurrentPath(),
+				Orchestration: tb,
+				Depth:         0, // Tasks are leaf nodes
+				Type:          "task",
+			},
+		}
+	}
+	return []orchestration.PathMatch{}
+}
+
+// GetOrchestrationTree returns a tree representation of the task.
+// For tasks, this is a single-node tree.
+func (tb *TaskBuilder[T]) GetOrchestrationTree() *orchestration.OrchestrationTree {
+	return &orchestration.OrchestrationTree{
+		Name:          tb.GetName(),
+		Path:          tb.GetCurrentPath(),
+		Type:          "task",
+		Depth:         0,
+		Orchestration: tb,
+		Children:      []*orchestration.OrchestrationTree{}, // Tasks have no children
+	}
+}
+
+// Query returns a PathQuery instance for advanced path-based queries.
+// For tasks, this provides limited functionality since tasks are leaf nodes.
+func (tb *TaskBuilder[T]) Query() *orchestration.PathQuery {
+	tree := tb.GetOrchestrationTree()
+	return orchestration.NewPathQuery(tree)
+}

@@ -93,7 +93,10 @@ type SequentialBuilder struct {
 	name           string
 	config         *config.Config
 	errorBoundary  *errors.ErrorStrategy
-	status         atomic.Uint32 // Atomic status management
+	status         atomic.Uint32                    // Atomic status management
+	namer          *orchestration.HierarchicalNamer // Hierarchical naming system
+	parentContext  *orchestration.NamingContext     // Parent naming context for nested orchestrations
+	pathResolver   *orchestration.PathResolverBase  // Path-based orchestration resolution
 }
 
 // Sequential creates a new SequentialBuilder with the provided orchestrations.
@@ -137,9 +140,37 @@ func Sequential(orchestrations ...orchestration.Orchestration) *SequentialBuilde
 		}
 	}
 
-	return &SequentialBuilder{
+	sb := &SequentialBuilder{
 		orchestrations: orchestrations,
 	}
+
+	// Initialize hierarchical naming system
+	// This will be updated when Named() is called or when parent context is set
+	sb.initializeNaming()
+
+	// Initialize path resolver
+	sb.pathResolver = orchestration.NewPathResolverBase()
+	sb.pathResolver.SetCallbacks(
+		func() string { return sb.GetCurrentPath() },
+		func() []orchestration.Orchestration { return sb.GetChildren() },
+		func(child orchestration.Orchestration, index int) string { return sb.getChildName(child, index) },
+	)
+
+	return sb
+}
+
+// initializeNaming initializes the hierarchical naming system for this sequential builder.
+// This method sets up the naming context and hierarchical namer.
+func (sb *SequentialBuilder) initializeNaming() {
+	// Initialize with default naming (will be updated if Named() is called)
+	sb.namer = orchestration.NewHierarchicalNamer(sb.parentContext, sb.name, "sequential", 0)
+}
+
+// SetParentContext sets the parent naming context for nested orchestrations.
+// This method is used internally when this sequential is used as a child orchestration.
+func (sb *SequentialBuilder) SetParentContext(parentContext *orchestration.NamingContext, index int) {
+	sb.parentContext = parentContext
+	sb.namer = orchestration.NewHierarchicalNamer(parentContext, sb.name, "sequential", index)
 }
 
 // Named sets a name for the sequential orchestration for observability and debugging.
@@ -151,6 +182,8 @@ func Sequential(orchestrations ...orchestration.Orchestration) *SequentialBuilde
 //	seq := Sequential(tasks...).Named("user-processing-pipeline")
 func (sb *SequentialBuilder) Named(name string) orchestration.Orchestration {
 	sb.name = name
+	// Refresh the naming system with the new name
+	sb.initializeNaming()
 	return sb
 }
 
@@ -352,9 +385,24 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 			}
 		}
 
-		// Merge successful result
+		// Store successful result using the child name
 		if orchResult != nil {
+			// First merge the result to preserve any nested results
 			result.Merge(orchResult)
+
+			// Then store the main result using the child name for direct access
+			// Try to get the result using the child's own name first, then fallback to "task_result"
+			var taskResult any
+			if orch.GetName() != "" {
+				taskResult = orchResult.Get(orch.GetName())
+			}
+			if taskResult == nil {
+				taskResult = orchResult.Get("task_result")
+			}
+
+			if taskResult != nil {
+				result.Set(stepName, taskResult)
+			}
 		}
 	}
 
@@ -445,9 +493,24 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 				Stack:     errorHandler.captureStackTrace(),
 			})
 		} else {
-			// Merge successful result
+			// Store successful result using the child name
 			if orchResult != nil {
+				// First merge the result to preserve any nested results
 				result.Merge(orchResult)
+
+				// Then store the main result using the child name for direct access
+				// Try to get the result using the child's own name first, then fallback to "task_result"
+				var taskResult any
+				if orch.GetName() != "" {
+					taskResult = orchResult.Get(orch.GetName())
+				}
+				if taskResult == nil {
+					taskResult = orchResult.Get("task_result")
+				}
+
+				if taskResult != nil {
+					result.Set(stepName, taskResult)
+				}
 			}
 		}
 	}
@@ -466,11 +529,14 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 }
 
 // getChildName returns a descriptive name for a child orchestration.
-// Uses the orchestration's name if available, otherwise generates a default name.
+// Uses the orchestration's name if available, otherwise generates a consistent name.
 func (sb *SequentialBuilder) getChildName(orch orchestration.Orchestration, index int) string {
 	if name := orch.GetName(); name != "" {
 		return name
 	}
+
+	// Generate a consistent name using the index directly
+	// This ensures step numbers match the position in the sequence
 	return fmt.Sprintf("step-%d", index)
 }
 
@@ -603,7 +669,7 @@ func (sb *SequentialBuilder) GetChildren() []orchestration.Orchestration {
 //	}
 func (sb *SequentialBuilder) FindChildByName(name string) (int, orchestration.Orchestration) {
 	for i, orch := range sb.orchestrations {
-		if orch.GetName() == name {
+		if sb.getChildName(orch, i) == name {
 			return i, orch
 		}
 	}
@@ -646,4 +712,165 @@ func (sb *SequentialBuilder) setStatus(status orchestration.Status) {
 // This ensures thread-safe status transitions.
 func (sb *SequentialBuilder) compareAndSwapStatus(old, new orchestration.Status) bool {
 	return sb.status.CompareAndSwap(uint32(old), uint32(new))
+}
+
+// =============================================================================
+// PathResolver Interface Implementation
+// =============================================================================
+
+// GetByPath finds an orchestration by its hierarchical path using dynamic resolution.
+// This method allows finding any orchestration in the tree without maintaining a centralized map.
+//
+// Parameters:
+//   - path: Hierarchical path (e.g., "main-pipeline.auth-flow.validate-user")
+//
+// Returns:
+//   - orchestration.Orchestration: Found orchestration (nil if not found)
+//   - error: Error if path is invalid or orchestration not found
+//
+// Example:
+//
+//	// Find a deeply nested task
+//	task, err := sequential.GetByPath("main-pipeline.auth-flow.validate-user")
+//	if err != nil {
+//	    log.Printf("Task not found: %v", err)
+//	} else {
+//	    log.Printf("Found task: %s", task.GetName())
+//	}
+func (sb *SequentialBuilder) GetByPath(path string) (orchestration.Orchestration, error) {
+	// Handle self-reference
+	if path == sb.GetCurrentPath() {
+		return sb, nil
+	}
+	return sb.pathResolver.GetByPath(path)
+}
+
+// GetCurrentPath returns the current orchestration's full hierarchical path.
+// Each orchestration knows its own path without requiring a centralized registry.
+//
+// Returns:
+//   - string: Full path from root to current orchestration
+//
+// Example:
+//
+//	path := sequential.GetCurrentPath()
+//	// Returns: "main-pipeline.auth-flow"
+func (sb *SequentialBuilder) GetCurrentPath() string {
+	return sb.pathResolver.GetCurrentPath()
+}
+
+// ListAllPaths returns all available paths in the orchestration subtree.
+// This method performs a depth-first traversal to collect all paths dynamically.
+//
+// Returns:
+//   - []string: All paths in the subtree
+//
+// Example:
+//
+//	paths := sequential.ListAllPaths()
+//	for _, path := range paths {
+//	    log.Printf("Available path: %s", path)
+//	}
+func (sb *SequentialBuilder) ListAllPaths() []string {
+	return sb.pathResolver.ListAllPaths()
+}
+
+// FindByName searches for orchestrations by name across the entire subtree.
+// This method can return multiple matches if the same name appears at different levels.
+//
+// Parameters:
+//   - name: Name to search for
+//
+// Returns:
+//   - []orchestration.PathMatch: All matching orchestrations with their path information
+//
+// Example:
+//
+//	matches := sequential.FindByName("validate-user")
+//	for _, match := range matches {
+//	    log.Printf("Found '%s' at path: %s (depth: %d)", name, match.Path, match.Depth)
+//	}
+func (sb *SequentialBuilder) FindByName(name string) []orchestration.PathMatch {
+	matches := sb.pathResolver.FindByName(name)
+
+	// Check if current orchestration matches
+	if sb.GetName() == name {
+		currentMatch := orchestration.PathMatch{
+			Path:          sb.GetCurrentPath(),
+			Orchestration: sb,
+			Depth:         sb.namer.GetContext().GetDepth(),
+			Parent:        sb.namer.GetContext().GetParentPath(),
+			Type:          "sequential",
+		}
+		matches = append([]orchestration.PathMatch{currentMatch}, matches...)
+	}
+
+	return matches
+}
+
+// =============================================================================
+// Advanced Path Query Methods
+// =============================================================================
+
+// Query returns a PathQuery instance for advanced path-based queries.
+// This provides pattern matching, type-based searches, and other advanced features.
+//
+// Returns:
+//   - *orchestration.PathQuery: Query instance for advanced operations
+//
+// Example:
+//
+//	query := sequential.Query()
+//	authTasks := query.FindByPattern("*.auth.*")
+//	sequentialOrchestrations := query.FindByType("sequential")
+func (sb *SequentialBuilder) Query() *orchestration.PathQuery {
+	tree := sb.GetOrchestrationTree()
+	return orchestration.NewPathQuery(tree)
+}
+
+// GetOrchestrationTree returns a tree representation of the orchestration hierarchy.
+// This method provides a structured view of the entire orchestration tree.
+//
+// Returns:
+//   - *orchestration.OrchestrationTree: Tree representation
+//
+// Example:
+//
+//	tree := sequential.GetOrchestrationTree()
+//	tree.Print() // Prints the tree structure
+func (sb *SequentialBuilder) GetOrchestrationTree() *orchestration.OrchestrationTree {
+	tree := &orchestration.OrchestrationTree{
+		Name:          sb.GetName(),
+		Path:          sb.GetCurrentPath(),
+		Type:          "sequential",
+		Depth:         sb.namer.GetDepth(),
+		Orchestration: sb,
+		Children:      make([]*orchestration.OrchestrationTree, 0, len(sb.orchestrations)),
+	}
+
+	// Add children to tree
+	for i, child := range sb.orchestrations {
+		childName := sb.getChildName(child, i)
+		childPath := sb.GetCurrentPath() + "." + childName
+
+		childTree := &orchestration.OrchestrationTree{
+			Name:          childName,
+			Path:          childPath,
+			Type:          "unknown", // Will be determined by child type
+			Depth:         sb.namer.GetDepth() + 1,
+			Parent:        tree,
+			Orchestration: child,
+			Children:      []*orchestration.OrchestrationTree{},
+		}
+
+		// If child implements PathResolver, get its tree recursively
+		if pathResolver, ok := child.(orchestration.PathResolver); ok {
+			childTree = pathResolver.GetOrchestrationTree()
+			childTree.Parent = tree
+		}
+
+		tree.Children = append(tree.Children, childTree)
+	}
+
+	return tree
 }

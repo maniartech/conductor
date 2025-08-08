@@ -1,5 +1,5 @@
-// Package core provides the fundamental types and interfaces for the
-// orchestrator library following Go best practices and KISS principles.
+// Package config provides configuration management for the orchestrator library.
+// It includes ConfigBuilder for fluent configuration construction using the builder pattern.
 package config
 
 import (

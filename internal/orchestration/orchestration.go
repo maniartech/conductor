@@ -48,6 +48,9 @@ type Orchestration interface {
 	// GetStatus returns the current orchestration status using atomic operations.
 	// This method is thread-safe and can be called concurrently.
 	GetStatus() Status
+
+	// PathResolver methods - all orchestrations support path-based lookup
+	PathResolver
 }
 
 // Executor defines the interface for executing orchestrations
