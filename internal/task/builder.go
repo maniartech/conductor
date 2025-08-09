@@ -55,11 +55,11 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync/atomic"
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/internal/result"
 	"github.com/maniartech/orchestrator/types"
 )
@@ -75,10 +75,8 @@ import (
 //	}).Named("greeting-task").
 //	With(config.Config{Timeout: 5*time.Second})
 type TaskBuilder[T any] struct {
-	fn     func() (T, error)
-	name   string
-	config *config.Config
-	status atomic.Uint32 // Atomic status management
+	*orchestration.BaseOrchestrationBuilder
+	fn func() (T, error)
 }
 
 // Task creates a new TaskBuilder with the provided function.
@@ -106,7 +104,8 @@ func Task[T any](fn func() (T, error)) *TaskBuilder[T] {
 		panic("task function cannot be nil")
 	}
 	return &TaskBuilder[T]{
-		fn: fn,
+		BaseOrchestrationBuilder: orchestration.NewBaseOrchestrationBuilder("task"),
+		fn:                       fn,
 	}
 }
 
@@ -118,7 +117,7 @@ func Task[T any](fn func() (T, error)) *TaskBuilder[T] {
 //
 //	task := Task(fetchUserData).Named("fetch-user")
 func (tb *TaskBuilder[T]) Named(name string) types.Orchestration {
-	tb.name = name
+	tb.SetName(name)
 	return tb
 }
 
@@ -131,7 +130,7 @@ func (tb *TaskBuilder[T]) Named(name string) types.Orchestration {
 //	task := Task(longRunningOperation).
 //	    With(config.Config{Timeout: 60*time.Second})
 func (tb *TaskBuilder[T]) With(config config.Config) types.Orchestration {
-	tb.config = &config
+	tb.SetConfig(config)
 	return tb
 }
 
@@ -143,14 +142,16 @@ func (tb *TaskBuilder[T]) With(config config.Config) types.Orchestration {
 //
 //	task := Task(riskyOperation).ErrorBoundary(CollectAll)
 func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) types.Orchestration {
-	if tb.config == nil {
-		tb.config = &config.Config{ErrorStrategy: strategy}
+	// If no config exists, create one with the error strategy
+	if tb.GetConfig() == nil {
+		tb.SetConfig(config.Config{ErrorStrategy: strategy})
 	} else {
-		// Create a new config with the updated error strategy
-		newConfig := *tb.config
+		// Update existing config with new error strategy
+		newConfig := *tb.GetConfig()
 		newConfig.ErrorStrategy = strategy
-		tb.config = &newConfig
+		tb.SetConfig(newConfig)
 	}
+	tb.SetErrorBoundary(strategy)
 	return tb
 }
 
@@ -171,18 +172,15 @@ func (tb *TaskBuilder[T]) ErrorBoundary(strategy errors.ErrorStrategy) types.Orc
 //	    log.Printf("Task failed: %v", err)
 //	}
 func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
-	// Ensure task can only be executed once
-	if !tb.compareAndSwapStatus(types.NotStarted, types.Running) {
-		return nil, fmt.Errorf("task already executed or in progress, current status: %v", tb.GetStatus())
+	// Validate execution preconditions (handled by base)
+	if err := tb.ValidateExecutionPreconditions(); err != nil {
+		return nil, err
 	}
 
 	startTime := time.Now()
 
-	// Apply configuration inheritance
-	finalConfig := config
-	if tb.config != nil {
-		finalConfig = tb.config.Inherit(config)
-	}
+	// Apply configuration inheritance (handled by base)
+	finalConfig := tb.ApplyConfigurationInheritance(config)
 
 	// Create execution context with timeout
 	// Always use the provided context as the base, then apply config context if needed
@@ -205,30 +203,23 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 	taskResult, taskError := tb.safeExecute(execCtx)
 	duration := time.Since(startTime)
 
-	// Update status based on outcome
-	if taskError != nil {
-		if execCtx.Err() != nil {
-			tb.setStatus(types.Cancelled)
-		} else {
-			tb.setStatus(types.Completed)
-		}
+	// Complete execution (handled by base)
+	tb.CompleteExecution(execCtx, taskError)
 
+	if taskError != nil {
 		result.AddError(errors.OperationError{
 			Error:     taskError,
 			Index:     0,
 			Duration:  duration,
 			Timestamp: startTime,
-			OpID:      tb.getOperationID(),
+			OpID:      tb.GetOperationID(tb),
 			Stack:     tb.captureStack(),
 		})
 		return result, taskError
 	}
 
-	// Task completed successfully
-	tb.setStatus(types.Completed)
-
 	// Store result with task name or default name
-	resultName := tb.name
+	resultName := tb.GetName()
 	if resultName == "" {
 		resultName = "task_result"
 	}
@@ -326,106 +317,50 @@ func (tb *TaskBuilder[T]) captureStack() []byte {
 	return stack[:stackSize]
 }
 
-// getOperationID generates a unique operation ID for traceability.
-// Uses the task name if available, otherwise generates a default ID.
-func (tb *TaskBuilder[T]) getOperationID() string {
-	if tb.name != "" {
-		return fmt.Sprintf("task-%s", tb.name)
-	}
-	return fmt.Sprintf("task-%p", tb)
-}
+// These methods are now inherited from BaseOrchestrationBuilder:
+// - GetName() string
+// - GetConfig() *config.Config
+// - GetStatus() types.Status
+// - SetStatus(status types.Status)
+// - CompareAndSwapStatus(old, new types.Status) bool
+// - GetOperationID(instance any) string
 
-// GetName returns the task name for debugging and observability.
-// Returns empty string if no name was set.
-func (tb *TaskBuilder[T]) GetName() string {
-	return tb.name
-}
-
-// GetConfig returns the task's configuration.
-// Returns nil if no configuration was set.
-func (tb *TaskBuilder[T]) GetConfig() *config.Config {
-	return tb.config
-}
-
-// GetStatus returns the current task status using atomic operations.
-// This method is thread-safe and can be called concurrently.
-func (tb *TaskBuilder[T]) GetStatus() types.Status {
-	return types.Status(tb.status.Load())
-}
-
-// setStatus atomically sets the task status.
-// This is an internal method used during task execution.
-func (tb *TaskBuilder[T]) setStatus(status types.Status) {
-	tb.status.Store(uint32(status))
-}
-
-// compareAndSwapStatus atomically compares and swaps the task status.
-// Returns true if the swap was successful, false otherwise.
-// This ensures thread-safe status transitions.
-func (tb *TaskBuilder[T]) compareAndSwapStatus(old, new types.Status) bool {
-	return tb.status.CompareAndSwap(uint32(old), uint32(new))
-}
-
-// PathResolver interface implementation for TaskBuilder
-// Tasks are leaf nodes in the orchestration tree, so most path operations are simple
+// =============================================================================
+// Path Resolution Methods - Delegated to Base
+// =============================================================================
 
 // GetCurrentPath returns the current task's path.
-// For tasks, this is just the task name or a generated ID.
+// Delegates to base implementation.
 func (tb *TaskBuilder[T]) GetCurrentPath() string {
-	if tb.name != "" {
-		return tb.name
-	}
-	return tb.getOperationID()
+	return tb.BaseOrchestrationBuilder.GetCurrentPath(tb)
 }
 
 // GetByPath finds an orchestration by its hierarchical path.
-// For tasks (leaf nodes), this only matches if the path equals the task's path.
+// Delegates to base implementation.
 func (tb *TaskBuilder[T]) GetByPath(path string) (types.Orchestration, error) {
-	currentPath := tb.GetCurrentPath()
-	if path == currentPath {
-		return tb, nil
-	}
-	return nil, fmt.Errorf("path not found: %s", path)
+	return tb.BaseOrchestrationBuilder.GetByPath(tb, path)
 }
 
 // ListAllPaths returns all available paths in the task subtree.
-// For tasks, this is just the task's own path.
+// Delegates to base implementation.
 func (tb *TaskBuilder[T]) ListAllPaths() []string {
-	return []string{tb.GetCurrentPath()}
+	return tb.BaseOrchestrationBuilder.ListAllPaths(tb)
 }
 
 // FindByName searches for orchestrations by name.
-// For tasks, this returns the task itself if the name matches.
+// Delegates to base implementation.
 func (tb *TaskBuilder[T]) FindByName(name string) []types.PathMatch {
-	if tb.name == name {
-		return []types.PathMatch{
-			{
-				Path:          tb.GetCurrentPath(),
-				Orchestration: tb,
-				Depth:         0, // Tasks are leaf nodes
-				Type:          "task",
-			},
-		}
-	}
-	return []types.PathMatch{}
+	return tb.BaseOrchestrationBuilder.FindByName(tb, name)
 }
 
 // GetOrchestrationTree returns a tree representation of the task.
-// For tasks, this is a single-node tree.
+// Delegates to base implementation.
 func (tb *TaskBuilder[T]) GetOrchestrationTree() *types.OrchestrationTree {
-	return &types.OrchestrationTree{
-		Name:          tb.GetName(),
-		Path:          tb.GetCurrentPath(),
-		Type:          "task",
-		Depth:         0,
-		Orchestration: tb,
-		Children:      []*types.OrchestrationTree{}, // Tasks have no children
-	}
+	return tb.BaseOrchestrationBuilder.GetOrchestrationTree(tb)
 }
 
 // Query returns a PathQuery instance for advanced path-based queries.
-// For tasks, this provides limited functionality since tasks are leaf nodes.
+// Delegates to base implementation.
 func (tb *TaskBuilder[T]) Query() *types.PathQuery {
-	tree := tb.GetOrchestrationTree()
-	return types.NewPathQuery(tree)
+	return tb.BaseOrchestrationBuilder.Query(tb)
 }

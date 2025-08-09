@@ -11,6 +11,7 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
+	"github.com/maniartech/orchestrator/types"
 )
 
 func TestTask(t *testing.T) {
@@ -27,11 +28,11 @@ func TestTask(t *testing.T) {
 		t.Error("Task function should not be nil")
 	}
 
-	if task.name != "" {
+	if task.GetName() != "" {
 		t.Error("Task name should be empty initially")
 	}
 
-	if task.config != nil {
+	if task.GetConfig() != nil {
 		t.Error("Task config should be nil initially")
 	}
 }
@@ -179,8 +180,8 @@ func TestTaskBuilderNamed(t *testing.T) {
 	}
 
 	// Should set the name
-	if task.name != "test-task" {
-		t.Errorf("Expected name 'test-task', got %q", task.name)
+	if task.GetName() != "test-task" {
+		t.Errorf("Expected name 'test-task', got %q", task.GetName())
 	}
 
 	// Test GetName method
@@ -209,19 +210,19 @@ func TestTaskBuilderWith(t *testing.T) {
 	}
 
 	// Should set the config
-	if task.config == nil {
+	if task.GetConfig() == nil {
 		t.Fatal("config.Config should not be nil after With()")
 	}
 
-	if task.config.ErrorStrategy != errors.CollectAll {
+	if task.GetConfig().ErrorStrategy != errors.CollectAll {
 		t.Error("config.Config ErrorStrategy should be set")
 	}
 
-	if task.config.Timeout != 30*time.Second {
+	if task.GetConfig().Timeout != 30*time.Second {
 		t.Error("config.Config Timeout should be set")
 	}
 
-	if task.config.MaxConcurrency != 50 {
+	if task.GetConfig().MaxConcurrency != 50 {
 		t.Error("config.Config MaxConcurrency should be set")
 	}
 
@@ -250,11 +251,11 @@ func TestTaskBuilderErrorBoundary(t *testing.T) {
 	}
 
 	// Should create config if it doesn't exist
-	if task.config == nil {
+	if task.GetConfig() == nil {
 		t.Fatal("config.Config should be created by ErrorBoundary()")
 	}
 
-	if task.config.ErrorStrategy != errors.CollectAll {
+	if task.GetConfig().ErrorStrategy != errors.CollectAll {
 		t.Error("ErrorStrategy should be set by ErrorBoundary()")
 	}
 
@@ -262,11 +263,11 @@ func TestTaskBuilderErrorBoundary(t *testing.T) {
 	task.With(config.Config{Timeout: 60 * time.Second})
 	task.ErrorBoundary(errors.FailFast)
 
-	if task.config.ErrorStrategy != errors.FailFast {
+	if task.GetConfig().ErrorStrategy != errors.FailFast {
 		t.Error("ErrorStrategy should be updated by ErrorBoundary()")
 	}
 
-	if task.config.Timeout != 60*time.Second {
+	if task.GetConfig().Timeout != 60*time.Second {
 		t.Error("Existing config values should be preserved")
 	}
 }
@@ -282,19 +283,19 @@ func TestTaskBuilderFluentAPI(t *testing.T) {
 	// Cast back to TaskBuilder to access fields
 	task := result.(*TaskBuilder[string])
 
-	if task.name != "chained-task" {
+	if task.GetName() != "chained-task" {
 		t.Error("Name should be set through chaining")
 	}
 
-	if task.config == nil {
+	if task.GetConfig() == nil {
 		t.Fatal("config.Config should be set through chaining")
 	}
 
-	if task.config.Timeout != 30*time.Second {
+	if task.GetConfig().Timeout != 30*time.Second {
 		t.Error("Timeout should be set through chaining")
 	}
 
-	if task.config.ErrorStrategy != errors.CollectAll {
+	if task.GetConfig().ErrorStrategy != errors.CollectAll {
 		t.Error("ErrorStrategy should be set through chaining")
 	}
 }
@@ -309,24 +310,24 @@ func TestTaskBuilderAtomicStatusManagement(t *testing.T) {
 		t.Errorf("Initial status should be NotStarted, got %v", status)
 	}
 
-	// Test compareAndSwapStatus
-	if !task.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
-		t.Error("compareAndSwapStatus should succeed for valid transition")
+	// Test CompareAndSwapStatus
+	if !task.CompareAndSwapStatus(types.NotStarted, types.Running) {
+		t.Error("CompareAndSwapStatus should succeed for valid transition")
 	}
 
-	if status := task.GetStatus(); status != orchestration.Running {
+	if status := task.GetStatus(); status != types.Running {
 		t.Errorf("Status should be Running after swap, got %v", status)
 	}
 
 	// Test that same swap fails now
-	if task.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
-		t.Error("compareAndSwapStatus should fail for invalid transition")
+	if task.CompareAndSwapStatus(types.NotStarted, types.Running) {
+		t.Error("CompareAndSwapStatus should fail for invalid transition")
 	}
 
-	// Test setStatus
-	task.setStatus(orchestration.Completed)
-	if status := task.GetStatus(); status != orchestration.Completed {
-		t.Errorf("Status should be Completed after setStatus, got %v", status)
+	// Test SetStatus
+	task.SetStatus(types.Completed)
+	if status := task.GetStatus(); status != types.Completed {
+		t.Errorf("Status should be Completed after SetStatus, got %v", status)
 	}
 }
 
@@ -364,7 +365,7 @@ func TestTaskBuilderSingleExecution(t *testing.T) {
 	}
 
 	// Check error message
-	expectedError := "task already executed or in progress"
+	expectedError := "task orchestration already executed or in progress"
 	if !contains(err2.Error(), expectedError) {
 		t.Errorf("Expected error to contain %q, got %q", expectedError, err2.Error())
 	}
@@ -1054,8 +1055,8 @@ func BenchmarkTaskBuilderStatusOperations(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		task.GetStatus()
-		task.setStatus(orchestration.Running)
-		task.compareAndSwapStatus(orchestration.Running, orchestration.Completed)
+		task.SetStatus(types.Running)
+		task.CompareAndSwapStatus(types.Running, types.Completed)
 	}
 }
 
