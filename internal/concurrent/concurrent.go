@@ -619,6 +619,16 @@ func (cb *ConcurrentBuilder) GetChildNames() []string {
 // PathResolver Interface Implementation
 // =============================================================================
 
+// =============================================================================
+// Path Resolution Methods - Delegated to Base with Container-Specific Logic
+// =============================================================================
+
+// GetCurrentPath returns the current orchestration's full hierarchical path.
+// Delegates to base implementation.
+func (cb *ConcurrentBuilder) GetCurrentPath() string {
+	return cb.BaseOrchestrationBuilder.GetCurrentPath(cb)
+}
+
 // GetByPath finds an orchestration by its hierarchical path using dynamic resolution.
 // This method allows finding any orchestration in the tree without maintaining a centralized map.
 //
@@ -644,20 +654,6 @@ func (cb *ConcurrentBuilder) GetByPath(path string) (types.Orchestration, error)
 		return cb, nil
 	}
 	return cb.pathResolver.GetByPath(path)
-}
-
-// GetCurrentPath returns the current orchestration's full hierarchical path.
-// Each orchestration knows its own path without requiring a centralized registry.
-//
-// Returns:
-//   - string: Full path from root to current orchestration
-//
-// Example:
-//
-//	path := concurrent.GetCurrentPath()
-//	// Returns: "main-pipeline.auth-flow"
-func (cb *ConcurrentBuilder) GetCurrentPath() string {
-	return cb.pathResolver.GetCurrentPath()
 }
 
 // ListAllPaths returns all available paths in the orchestration subtree.
@@ -714,19 +710,9 @@ func (cb *ConcurrentBuilder) FindByName(name string) []types.PathMatch {
 // =============================================================================
 
 // Query returns a PathQuery instance for advanced path-based queries.
-// This provides pattern matching, type-based searches, and other advanced features.
-//
-// Returns:
-//   - *types.PathQuery: Query instance for advanced operations
-//
-// Example:
-//
-//	query := concurrent.Query()
-//	authTasks := query.FindByPattern("*.auth.*")
-//	concurrentOrchestrations := query.FindByType("concurrent")
+// Delegates to base implementation.
 func (cb *ConcurrentBuilder) Query() *types.PathQuery {
-	tree := cb.GetOrchestrationTree()
-	return types.NewPathQuery(tree)
+	return cb.BaseOrchestrationBuilder.Query(cb)
 }
 
 // GetOrchestrationTree returns a tree representation of the orchestration hierarchy.
