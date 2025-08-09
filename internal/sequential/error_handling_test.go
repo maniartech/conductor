@@ -37,8 +37,8 @@ func TestEnhancedErrorHandling_FailFast(t *testing.T) {
 	if !strings.Contains(errorMsg, "Detailed Report:") {
 		t.Error("Expected enhanced error with detailed report")
 	}
-	if !strings.Contains(errorMsg, "Sequential Name: enhanced-fail-fast-test") {
-		t.Error("Expected sequential name in error report")
+	if !strings.Contains(errorMsg, "Orchestration Name: enhanced-fail-fast-test") {
+		t.Error("Expected orchestration name in error report")
 	}
 	if !strings.Contains(errorMsg, "Error Strategy: FailFast") {
 		t.Error("Expected error strategy in error report")
@@ -88,8 +88,8 @@ func TestEnhancedErrorHandling_CollectAll(t *testing.T) {
 	if !strings.Contains(errorMsg, "Detailed Report:") {
 		t.Error("Expected enhanced error with detailed report")
 	}
-	if !strings.Contains(errorMsg, "Sequential Name: enhanced-collect-all-test") {
-		t.Error("Expected sequential name in error report")
+	if !strings.Contains(errorMsg, "Orchestration Name: enhanced-collect-all-test") {
+		t.Error("Expected orchestration name in error report")
 	}
 	if !strings.Contains(errorMsg, "Error Strategy: CollectAll") {
 		t.Error("Expected error strategy in error report")
@@ -120,7 +120,7 @@ func TestEnhancedErrorHandling_CollectAll(t *testing.T) {
 // TestErrorBoundaryHandler tests the error boundary handler functionality
 func TestErrorBoundaryHandler(t *testing.T) {
 	// Test FailFast strategy
-	handler := NewErrorBoundaryHandler(errorspkg.FailFast, "test-boundary", nil)
+	handler := errorspkg.NewErrorBoundaryHandler(errorspkg.FailFast, "test-boundary", nil)
 
 	// First error should stop execution
 	shouldContinue := handler.HandleError(errors.New("first error"), 0, "step1", time.Millisecond, nil)
@@ -145,7 +145,7 @@ func TestErrorBoundaryHandler(t *testing.T) {
 	}
 
 	// Test CollectAll strategy
-	collectHandler := NewErrorBoundaryHandler(errorspkg.CollectAll, "collect-boundary", nil)
+	collectHandler := errorspkg.NewErrorBoundaryHandler(errorspkg.CollectAll, "collect-boundary", nil)
 
 	// First error should continue execution
 	shouldContinue = collectHandler.HandleError(errors.New("first error"), 0, "step1", time.Millisecond, nil)
@@ -178,13 +178,13 @@ func TestErrorContextCreation(t *testing.T) {
 		task.Task(func() (int, error) { return 42, nil }),
 	}
 
-	ctx := CreateErrorContext("test-seq", "test-id", orchestrations, errorspkg.FailFast, nil)
+	ctx := errorspkg.CreateErrorContext("test-seq", "test-id", "sequential", len(orchestrations), errorspkg.FailFast, nil)
 
-	if ctx.SequentialName != "test-seq" {
-		t.Errorf("Expected sequential name 'test-seq', got %s", ctx.SequentialName)
+	if ctx.OrchestrationName != "test-seq" {
+		t.Errorf("Expected orchestration name 'test-seq', got %s", ctx.OrchestrationName)
 	}
-	if ctx.SequentialID != "test-id" {
-		t.Errorf("Expected sequential ID 'test-id', got %s", ctx.SequentialID)
+	if ctx.OrchestrationID != "test-id" {
+		t.Errorf("Expected orchestration ID 'test-id', got %s", ctx.OrchestrationID)
 	}
 	if ctx.TotalSteps != 2 {
 		t.Errorf("Expected 2 total steps, got %d", ctx.TotalSteps)
@@ -194,7 +194,7 @@ func TestErrorContextCreation(t *testing.T) {
 	}
 
 	// Test context updates
-	UpdateErrorContext(ctx, 1, time.Second, false)
+	errorspkg.UpdateErrorContext(ctx, 1, time.Second, false)
 	if ctx.CompletedSteps != 1 {
 		t.Errorf("Expected 1 completed step, got %d", ctx.CompletedSteps)
 	}
@@ -203,7 +203,7 @@ func TestErrorContextCreation(t *testing.T) {
 	}
 
 	// Test failed step setting
-	SetFailedStep(ctx, 1, "failed-step", []byte("stack trace"))
+	errorspkg.SetFailedStep(ctx, 1, "failed-step", []byte("stack trace"))
 	if ctx.FailedStep != 1 {
 		t.Errorf("Expected failed step 1, got %d", ctx.FailedStep)
 	}
@@ -221,23 +221,23 @@ func TestEnhancedErrorReporting(t *testing.T) {
 		task.Task(func() (string, error) { return "test", nil }),
 	}
 
-	ctx := CreateErrorContext("test-reporting", "report-id", orchestrations, errorspkg.CollectAll, nil)
-	handler := NewErrorBoundaryHandler(errorspkg.CollectAll, "report-boundary", nil)
+	ctx := errorspkg.CreateErrorContext("test-reporting", "report-id", "sequential", len(orchestrations), errorspkg.CollectAll, nil)
+	handler := errorspkg.NewErrorBoundaryHandler(errorspkg.CollectAll, "report-boundary", nil)
 
 	// Add some errors
 	handler.HandleError(errors.New("test error 1"), 0, "step1", time.Millisecond, ctx)
 	handler.HandleError(errors.New("test error 2"), 1, "step2", time.Millisecond*2, ctx)
 
 	// Create reporter and generate report
-	reporter := NewEnhancedErrorReporting(ctx, handler)
+	reporter := errorspkg.NewEnhancedErrorReporting(ctx, handler)
 	report := reporter.GenerateErrorReport()
 
 	// Verify report contains expected information
-	if !strings.Contains(report, "Sequential Name: test-reporting") {
-		t.Error("Expected sequential name in report")
+	if !strings.Contains(report, "Orchestration Name: test-reporting") {
+		t.Error("Expected orchestration name in report")
 	}
-	if !strings.Contains(report, "Sequential ID: report-id") {
-		t.Error("Expected sequential ID in report")
+	if !strings.Contains(report, "Orchestration ID: report-id") {
+		t.Error("Expected orchestration ID in report")
 	}
 	if !strings.Contains(report, "Error Boundary: report-boundary") {
 		t.Error("Expected error boundary in report")
