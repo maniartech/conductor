@@ -315,13 +315,14 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.Config, result *result.Result) error {
 	// Create error boundary handler for fail-fast strategy
 	boundaryName := sb.getOperationID()
-	errorHandler := NewErrorBoundaryHandler(errors.FailFast, boundaryName, nil)
+	errorHandler := errors.NewErrorBoundaryHandler(errors.FailFast, boundaryName, nil)
 
 	// Create rich error context
-	errorContext := CreateErrorContext(
+	errorContext := errors.CreateErrorContext(
 		sb.name,
 		sb.getOperationID(),
-		sb.orchestrations,
+		"sequential",
+		len(sb.orchestrations),
 		config.ErrorStrategy,
 		sb.errorBoundary,
 	)
@@ -336,7 +337,7 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 				Duration:  0,
 				Timestamp: time.Now(),
 				OpID:      fmt.Sprintf("%s.panic", boundaryName),
-				Stack:     errorHandler.captureStackTrace(),
+				Stack:     errorHandler.CaptureStackTrace(),
 			})
 		}
 	}()
@@ -347,7 +348,7 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 		// Check for cancellation before each orchestration
 		select {
 		case <-ctx.Done():
-			UpdateErrorContext(errorContext, i, time.Since(executionStart), true)
+			errors.UpdateErrorContext(errorContext, i, time.Since(executionStart), true)
 			return ctx.Err()
 		default:
 		}
@@ -358,11 +359,11 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 		stepName := sb.getChildName(orch, i)
 
 		// Update error context with current progress
-		UpdateErrorContext(errorContext, i, time.Since(executionStart), false)
+		errors.UpdateErrorContext(errorContext, i, time.Since(executionStart), false)
 
 		// Handle error through error boundary
 		if err != nil {
-			SetFailedStep(errorContext, i, stepName, errorHandler.captureStackTrace())
+			errors.SetFailedStep(errorContext, i, stepName, errorHandler.CaptureStackTrace())
 
 			shouldContinue := errorHandler.HandleError(err, i, stepName, stepDuration, errorContext)
 
@@ -373,12 +374,12 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 				Duration:  stepDuration,
 				Timestamp: stepStart,
 				OpID:      sb.getChildOperationID(orch, i),
-				Stack:     errorHandler.captureStackTrace(),
+				Stack:     errorHandler.CaptureStackTrace(),
 			})
 
 			if !shouldContinue {
 				// Generate enhanced error report for debugging
-				reporter := NewEnhancedErrorReporting(errorContext, errorHandler)
+				reporter := errors.NewEnhancedErrorReporting(errorContext, errorHandler)
 				enhancedError := fmt.Errorf("sequential orchestration failed at step %d (%s): %w\n\nDetailed Report:\n%s",
 					i, stepName, err, reporter.GenerateErrorReport())
 
@@ -416,13 +417,14 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config config.Config, result *result.Result) error {
 	// Create error boundary handler for collect-all strategy
 	boundaryName := sb.getOperationID()
-	errorHandler := NewErrorBoundaryHandler(errors.CollectAll, boundaryName, nil)
+	errorHandler := errors.NewErrorBoundaryHandler(errors.CollectAll, boundaryName, nil)
 
 	// Create rich error context
-	errorContext := CreateErrorContext(
+	errorContext := errors.CreateErrorContext(
 		sb.name,
 		sb.getOperationID(),
-		sb.orchestrations,
+		"sequential",
+		len(sb.orchestrations),
 		config.ErrorStrategy,
 		sb.errorBoundary,
 	)
@@ -437,7 +439,7 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 				Duration:  0,
 				Timestamp: time.Now(),
 				OpID:      fmt.Sprintf("%s.panic", boundaryName),
-				Stack:     errorHandler.captureStackTrace(),
+				Stack:     errorHandler.CaptureStackTrace(),
 			})
 		}
 	}()
@@ -448,7 +450,7 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 		// Check for cancellation before each orchestration
 		select {
 		case <-ctx.Done():
-			UpdateErrorContext(errorContext, i, time.Since(executionStart), true)
+			errors.UpdateErrorContext(errorContext, i, time.Since(executionStart), true)
 
 			// Add cancellation error for remaining operations with rich context
 			for j := i; j < len(sb.orchestrations); j++ {
@@ -463,7 +465,7 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 					Duration:  0,
 					Timestamp: time.Now(),
 					OpID:      sb.getChildOperationID(sb.orchestrations[j], j),
-					Stack:     errorHandler.captureStackTrace(),
+					Stack:     errorHandler.CaptureStackTrace(),
 				})
 			}
 			return ctx.Err()
@@ -476,11 +478,11 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 		stepName := sb.getChildName(orch, i)
 
 		// Update error context with current progress
-		UpdateErrorContext(errorContext, i+1, time.Since(executionStart), false)
+		errors.UpdateErrorContext(errorContext, i+1, time.Since(executionStart), false)
 
 		// Handle error through error boundary (CollectAll continues execution)
 		if err != nil {
-			SetFailedStep(errorContext, i, stepName, errorHandler.captureStackTrace())
+			errors.SetFailedStep(errorContext, i, stepName, errorHandler.CaptureStackTrace())
 
 			errorHandler.HandleError(err, i, stepName, stepDuration, errorContext)
 
@@ -491,7 +493,7 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 				Duration:  stepDuration,
 				Timestamp: stepStart,
 				OpID:      sb.getChildOperationID(orch, i),
-				Stack:     errorHandler.captureStackTrace(),
+				Stack:     errorHandler.CaptureStackTrace(),
 			})
 		} else {
 			// Store successful result using the child name
@@ -519,7 +521,7 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 	// Return enhanced error if any errors occurred
 	if errorHandler.HasErrors() {
 		// Generate comprehensive error report
-		reporter := NewEnhancedErrorReporting(errorContext, errorHandler)
+		reporter := errors.NewEnhancedErrorReporting(errorContext, errorHandler)
 		enhancedError := fmt.Errorf("sequential orchestration completed with %d errors: %w\n\nDetailed Report:\n%s",
 			errorHandler.GetErrorCount(), errorHandler.GetFinalError(), reporter.GenerateErrorReport())
 
