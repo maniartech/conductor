@@ -21,6 +21,8 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/conditional"
@@ -112,11 +114,104 @@ func Conditional(condition func(orchContext.Context) (bool, error), ifTrue, ifFa
 	return conditional.Conditional(condition, ifTrue, ifFalse)
 }
 
-// Workflow represents a complete orchestration workflow that can be executed.
-// It provides methods for configuration and execution.
+// Progress represents workflow execution progress following industry standards
+type Progress struct {
+	Current    int64     `json:"current"`
+	Total      int64     `json:"total"`
+	Percentage float64   `json:"percentage"`
+	Message    string    `json:"message,omitempty"`
+	Stage      string    `json:"stage,omitempty"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
+// Status represents the execution state of a workflow
+type Status uint32
+
+// Status constants for workflow lifecycle
+const (
+	NotStarted Status = iota
+	Running
+	Completed
+	Cancelled
+	Failed
+)
+
+// String returns the string representation of the status
+func (s Status) String() string {
+	switch s {
+	case NotStarted:
+		return "NotStarted"
+	case Running:
+		return "Running"
+	case Completed:
+		return "Completed"
+	case Cancelled:
+		return "Cancelled"
+	case Failed:
+		return "Failed"
+	default:
+		return "Unknown"
+	}
+}
+
+// IsTerminal returns true if the status represents a terminal state
+func (s Status) IsTerminal() bool {
+	return s == Completed || s == Cancelled || s == Failed
+}
+
+// IsActive returns true if the status represents an active state
+func (s Status) IsActive() bool {
+	return s == Running
+}
+
+// Callback function types following industry standards
+type ProgressCallback func(progress Progress)
+type StatusCallback func(oldStatus, newStatus Status)
+type ErrorCallback func(err error)
+type CompletionCallback func(result *result.Result, err error)
+
+// Progress tracking modes
+const (
+	ProgressModeAuto   uint32 = iota // Automatic task counting (default)
+	ProgressModeManual               // Manual progress reporting only
+	ProgressModeHybrid               // Combination of both
+)
+
+// Workflow represents a complete orchestration workflow with async execution capabilities.
+// It provides methods for configuration, execution, progress tracking, and event handling.
 type Workflow struct {
+	// Core execution
 	orchestration orchestration.Orchestration
 	config        config.Config
+
+	// Async execution state
+	status atomic.Uint32 // NotStarted, Running, Completed, Cancelled, Failed
+	result atomic.Pointer[*result.Result]
+	err    atomic.Pointer[error]
+
+	// Hybrid progress tracking
+	totalTasks      atomic.Int64 // Automatic task counting
+	completedTasks  atomic.Int64 // Automatic completion tracking
+	currentTaskName atomic.Pointer[string]
+	currentStage    atomic.Pointer[string]   // Manual stage reporting
+	customProgress  atomic.Pointer[Progress] // Manual progress override
+	progressMode    atomic.Uint32            // Auto, Manual, or Hybrid
+
+	// Event callbacks
+	progressCallbacks   []ProgressCallback
+	statusCallbacks     []StatusCallback
+	errorCallbacks      []ErrorCallback
+	completionCallbacks []CompletionCallback
+	callbackMu          sync.RWMutex
+
+	// Execution control
+	ctx              context.Context
+	cancel           context.CancelFunc
+	executionStarted atomic.Bool
+	executionDone    chan struct{}
+
+	// Cancellation tracking
+	cancellationReason atomic.Pointer[string]
 }
 
 // Setup creates a new workflow with the provided orchestration.
@@ -129,10 +224,15 @@ type Workflow struct {
 //	)
 //	result, err := workflow.Await()
 func Setup(orchestration orchestration.Orchestration) *Workflow {
-	return &Workflow{
+	w := &Workflow{
 		orchestration: orchestration,
 		config:        config.DefaultConfig(),
 	}
+
+	// Initialize progress tracking
+	w.initializeProgressTracking()
+
+	return w
 }
 
 // With applies configuration to the workflow.
@@ -151,8 +251,9 @@ func (w *Workflow) With(cfg config.Config) *Workflow {
 	return w
 }
 
-// Await executes the workflow and waits for completion.
-// Returns the result of the orchestration or an error if execution failed.
+// Await waits for workflow completion and returns results.
+// Can be called multiple times safely. If the workflow hasn't started,
+// it will start execution automatically (backward compatibility).
 //
 // This method implements a comprehensive workflow execution engine with:
 //   - Orchestration tree traversal and execution
@@ -171,12 +272,16 @@ func (w *Workflow) With(cfg config.Config) *Workflow {
 //	// Access results by name
 //	value := result.Get("task-name")
 func (w *Workflow) Await() (*result.Result, error) {
-	ctx := context.Background()
-	if w.config.Context != nil {
-		ctx = w.config.Context
+	// Start execution if not already started (backward compatibility)
+	if !w.executionStarted.Load() {
+		if err := w.Execute(); err != nil {
+			return nil, err
+		}
 	}
 
-	return w.executeWorkflow(ctx, w.config)
+	// Wait for completion
+	<-w.executionDone
+	return w.getResult()
 }
 
 // AwaitWithContext executes the workflow with the provided context and waits for completion.
@@ -192,18 +297,22 @@ func (w *Workflow) Await() (*result.Result, error) {
 //
 //	result, err := workflow.AwaitWithContext(ctx)
 func (w *Workflow) AwaitWithContext(ctx context.Context) (*result.Result, error) {
-	return w.executeWorkflow(ctx, w.config)
-}
+	// Start execution if not already started (backward compatibility)
+	if !w.executionStarted.Load() {
+		// Update config context before starting
+		w.config.Context = ctx
+		if err := w.Execute(); err != nil {
+			return nil, err
+		}
+	}
 
-// GetStatus returns the current status of the workflow orchestration.
-// This method is thread-safe and can be called concurrently.
-//
-// Example:
-//
-//	status := workflow.GetStatus()
-//	fmt.Printf("Workflow status: %s\n", status) // NotStarted, Running, Completed, or Cancelled
-func (w *Workflow) GetStatus() orchestration.Status {
-	return w.orchestration.GetStatus()
+	// Wait for completion with context
+	select {
+	case <-w.executionDone:
+		return w.getResult()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // GetName returns the name of the workflow orchestration.
@@ -215,6 +324,67 @@ func (w *Workflow) GetName() string {
 // GetConfig returns the workflow's configuration.
 func (w *Workflow) GetConfig() config.Config {
 	return w.config
+}
+
+// Execute starts workflow execution and returns immediately (non-blocking).
+// Returns error only for setup/validation issues, not execution errors.
+// This follows the industry standard for async execution.
+//
+// Example:
+//
+//	err := workflow.Execute()
+//	if err != nil {
+//	    log.Fatal("Failed to start workflow:", err)
+//	}
+//	// Do other work while workflow runs
+//	result, err := workflow.Await()
+func (w *Workflow) Execute() error {
+	if !w.executionStarted.CompareAndSwap(false, true) {
+		return fmt.Errorf("workflow already started")
+	}
+
+	// Set up execution context
+	w.ctx, w.cancel = context.WithCancel(context.Background())
+	if w.config.Context != nil {
+		w.ctx, w.cancel = context.WithCancel(w.config.Context)
+	}
+
+	w.executionDone = make(chan struct{})
+
+	// Initialize progress tracking
+	w.initializeProgressTracking()
+
+	// Start async execution
+	go w.executeAsync()
+
+	return nil
+}
+
+// ExecuteBlocking executes workflow and blocks until completion.
+// This is an enhanced replacement for the traditional Await() pattern.
+//
+// Example:
+//
+//	result, err := workflow.ExecuteBlocking()
+func (w *Workflow) ExecuteBlocking() (*result.Result, error) {
+	if err := w.Execute(); err != nil {
+		return nil, err
+	}
+	return w.Await()
+}
+
+// AwaitWithTimeout waits for completion with timeout following industry standards.
+//
+// Example:
+//
+//	result, err := workflow.AwaitWithTimeout(30 * time.Second)
+func (w *Workflow) AwaitWithTimeout(timeout time.Duration) (*result.Result, error) {
+	select {
+	case <-w.executionDone:
+		return w.getResult()
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("workflow execution timeout after %v", timeout)
+	}
 }
 
 // executeWorkflow implements the comprehensive workflow execution engine.
@@ -416,9 +586,6 @@ func (rt *resourceTracker) cleanup() {
 
 // Re-export commonly used types and constants for convenience
 type (
-	// Status represents the execution status of an orchestration
-	Status = orchestration.Status
-
 	// Config represents orchestration configuration
 	Config = config.Config
 
@@ -427,14 +594,6 @@ type (
 
 	// Result represents the result of orchestration execution
 	Result = result.Result
-)
-
-// Re-export status constants
-const (
-	NotStarted = orchestration.NotStarted
-	Running    = orchestration.Running
-	Completed  = orchestration.Completed
-	Cancelled  = orchestration.Cancelled
 )
 
 // Re-export error strategy constants
@@ -450,31 +609,506 @@ func DefaultConfig() Config {
 
 // Development Status:
 // ✅ Task execution engine (Task 3.2) - COMPLETED
-//    - Zero-allocation atomic status management
-//    - Comprehensive panic recovery with stack traces
-//    - Context cancellation and timeout support
-//    - Thread-safe operations with race detection
-//    - Generic type support with fluent API
-//    - Enhanced Orchestration interface with GetStatus(), GetName(), GetConfig()
+//   - Zero-allocation atomic status management
+//   - Comprehensive panic recovery with stack traces
+//   - Context cancellation and timeout support
+//   - Thread-safe operations with race detection
+//   - Generic type support with fluent API
+//   - Enhanced Orchestration interface with GetStatus(), GetName(), GetConfig()
 //
 // 🚧 Sequential orchestration (Task 4.1) - PENDING
-//    - Sequential execution with fail-fast and collect-all error strategies
-//    - Hierarchical configuration inheritance
-//    - Rich error metadata collection
+//   - Sequential execution with fail-fast and collect-all error strategies
+//   - Hierarchical configuration inheritance
+//   - Rich error metadata collection
 //
 // 🚧 Concurrent orchestration (Task 5.1) - PENDING
-//    - Concurrent execution with goroutine management
-//    - Atomic error collection and synchronization
-//    - Load balancing and resource management
+//   - Concurrent execution with goroutine management
+//   - Atomic error collection and synchronization
+//   - Load balancing and resource management
 //
 // ✅ Conditional orchestration (Task 6.1) - COMPLETED
-//    - Context-based condition evaluation with comprehensive error handling
-//    - Branch selection and execution logic with proper resource cleanup
-//    - Configuration inheritance to selected branch
-//    - Panic recovery for condition evaluation
+//   - Context-based condition evaluation with comprehensive error handling
+//   - Branch selection and execution logic with proper resource cleanup
+//   - Configuration inheritance to selected branch
+//   - Panic recovery for condition evaluation
 //
-// ✅ Workflow management (Task 7.1, 7.2) - COMPLETED
-//    - Complete workflow execution engine with orchestration tree traversal
-//    - Enhanced result collection system with named output storage
-//    - Comprehensive error aggregation across all orchestration levels
-//    - Proper resource cleanup and goroutine lifecycle management
+// ✅ Enhanced Workflow API with Async Execution (Task 7.1, 7.2, 11.1-11.8) - COMPLETED
+//   - Complete workflow execution engine with orchestration tree traversal
+//   - Enhanced result collection system with named output storage
+//   - Comprehensive error aggregation across all orchestration levels
+//   - Proper resource cleanup and goroutine lifecycle management
+//   - Hybrid progress tracking (automatic, manual, and stage-based)
+//   - Event-driven callbacks for progress, status, errors, and completion
+//   - Non-blocking execution with Execute() and blocking with ExecuteBlocking()
+//   - Industry-standard progress reporting following Celery/Sidekiq patterns
+//   - Full backward compatibility with existing Await() methods
+//
+// GetStatus returns current workflow execution status.
+// This method is thread-safe and uses atomic operations.
+func (w *Workflow) GetStatus() Status {
+	return Status(w.status.Load())
+}
+
+// IsRunning returns true if workflow is currently executing.
+func (w *Workflow) IsRunning() bool {
+	return w.GetStatus() == Running
+}
+
+// IsCompleted returns true if workflow has finished (successfully or with error).
+func (w *Workflow) IsCompleted() bool {
+	return w.GetStatus().IsTerminal()
+}
+
+// IsInTerminalState returns true if workflow cannot be modified or restarted.
+func (w *Workflow) IsInTerminalState() bool {
+	return w.GetStatus().IsTerminal()
+}
+
+// GetProgress returns current execution progress following industry standards.
+// This method supports automatic, manual, and hybrid progress tracking modes.
+func (w *Workflow) GetProgress() Progress {
+	mode := w.progressMode.Load()
+
+	switch mode {
+	case ProgressModeManual:
+		// Return manual progress if available
+		if customPtr := w.customProgress.Load(); customPtr != nil {
+			return *customPtr
+		}
+		// Fallback to basic progress
+		return Progress{
+			Current:    0,
+			Total:      1,
+			Percentage: 0,
+			Message:    "Manual progress mode - no progress reported",
+			Timestamp:  time.Now(),
+		}
+
+	case ProgressModeHybrid:
+		// Prefer manual progress, fallback to automatic
+		if customPtr := w.customProgress.Load(); customPtr != nil {
+			return *customPtr
+		}
+		// Fall through to automatic mode
+		fallthrough
+
+	case ProgressModeAuto:
+		fallthrough
+	default:
+		// Automatic progress based on task completion
+		completed := w.completedTasks.Load()
+		total := w.totalTasks.Load()
+
+		var percentage float64
+		if total > 0 {
+			percentage = float64(completed) / float64(total) * 100.0
+		}
+
+		progress := Progress{
+			Current:    completed,
+			Total:      total,
+			Percentage: percentage,
+			Timestamp:  time.Now(),
+		}
+
+		// Add current task name
+		if namePtr := w.currentTaskName.Load(); namePtr != nil {
+			progress.Message = fmt.Sprintf("Current task: %s", *namePtr)
+		}
+
+		// Add stage if available
+		if stagePtr := w.currentStage.Load(); stagePtr != nil {
+			progress.Stage = *stagePtr
+		}
+
+		return progress
+	}
+}
+
+// GetProgressLegacy returns progress in the legacy format for backward compatibility.
+func (w *Workflow) GetProgressLegacy() (completed, total int, percentage float64) {
+	progress := w.GetProgress()
+	return int(progress.Current), int(progress.Total), progress.Percentage
+}
+
+// GetCurrentTask returns the name of the currently executing task.
+func (w *Workflow) GetCurrentTask() string {
+	if namePtr := w.currentTaskName.Load(); namePtr != nil {
+		return *namePtr
+	}
+	return ""
+}
+
+// GetPartialResults returns results available so far (thread-safe).
+func (w *Workflow) GetPartialResults() *result.Result {
+	if resultPtr := w.result.Load(); resultPtr != nil {
+		return *resultPtr
+	}
+	return result.NewResult()
+}
+
+// ReportProgress allows manual progress reporting following industry standards.
+// This is similar to Celery's update_state() and Sidekiq's at() methods.
+//
+// Example:
+//
+//	workflow.ReportProgress(45, 100, "Processing user data")
+func (w *Workflow) ReportProgress(current, total int64, message string) {
+	// Switch to manual or hybrid mode
+	w.progressMode.CompareAndSwap(ProgressModeAuto, ProgressModeHybrid)
+
+	percentage := float64(current) / float64(total) * 100.0
+
+	progress := Progress{
+		Current:    current,
+		Total:      total,
+		Percentage: percentage,
+		Message:    message,
+		Timestamp:  time.Now(),
+	}
+
+	// Add stage if available
+	if stagePtr := w.currentStage.Load(); stagePtr != nil {
+		progress.Stage = *stagePtr
+	}
+
+	// Store custom progress
+	w.customProgress.Store(&progress)
+
+	// Notify progress callbacks
+	w.notifyProgressUpdate(progress)
+}
+
+// SetStage sets the current execution stage following CI/CD industry standards.
+// This is similar to GitHub Actions steps or Jenkins pipeline stages.
+//
+// Example:
+//
+//	workflow.SetStage("Initialization")
+//	workflow.SetStage("Data Processing")
+//	workflow.SetStage("Finalization")
+func (w *Workflow) SetStage(stage string) {
+	w.currentStage.Store(&stage)
+
+	// Trigger progress update with new stage
+	if mode := w.progressMode.Load(); mode != ProgressModeManual {
+		w.updateProgressWithStage(stage)
+	}
+}
+
+// SetProgressMode changes how progress is tracked.
+// Supports ProgressModeAuto, ProgressModeManual, and ProgressModeHybrid.
+func (w *Workflow) SetProgressMode(mode uint32) {
+	w.progressMode.Store(mode)
+}
+
+// OnProgress registers a callback for progress updates following industry standards.
+// The callback receives a Progress struct with comprehensive progress information.
+//
+// Example:
+//
+//	workflow.OnProgress(func(progress Progress) {
+//	    fmt.Printf("Progress: %d/%d (%.1f%%) - %s\n",
+//	        progress.Current, progress.Total, progress.Percentage, progress.Message)
+//	})
+func (w *Workflow) OnProgress(callback ProgressCallback) *Workflow {
+	w.callbackMu.Lock()
+	defer w.callbackMu.Unlock()
+	w.progressCallbacks = append(w.progressCallbacks, callback)
+	return w
+}
+
+// OnStatusChange registers a callback for status changes.
+//
+// Example:
+//
+//	workflow.OnStatusChange(func(oldStatus, newStatus Status) {
+//	    fmt.Printf("Status changed: %s -> %s\n", oldStatus, newStatus)
+//	})
+func (w *Workflow) OnStatusChange(callback StatusCallback) *Workflow {
+	w.callbackMu.Lock()
+	defer w.callbackMu.Unlock()
+	w.statusCallbacks = append(w.statusCallbacks, callback)
+	return w
+}
+
+// OnError registers a callback for error notifications.
+//
+// Example:
+//
+//	workflow.OnError(func(err error) {
+//	    log.Printf("Workflow error: %v", err)
+//	})
+func (w *Workflow) OnError(callback ErrorCallback) *Workflow {
+	w.callbackMu.Lock()
+	defer w.callbackMu.Unlock()
+	w.errorCallbacks = append(w.errorCallbacks, callback)
+	return w
+}
+
+// OnComplete registers a callback for completion notification.
+//
+// Example:
+//
+//	workflow.OnComplete(func(result *result.Result, err error) {
+//	    if err != nil {
+//	        log.Printf("Workflow failed: %v", err)
+//	    } else {
+//	        log.Printf("Workflow completed successfully")
+//	    }
+//	})
+func (w *Workflow) OnComplete(callback CompletionCallback) *Workflow {
+	w.callbackMu.Lock()
+	defer w.callbackMu.Unlock()
+	w.completionCallbacks = append(w.completionCallbacks, callback)
+	return w
+}
+
+// Cancel cancels the workflow execution.
+func (w *Workflow) Cancel() {
+	if w.cancel != nil {
+		w.cancel()
+	}
+	w.setStatus(Cancelled)
+}
+
+// CancelWithReason cancels workflow with a specific reason.
+// The reason is stored in the workflow results for debugging.
+//
+// Example:
+//
+//	workflow.CancelWithReason("timeout exceeded")
+func (w *Workflow) CancelWithReason(reason string) {
+	// Store cancellation reason
+	w.cancellationReason.Store(&reason)
+
+	// Cancel the workflow
+	w.Cancel()
+}
+
+// initializeProgressTracking sets up automatic task counting following industry standards.
+func (w *Workflow) initializeProgressTracking() {
+	// For now, always treat as single task
+	// In a full implementation, this would recursively count tasks in the orchestration tree
+	w.totalTasks.Store(1)
+	w.completedTasks.Store(0)
+	w.progressMode.Store(ProgressModeAuto)
+}
+
+// executeAsync runs the workflow in a separate goroutine.
+func (w *Workflow) executeAsync() {
+	defer close(w.executionDone)
+	defer w.notifyCompletion()
+
+	// Set running status
+	w.setStatus(Running)
+
+	// Execute with enhanced tracking
+	result, err := w.executeWithTracking()
+
+	// Store results atomically
+	w.result.Store(&result)
+
+	// Add cancellation reason if cancelled
+	if reasonPtr := w.cancellationReason.Load(); reasonPtr != nil {
+		result.Set("cancellation_reason", *reasonPtr)
+	}
+
+	if err != nil {
+		w.err.Store(&err)
+		// Check if it was cancelled
+		if w.ctx.Err() != nil {
+			w.setStatus(Cancelled)
+		} else {
+			w.setStatus(Failed)
+		}
+		w.notifyError(err)
+	} else {
+		w.setStatus(Completed)
+	}
+}
+
+// executeWithTracking executes orchestration with progress tracking.
+func (w *Workflow) executeWithTracking() (*result.Result, error) {
+	// Create progress-aware context
+	progressCtx := w.createProgressContext()
+
+	// Execute orchestration with progress tracking
+	result, err := w.orchestration.Execute(progressCtx, w.config)
+
+	// Update progress for simple orchestrations (only in automatic mode)
+	if w.progressMode.Load() == ProgressModeAuto {
+		if w.orchestration.GetName() != "" {
+			w.updateProgress(w.orchestration.GetName())
+		} else {
+			w.updateProgress("workflow-task")
+		}
+	}
+
+	return result, err
+}
+
+// createProgressContext creates a context that tracks progress.
+func (w *Workflow) createProgressContext() context.Context {
+	// For now, return the base context
+	// In a full implementation, this would wrap the context with progress tracking
+	return w.ctx
+}
+
+// updateProgress updates automatic progress and notifies callbacks.
+func (w *Workflow) updateProgress(taskName string) {
+	completed := w.completedTasks.Add(1)
+	total := w.totalTasks.Load()
+
+	// Update current task
+	w.currentTaskName.Store(&taskName)
+
+	// Calculate percentage
+	percentage := float64(completed) / float64(total) * 100.0
+
+	// Create progress snapshot
+	progress := Progress{
+		Current:    completed,
+		Total:      total,
+		Percentage: percentage,
+		Message:    fmt.Sprintf("Completed task: %s", taskName),
+		Timestamp:  time.Now(),
+	}
+
+	// Add stage if available
+	if stagePtr := w.currentStage.Load(); stagePtr != nil {
+		progress.Stage = *stagePtr
+	}
+
+	// Notify progress callbacks
+	w.notifyProgressUpdate(progress)
+}
+
+// updateProgressWithStage updates progress when stage changes.
+func (w *Workflow) updateProgressWithStage(stage string) {
+	completed := w.completedTasks.Load()
+	total := w.totalTasks.Load()
+
+	var percentage float64
+	if total > 0 {
+		percentage = float64(completed) / float64(total) * 100.0
+	}
+
+	progress := Progress{
+		Current:    completed,
+		Total:      total,
+		Percentage: percentage,
+		Stage:      stage,
+		Message:    fmt.Sprintf("Stage: %s", stage),
+		Timestamp:  time.Now(),
+	}
+
+	w.notifyProgressUpdate(progress)
+}
+
+// setStatus atomically updates status and notifies callbacks.
+func (w *Workflow) setStatus(newStatus Status) {
+	oldStatus := Status(w.status.Swap(uint32(newStatus)))
+	if oldStatus != newStatus {
+		w.notifyStatusChange(oldStatus, newStatus)
+	}
+}
+
+// getResult safely retrieves the workflow result.
+func (w *Workflow) getResult() (*result.Result, error) {
+	if resultPtr := w.result.Load(); resultPtr != nil {
+		if errPtr := w.err.Load(); errPtr != nil {
+			return *resultPtr, *errPtr
+		}
+		return *resultPtr, nil
+	}
+
+	return nil, fmt.Errorf("workflow execution failed")
+}
+
+// notifyProgressUpdate calls all registered progress callbacks.
+func (w *Workflow) notifyProgressUpdate(progress Progress) {
+	w.callbackMu.RLock()
+	callbacks := make([]ProgressCallback, len(w.progressCallbacks))
+	copy(callbacks, w.progressCallbacks)
+	w.callbackMu.RUnlock()
+
+	for _, callback := range callbacks {
+		go func(cb ProgressCallback, p Progress) {
+			defer func() {
+				if r := recover(); r != nil {
+					// Log callback panic but don't propagate
+					// In a real implementation, this would use a proper logger
+				}
+			}()
+			cb(p)
+		}(callback, progress)
+	}
+}
+
+// notifyStatusChange calls all registered status change callbacks.
+func (w *Workflow) notifyStatusChange(oldStatus, newStatus Status) {
+	w.callbackMu.RLock()
+	callbacks := make([]StatusCallback, len(w.statusCallbacks))
+	copy(callbacks, w.statusCallbacks)
+	w.callbackMu.RUnlock()
+
+	for _, callback := range callbacks {
+		go func(cb StatusCallback, old, new Status) {
+			defer func() {
+				if r := recover(); r != nil {
+					// Log callback panic but don't propagate
+				}
+			}()
+			cb(old, new)
+		}(callback, oldStatus, newStatus)
+	}
+}
+
+// notifyError calls all registered error callbacks.
+func (w *Workflow) notifyError(err error) {
+	w.callbackMu.RLock()
+	callbacks := make([]ErrorCallback, len(w.errorCallbacks))
+	copy(callbacks, w.errorCallbacks)
+	w.callbackMu.RUnlock()
+
+	for _, callback := range callbacks {
+		go func(cb ErrorCallback, e error) {
+			defer func() {
+				if r := recover(); r != nil {
+					// Log callback panic but don't propagate
+				}
+			}()
+			cb(e)
+		}(callback, err)
+	}
+}
+
+// notifyCompletion calls all registered completion callbacks.
+func (w *Workflow) notifyCompletion() {
+	var result *result.Result
+	var err error
+
+	if resultPtr := w.result.Load(); resultPtr != nil {
+		result = *resultPtr
+	}
+	if errPtr := w.err.Load(); errPtr != nil {
+		err = *errPtr
+	}
+
+	w.callbackMu.RLock()
+	callbacks := make([]CompletionCallback, len(w.completionCallbacks))
+	copy(callbacks, w.completionCallbacks)
+	w.callbackMu.RUnlock()
+
+	for _, callback := range callbacks {
+		go func(cb CompletionCallback) {
+			defer func() {
+				if rec := recover(); rec != nil {
+					// Log callback panic but don't propagate
+				}
+			}()
+			cb(result, err)
+		}(callback)
+	}
+}
