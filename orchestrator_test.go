@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -637,9 +639,9 @@ func TestWorkflow_Callbacks(t *testing.T) {
 
 		workflow := Setup(task)
 
-		progressCalled := false
+		var progressCalled atomic.Bool
 		workflow.OnProgress(func(progress Progress) {
-			progressCalled = true
+			progressCalled.Store(true)
 			if progress.Current < 0 || progress.Total < 0 {
 				t.Errorf("Invalid progress values: %d/%d", progress.Current, progress.Total)
 			}
@@ -653,7 +655,7 @@ func TestWorkflow_Callbacks(t *testing.T) {
 		// Wait a bit for callbacks to be processed
 		time.Sleep(10 * time.Millisecond)
 
-		if !progressCalled {
+		if !progressCalled.Load() {
 			t.Error("Expected progress callback to be called")
 		}
 
@@ -671,9 +673,12 @@ func TestWorkflow_Callbacks(t *testing.T) {
 
 		workflow := Setup(task)
 
+		var mu sync.Mutex
 		var statusChanges []Status
 		workflow.OnStatusChange(func(oldStatus, newStatus Status) {
+			mu.Lock()
 			statusChanges = append(statusChanges, newStatus)
+			mu.Unlock()
 		})
 
 		result, err := workflow.ExecuteBlocking()
@@ -684,14 +689,20 @@ func TestWorkflow_Callbacks(t *testing.T) {
 		// Wait for all callbacks to be processed
 		time.Sleep(20 * time.Millisecond)
 
-		if len(statusChanges) < 2 {
-			t.Errorf("Expected at least 2 status changes, got %d", len(statusChanges))
+		mu.Lock()
+		statusChangeCount := len(statusChanges)
+		statusChangesCopy := make([]Status, len(statusChanges))
+		copy(statusChangesCopy, statusChanges)
+		mu.Unlock()
+
+		if statusChangeCount < 2 {
+			t.Errorf("Expected at least 2 status changes, got %d", statusChangeCount)
 		}
 
 		// Should have Running and Completed
 		hasRunning := false
 		hasCompleted := false
-		for _, status := range statusChanges {
+		for _, status := range statusChangesCopy {
 			if status == Running {
 				hasRunning = true
 			}
@@ -721,9 +732,12 @@ func TestWorkflow_Callbacks(t *testing.T) {
 
 		workflow := Setup(task)
 
+		var mu sync.Mutex
 		var capturedError error
 		workflow.OnError(func(err error) {
+			mu.Lock()
 			capturedError = err
+			mu.Unlock()
 		})
 
 		result, err := workflow.ExecuteBlocking()
@@ -734,7 +748,11 @@ func TestWorkflow_Callbacks(t *testing.T) {
 		// Wait a bit for callbacks
 		time.Sleep(10 * time.Millisecond)
 
-		if capturedError == nil {
+		mu.Lock()
+		errorCopy := capturedError
+		mu.Unlock()
+
+		if errorCopy == nil {
 			t.Error("Expected error callback to be called")
 		}
 
@@ -750,14 +768,17 @@ func TestWorkflow_Callbacks(t *testing.T) {
 
 		workflow := Setup(task)
 
+		var mu sync.Mutex
 		var completionCalled bool
 		var completionResult *Result
 		var completionError error
 
 		workflow.OnComplete(func(result *Result, err error) {
+			mu.Lock()
 			completionCalled = true
 			completionResult = result
 			completionError = err
+			mu.Unlock()
 		})
 
 		result, err := workflow.ExecuteBlocking()
@@ -768,15 +789,21 @@ func TestWorkflow_Callbacks(t *testing.T) {
 		// Wait a bit for callbacks
 		time.Sleep(10 * time.Millisecond)
 
-		if !completionCalled {
+		mu.Lock()
+		called := completionCalled
+		resultCopy := completionResult
+		errorCopy := completionError
+		mu.Unlock()
+
+		if !called {
 			t.Error("Expected completion callback to be called")
 		}
 
-		if completionError != nil {
-			t.Errorf("Expected no error in completion callback, got: %v", completionError)
+		if errorCopy != nil {
+			t.Errorf("Expected no error in completion callback, got: %v", errorCopy)
 		}
 
-		if completionResult == nil {
+		if resultCopy == nil {
 			t.Error("Expected result in completion callback")
 		}
 

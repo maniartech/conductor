@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -60,9 +62,9 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		workflow := Setup(task)
 
 		// Set up progress callback
-		progressCalled := false
+		var progressCalled atomic.Bool
 		workflow.OnProgress(func(progress Progress) {
-			progressCalled = true
+			progressCalled.Store(true)
 			if progress.Current < 0 || progress.Total < 0 {
 				t.Errorf("Invalid progress values: %d/%d", progress.Current, progress.Total)
 			}
@@ -78,7 +80,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Verify progress callback was called
-		if !progressCalled {
+		if !progressCalled.Load() {
 			t.Error("Expected progress callback to be called")
 		}
 
@@ -102,9 +104,12 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		workflow.SetProgressMode(ProgressModeManual)
 
 		// Set up progress callback
+		var mu sync.Mutex
 		var lastProgress Progress
 		workflow.OnProgress(func(progress Progress) {
+			mu.Lock()
 			lastProgress = progress
+			mu.Unlock()
 		})
 
 		// Start execution
@@ -120,12 +125,18 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Check progress
-		if lastProgress.Current != 50 || lastProgress.Total != 100 {
-			t.Errorf("Expected progress 50/100, got %d/%d", lastProgress.Current, lastProgress.Total)
+		mu.Lock()
+		current := lastProgress.Current
+		total := lastProgress.Total
+		message := lastProgress.Message
+		mu.Unlock()
+
+		if current != 50 || total != 100 {
+			t.Errorf("Expected progress 50/100, got %d/%d", current, total)
 		}
 
-		if lastProgress.Message != "Halfway done" {
-			t.Errorf("Expected message 'Halfway done', got: %s", lastProgress.Message)
+		if message != "Halfway done" {
+			t.Errorf("Expected message 'Halfway done', got: %s", message)
 		}
 
 		// Wait for completion
@@ -151,10 +162,13 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		workflow := Setup(task)
 
 		// Set up progress callback
+		var mu sync.Mutex
 		var stages []string
 		workflow.OnProgress(func(progress Progress) {
 			if progress.Stage != "" {
+				mu.Lock()
 				stages = append(stages, progress.Stage)
+				mu.Unlock()
 			}
 		})
 
@@ -176,7 +190,11 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		}
 
 		// Verify stages were captured
-		if len(stages) == 0 {
+		mu.Lock()
+		stageCount := len(stages)
+		mu.Unlock()
+
+		if stageCount == 0 {
 			t.Error("Expected stage updates to be captured")
 		}
 
@@ -198,9 +216,12 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		workflow := Setup(task)
 
 		// Track status changes
+		var mu sync.Mutex
 		var statusChanges []Status
 		workflow.OnStatusChange(func(oldStatus, newStatus Status) {
+			mu.Lock()
 			statusChanges = append(statusChanges, newStatus)
+			mu.Unlock()
 		})
 
 		// Execute workflow
@@ -213,14 +234,20 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 
 		// Verify status changes
-		if len(statusChanges) < 2 {
-			t.Errorf("Expected at least 2 status changes, got %d", len(statusChanges))
+		mu.Lock()
+		statusChangeCount := len(statusChanges)
+		statusChangesCopy := make([]Status, len(statusChanges))
+		copy(statusChangesCopy, statusChanges)
+		mu.Unlock()
+
+		if statusChangeCount < 2 {
+			t.Errorf("Expected at least 2 status changes, got %d", statusChangeCount)
 		}
 
 		// Should have Running and Completed
 		hasRunning := false
 		hasCompleted := false
-		for _, status := range statusChanges {
+		for _, status := range statusChangesCopy {
 			if status == Running {
 				hasRunning = true
 			}
@@ -253,17 +280,22 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		workflow := Setup(task)
 
 		// Track errors
+		var mu sync.Mutex
 		var capturedError error
 		workflow.OnError(func(err error) {
+			mu.Lock()
 			capturedError = err
+			mu.Unlock()
 		})
 
 		// Track completion
 		var completionCalled bool
 		var completionError error
 		workflow.OnComplete(func(result *Result, err error) {
+			mu.Lock()
 			completionCalled = true
 			completionError = err
+			mu.Unlock()
 		})
 
 		// Execute workflow
@@ -278,12 +310,18 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Verify error callback was called
-		if capturedError == nil {
+		mu.Lock()
+		errorCopy := capturedError
+		called := completionCalled
+		_ = completionError // Ignore completion error for this test
+		mu.Unlock()
+
+		if errorCopy == nil {
 			t.Error("Expected error callback to be called")
 		}
 
 		// Verify completion callback was called
-		if !completionCalled {
+		if !called {
 			t.Error("Expected completion callback to be called")
 		}
 

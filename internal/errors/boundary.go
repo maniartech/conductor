@@ -6,6 +6,7 @@ package errors
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -38,6 +39,7 @@ type ErrorBoundaryHandler struct {
 	errorCount    int
 	firstError    error
 	allErrors     []OperationError
+	mu            sync.Mutex // protects the above fields
 }
 
 // NewErrorBoundaryHandler creates a new error boundary handler for any orchestration type.
@@ -87,6 +89,9 @@ func (ebh *ErrorBoundaryHandler) HandleError(err error, stepIndex int, stepName 
 	if err == nil {
 		return true
 	}
+
+	ebh.mu.Lock()
+	defer ebh.mu.Unlock()
 
 	ebh.errorCount++
 	if ebh.firstError == nil {
@@ -140,11 +145,13 @@ func (ebh *ErrorBoundaryHandler) HandlePanic() error {
 			Stack:     ebh.CaptureStackTrace(),
 		}
 
+		ebh.mu.Lock()
 		ebh.allErrors = append(ebh.allErrors, opError)
 		ebh.errorCount++
 		if ebh.firstError == nil {
 			ebh.firstError = panicErr
 		}
+		ebh.mu.Unlock()
 
 		return panicErr
 	}
@@ -163,6 +170,9 @@ func (ebh *ErrorBoundaryHandler) HandlePanic() error {
 //	    return result, handler.GetFinalError()
 //	}
 func (ebh *ErrorBoundaryHandler) GetFinalError() error {
+	ebh.mu.Lock()
+	defer ebh.mu.Unlock()
+
 	if ebh.errorCount == 0 {
 		return nil
 	}
@@ -183,6 +193,8 @@ func (ebh *ErrorBoundaryHandler) GetFinalError() error {
 // Returns:
 //   - bool: Whether any errors occurred within the boundary
 func (ebh *ErrorBoundaryHandler) HasErrors() bool {
+	ebh.mu.Lock()
+	defer ebh.mu.Unlock()
 	return ebh.errorCount > 0
 }
 
@@ -192,6 +204,9 @@ func (ebh *ErrorBoundaryHandler) HasErrors() bool {
 // Returns:
 //   - []OperationError: All errors that occurred within the boundary
 func (ebh *ErrorBoundaryHandler) GetAllErrors() []OperationError {
+	ebh.mu.Lock()
+	defer ebh.mu.Unlock()
+
 	// Return a copy to prevent external modification
 	errorsCopy := make([]OperationError, len(ebh.allErrors))
 	copy(errorsCopy, ebh.allErrors)
@@ -203,6 +218,8 @@ func (ebh *ErrorBoundaryHandler) GetAllErrors() []OperationError {
 // Returns:
 //   - int: Total number of errors
 func (ebh *ErrorBoundaryHandler) GetErrorCount() int {
+	ebh.mu.Lock()
+	defer ebh.mu.Unlock()
 	return ebh.errorCount
 }
 
