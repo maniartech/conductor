@@ -21,7 +21,9 @@ package orchestrator
 import (
 	"context"
 
+	"github.com/maniartech/orchestrator/internal/conditional"
 	"github.com/maniartech/orchestrator/internal/config"
+	orchContext "github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/internal/result"
@@ -84,6 +86,28 @@ func Concurrent(orchestrations ...orchestration.Orchestration) orchestration.Orc
 	// TODO: Implement ConcurrentBuilder in task 5.1
 	// For now, return a placeholder that will be implemented in the next task
 	panic("Concurrent orchestration not yet implemented - will be completed in task 5.1")
+}
+
+// Conditional creates a conditional orchestration that evaluates a condition function
+// and executes either the ifTrue or ifFalse orchestration based on the result.
+// The condition function has access to the orchestration context for making decisions
+// based on runtime state and can return an error if evaluation fails.
+//
+// Example:
+//
+//	conditional := orchestrator.Conditional(
+//	    func(ctx orchContext.Context) (bool, error) {
+//	        authenticated, ok := ctx.Get("user_authenticated").(bool)
+//	        if !ok {
+//	            return false, errors.New("authentication status not available")
+//	        }
+//	        return authenticated, nil
+//	    },
+//	    orchestrator.Task(fetchUserData).Named("fetch-data"),
+//	    orchestrator.Task(redirectToLogin).Named("redirect-login"),
+//	).Named("auth-check")
+func Conditional(condition func(orchContext.Context) (bool, error), ifTrue, ifFalse orchestration.Orchestration) orchestration.Orchestration {
+	return conditional.Conditional(condition, ifTrue, ifFalse)
 }
 
 // Workflow represents a complete orchestration workflow that can be executed.
@@ -235,9 +259,11 @@ func DefaultConfig() Config {
 //    - Atomic error collection and synchronization
 //    - Load balancing and resource management
 //
-// 🚧 Conditional orchestration (Task 6.1) - PENDING
-//    - Context-based condition evaluation
-//    - Branch selection and execution logic
+// ✅ Conditional orchestration (Task 6.1) - COMPLETED
+//    - Context-based condition evaluation with comprehensive error handling
+//    - Branch selection and execution logic with proper resource cleanup
+//    - Configuration inheritance to selected branch
+//    - Panic recovery for condition evaluation
 //
 // 🚧 Workflow management (Task 7.1) - PENDING
 //    - Complete workflow execution engine
