@@ -2,11 +2,11 @@ package errors
 
 import (
 	"errors"
+	errorsStd "errors"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-	errorsStd "errors"
 )
 
 // TestNewErrorBoundaryHandler tests the creation of error boundary handlers
@@ -603,7 +603,7 @@ func TestErrorBoundaryHandler_PanicAndFinalErrorBranches(t *testing.T) {
 	h := NewErrorBoundaryHandler(FailFast, "panic-boundary", nil)
 	// No errors -> GetFinalError should be nil
 	if h.GetFinalError() != nil {
-		 t.Fatalf("expected nil final error when no errors recorded")
+		t.Fatalf("expected nil final error when no errors recorded")
 	}
 
 	// Trigger panic recovery path
@@ -613,12 +613,12 @@ func TestErrorBoundaryHandler_PanicAndFinalErrorBranches(t *testing.T) {
 	}()
 
 	if !h.HasErrors() {
-		 t.Fatalf("expected errors after panic")
+		t.Fatalf("expected errors after panic")
 	}
 
 	err := h.GetFinalError()
 	if err == nil {
-		 t.Fatalf("expected final error after panic")
+		t.Fatalf("expected final error after panic")
 	}
 }
 
@@ -628,12 +628,22 @@ func TestErrorBoundaryHandler_HandleErrorCollectAllAggregation(t *testing.T) {
 	start := time.Now()
 	// record two errors
 	cont := h.HandleError(errorsStd.New("e1"), 0, "step1", time.Since(start), ctx)
-	if !cont { t.Fatalf("expected continue for CollectAll") }
+	if !cont {
+		t.Fatalf("expected continue for CollectAll")
+	}
 	cont = h.HandleError(errorsStd.New("e2"), 1, "step2", time.Since(start), ctx)
-	if !cont { t.Fatalf("expected continue for CollectAll second") }
-	if h.GetErrorCount() != 2 { t.Fatalf("expected 2 errors, got %d", h.GetErrorCount()) }
+	if !cont {
+		t.Fatalf("expected continue for CollectAll second")
+	}
+	if h.GetErrorCount() != 2 {
+		t.Fatalf("expected 2 errors, got %d", h.GetErrorCount())
+	}
 	final := h.GetFinalError()
-	if final == nil { t.Fatalf("expected aggregated final error") }
+	if final == nil {
+		t.Fatalf("expected aggregated final error")
+	}
 	all := h.GetAllErrors()
-	if len(all) != 2 { t.Fatalf("expected 2 collected errors") }
+	if len(all) != 2 {
+		t.Fatalf("expected 2 collected errors")
+	}
 }

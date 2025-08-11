@@ -18,7 +18,9 @@ func TestWorkflow_InternalExecutionBranches(t *testing.T) {
 		return "slow", nil
 	}).Named("slow-task")
 	wf := Setup(longTask)
-	if err := wf.Execute(); err != nil { t.Fatalf("execute err: %v", err) }
+	if err := wf.Execute(); err != nil {
+		t.Fatalf("execute err: %v", err)
+	}
 	// expect timeout
 	if _, err := wf.AwaitWithTimeout(1 * time.Millisecond); err == nil {
 		// may succeed if scheduling fast; still proceed
@@ -31,6 +33,10 @@ func TestWorkflow_executeWorkflow_Direct(t *testing.T) {
 	wf := Setup(fast)
 	cfg := config.DefaultConfig()
 	res, err := wf.executeWorkflow(context.Background(), cfg)
-	if err != nil { t.Fatalf("unexpected err: %v", err) }
-	if res == nil || res.Get("fast") != "ok" { t.Fatalf("missing result") }
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res == nil || res.Get("fast") != "ok" {
+		t.Fatalf("missing result")
+	}
 }

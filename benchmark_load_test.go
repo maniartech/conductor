@@ -8,6 +8,7 @@
 //   - Call workflow.Await()/AwaitWithContext() without passing a context to Await()
 //   - Remove deprecated config structs from types in favor of internal/config via public wrappers
 //   - Ensure no import cycles occur
+//
 // Keeping the file ignored preserves historical scenarios without breaking the build.
 package orchestrator
 
