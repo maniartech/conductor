@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	errorsStd "errors"
 )
 
 // TestNewErrorBoundaryHandler tests the creation of error boundary handlers
@@ -595,4 +596,44 @@ func BenchmarkCreateErrorContext(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		CreateErrorContext("test", "test-id", "test-kind", 10, FailFast, nil)
 	}
+}
+
+// TestErrorBoundaryHandler_PanicAndFinalErrorBranches tests panic recovery and final error branches
+func TestErrorBoundaryHandler_PanicAndFinalErrorBranches(t *testing.T) {
+	h := NewErrorBoundaryHandler(FailFast, "panic-boundary", nil)
+	// No errors -> GetFinalError should be nil
+	if h.GetFinalError() != nil {
+		 t.Fatalf("expected nil final error when no errors recorded")
+	}
+
+	// Trigger panic recovery path
+	func() {
+		defer h.HandlePanic()
+		panic("boom")
+	}()
+
+	if !h.HasErrors() {
+		 t.Fatalf("expected errors after panic")
+	}
+
+	err := h.GetFinalError()
+	if err == nil {
+		 t.Fatalf("expected final error after panic")
+	}
+}
+
+func TestErrorBoundaryHandler_HandleErrorCollectAllAggregation(t *testing.T) {
+	h := NewErrorBoundaryHandler(CollectAll, "collect-boundary", nil)
+	ctx := CreateErrorContext("orch", "id", "task", 2, CollectAll, nil)
+	start := time.Now()
+	// record two errors
+	cont := h.HandleError(errorsStd.New("e1"), 0, "step1", time.Since(start), ctx)
+	if !cont { t.Fatalf("expected continue for CollectAll") }
+	cont = h.HandleError(errorsStd.New("e2"), 1, "step2", time.Since(start), ctx)
+	if !cont { t.Fatalf("expected continue for CollectAll second") }
+	if h.GetErrorCount() != 2 { t.Fatalf("expected 2 errors, got %d", h.GetErrorCount()) }
+	final := h.GetFinalError()
+	if final == nil { t.Fatalf("expected aggregated final error") }
+	all := h.GetAllErrors()
+	if len(all) != 2 { t.Fatalf("expected 2 collected errors") }
 }
