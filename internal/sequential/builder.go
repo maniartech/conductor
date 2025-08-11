@@ -152,7 +152,12 @@ func Sequential(orchestrations ...types.Orchestration) *SequentialBuilder {
 	// Initialize path resolver
 	sb.pathResolver = orchestration.NewPathResolverBase()
 	sb.pathResolver.SetCallbacks(
-		func() string { return sb.GetCurrentPath() },
+		func() string { // avoid recursive call through pathResolver
+			if sb.namer != nil {
+				return sb.namer.GetContext().GetPath()
+			}
+			return ""
+		},
 		func() []types.Orchestration { return sb.GetChildren() },
 		func(child types.Orchestration, index int) string { return sb.getChildName(child, index) },
 	)
@@ -750,16 +755,11 @@ func (sb *SequentialBuilder) GetByPath(path string) (types.Orchestration, error)
 
 // GetCurrentPath returns the current orchestration's full hierarchical path.
 // Each orchestration knows its own path without requiring a centralized registry.
-//
-// Returns:
-//   - string: Full path from root to current orchestration
-//
-// Example:
-//
-//	path := sequential.GetCurrentPath()
-//	// Returns: "main-pipeline.auth-flow"
 func (sb *SequentialBuilder) GetCurrentPath() string {
-	return sb.pathResolver.GetCurrentPath()
+	if sb.namer != nil {
+		return sb.namer.GetContext().GetPath()
+	}
+	return ""
 }
 
 // ListAllPaths returns all available paths in the orchestration subtree.
@@ -801,7 +801,7 @@ func (sb *SequentialBuilder) FindByName(name string) []types.PathMatch {
 		currentMatch := orchestration.PathMatch{
 			Path:          sb.GetCurrentPath(),
 			Orchestration: sb,
-			Depth:         sb.namer.GetContext().GetDepth(),
+			Depth:         sb.namer.GetDepth(),
 			Parent:        sb.namer.GetContext().GetParentPath(),
 			Type:          "sequential",
 		}
