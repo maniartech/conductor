@@ -1123,3 +1123,54 @@ func ExampleTaskBuilder_safeExecute() {
 	// Output:
 	// Result: Safe execution
 }
+
+func TestTask_PathResolutionCoverage(t *testing.T) {
+	// simple task
+	tt := Task(func() (string, error) { return "x", nil }).Named("path-task")
+
+	// GetCurrentPath should return an operation id containing type prefix
+	path := tt.GetCurrentPath()
+	if path == "" {
+		t.Fatalf("expected non-empty current path")
+	}
+
+	// GetByPath success
+	got, err := tt.GetByPath(path)
+	if err != nil || got == nil {
+		t.Fatalf("expected to retrieve task by path, err=%v", err)
+	}
+
+	// GetByPath not found
+	_, err = tt.GetByPath(path + "-missing")
+	if err == nil {
+		t.Fatalf("expected error for missing path")
+	}
+
+	// ListAllPaths contains exactly the current path
+	paths := tt.ListAllPaths()
+	if len(paths) != 1 || paths[0] != path {
+		t.Fatalf("expected single path %s, got %v", path, paths)
+	}
+
+	// FindByName matches
+	matches := tt.FindByName("path-task")
+	if len(matches) != 1 || matches[0].Path != path {
+		t.Fatalf("expected match for name path-task, got %v", matches)
+	}
+
+	// Orchestration tree root
+	tree := tt.GetOrchestrationTree()
+	if tree == nil || tree.Path != path || len(tree.Children) != 0 {
+		t.Fatalf("unexpected tree: %+v", tree)
+	}
+
+	// Query API basic usage
+	q := tt.Query()
+	if q == nil {
+		t.Fatalf("expected non-nil query")
+	}
+	leaf := q.FindLeafNodes()
+	if len(leaf) == 0 {
+		t.Fatalf("expected at least one leaf node")
+	}
+}
