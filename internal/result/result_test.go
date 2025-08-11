@@ -10,6 +10,17 @@ import (
 	"github.com/maniartech/orchestrator/internal/errors"
 )
 
+// Test types for interface testing
+type TestStringer interface {
+	String() string
+}
+
+type TestMyString string
+
+func (ms TestMyString) String() string {
+	return string(ms)
+}
+
 func TestNewResult(t *testing.T) {
 	result := NewResult()
 
@@ -356,4 +367,404 @@ func ExampleGetTyped() {
 	// Output:
 	// Count: 42
 	// Message: Hello, World!
+}
+
+// TestResultMerge tests the Merge functionality
+func TestResultMerge(t *testing.T) {
+	t.Run("merge_basic", func(t *testing.T) {
+		result1 := NewResult()
+		result1.Set("key1", "value1")
+		result1.Set("shared", "original")
+
+		result2 := NewResult()
+		result2.Set("key2", "value2")
+		result2.Set("shared", "overwritten")
+
+		result1.Merge(result2)
+
+		// Check that all keys are present
+		if result1.Get("key1") != "value1" {
+			t.Errorf("Expected 'value1', got %v", result1.Get("key1"))
+		}
+
+		if result1.Get("key2") != "value2" {
+			t.Errorf("Expected 'value2', got %v", result1.Get("key2"))
+		}
+
+		// Shared key should be overwritten
+		if result1.Get("shared") != "overwritten" {
+			t.Errorf("Expected 'overwritten', got %v", result1.Get("shared"))
+		}
+	})
+
+	t.Run("merge_with_errors", func(t *testing.T) {
+		result1 := NewResult()
+		result1.AddError(errors.OperationError{
+			Error: systemErrors.New("error1"),
+			Index: 1,
+		})
+
+		result2 := NewResult()
+		result2.AddError(errors.OperationError{
+			Error: systemErrors.New("error2"),
+			Index: 2,
+		})
+
+		result1.Merge(result2)
+
+		resultErrors := result1.Errors()
+		if len(resultErrors) != 2 {
+			t.Errorf("Expected 2 errors, got %d", len(resultErrors))
+		}
+
+		if resultErrors[0].Error.Error() != "error1" {
+			t.Errorf("Expected 'error1', got %v", resultErrors[0].Error.Error())
+		}
+
+		if resultErrors[1].Error.Error() != "error2" {
+			t.Errorf("Expected 'error2', got %v", resultErrors[1].Error.Error())
+		}
+	})
+
+	t.Run("merge_nil_result", func(t *testing.T) {
+		result := NewResult()
+		result.Set("key", "value")
+
+		// Merging nil should not panic or change anything
+		result.Merge(nil)
+
+		if result.Get("key") != "value" {
+			t.Errorf("Expected 'value', got %v", result.Get("key"))
+		}
+	})
+
+	t.Run("merge_empty_result", func(t *testing.T) {
+		result1 := NewResult()
+		result1.Set("key", "value")
+
+		result2 := NewResult()
+
+		result1.Merge(result2)
+
+		if result1.Get("key") != "value" {
+			t.Errorf("Expected 'value', got %v", result1.Get("key"))
+		}
+	})
+
+	t.Run("merge_self", func(t *testing.T) {
+		result := NewResult()
+		result.Set("key", "value")
+		result.AddError(errors.OperationError{
+			Error: systemErrors.New("error"),
+			Index: 1,
+		})
+
+		// Merging with self should be a no-op to prevent deadlock and duplication
+		result.Merge(result)
+
+		if result.Get("key") != "value" {
+			t.Errorf("Expected 'value', got %v", result.Get("key"))
+		}
+
+		// Self-merge should not duplicate errors (should remain 1)
+		resultErrors := result.Errors()
+		if len(resultErrors) != 1 {
+			t.Errorf("Expected 1 error after self-merge (no-op), got %d", len(resultErrors))
+		}
+	})
+}
+
+// TestResultConcurrentMerge tests concurrent merge operations
+func TestResultConcurrentMerge(t *testing.T) {
+	result1 := NewResult()
+	result2 := NewResult()
+	result3 := NewResult()
+
+	// Populate results
+	for i := 0; i < 100; i++ {
+		result2.Set(fmt.Sprintf("key2-%d", i), i)
+		result3.Set(fmt.Sprintf("key3-%d", i), i)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Concurrent merges
+	go func() {
+		defer wg.Done()
+		result1.Merge(result2)
+	}()
+
+	go func() {
+		defer wg.Done()
+		result1.Merge(result3)
+	}()
+
+	wg.Wait()
+
+	// Verify all keys are present
+	for i := 0; i < 100; i++ {
+		key2 := fmt.Sprintf("key2-%d", i)
+		key3 := fmt.Sprintf("key3-%d", i)
+
+		if result1.Get(key2) != i {
+			t.Errorf("Expected %d for %s, got %v", i, key2, result1.Get(key2))
+		}
+
+		if result1.Get(key3) != i {
+			t.Errorf("Expected %d for %s, got %v", i, key3, result1.Get(key3))
+		}
+	}
+}
+
+// TestResultEdgeCases tests edge cases and boundary conditions
+func TestResultEdgeCases(t *testing.T) {
+	t.Run("empty_key", func(t *testing.T) {
+		result := NewResult()
+		result.Set("", "empty_key_value")
+
+		if result.Get("") != "empty_key_value" {
+			t.Errorf("Expected 'empty_key_value', got %v", result.Get(""))
+		}
+	})
+
+	t.Run("nil_value", func(t *testing.T) {
+		result := NewResult()
+		result.Set("nil_key", nil)
+
+		if result.Get("nil_key") != nil {
+			t.Errorf("Expected nil, got %v", result.Get("nil_key"))
+		}
+
+		// GetTyped with nil value
+		if value, ok := GetTyped[any](result, "nil_key"); !ok {
+			t.Error("GetTyped should succeed for nil value")
+		} else if value != nil {
+			t.Errorf("Expected nil, got %v", value)
+		}
+	})
+
+	t.Run("overwrite_value", func(t *testing.T) {
+		result := NewResult()
+		result.Set("key", "original")
+		result.Set("key", "overwritten")
+
+		if result.Get("key") != "overwritten" {
+			t.Errorf("Expected 'overwritten', got %v", result.Get("key"))
+		}
+	})
+
+	t.Run("large_number_of_entries", func(t *testing.T) {
+		result := NewResult()
+		const numEntries = 10000
+
+		// Set many entries
+		for i := 0; i < numEntries; i++ {
+			result.Set(fmt.Sprintf("key-%d", i), i)
+		}
+
+		// Verify all entries
+		for i := 0; i < numEntries; i++ {
+			key := fmt.Sprintf("key-%d", i)
+			if result.Get(key) != i {
+				t.Errorf("Expected %d for %s, got %v", i, key, result.Get(key))
+			}
+		}
+	})
+
+	t.Run("unicode_keys", func(t *testing.T) {
+		result := NewResult()
+		unicodeKey := "测试键"
+		unicodeValue := "测试值"
+
+		result.Set(unicodeKey, unicodeValue)
+
+		if result.Get(unicodeKey) != unicodeValue {
+			t.Errorf("Expected '%s', got %v", unicodeValue, result.Get(unicodeKey))
+		}
+	})
+}
+
+// TestResultComplexTypes tests with complex data types
+func TestResultComplexTypes(t *testing.T) {
+	result := NewResult()
+
+	t.Run("nested_struct", func(t *testing.T) {
+		type Address struct {
+			Street string
+			City   string
+		}
+
+		type Person struct {
+			Name    string
+			Age     int
+			Address Address
+		}
+
+		person := Person{
+			Name: "John Doe",
+			Age:  30,
+			Address: Address{
+				Street: "123 Main St",
+				City:   "Anytown",
+			},
+		}
+
+		result.Set("person", person)
+
+		if retrieved, ok := GetTyped[Person](result, "person"); !ok {
+			t.Error("Should retrieve nested struct successfully")
+		} else {
+			if retrieved.Name != "John Doe" {
+				t.Errorf("Expected 'John Doe', got %s", retrieved.Name)
+			}
+			if retrieved.Address.City != "Anytown" {
+				t.Errorf("Expected 'Anytown', got %s", retrieved.Address.City)
+			}
+		}
+	})
+
+	t.Run("function_type", func(t *testing.T) {
+		fn := func(x int) int { return x * 2 }
+		result.Set("function", fn)
+
+		if retrieved, ok := GetTyped[func(int) int](result, "function"); !ok {
+			t.Error("Should retrieve function type successfully")
+		} else {
+			if retrieved(5) != 10 {
+				t.Errorf("Expected function to return 10, got %d", retrieved(5))
+			}
+		}
+	})
+
+	t.Run("interface_with_methods", func(t *testing.T) {
+		var s TestStringer = TestMyString("test")
+		result.Set("stringer", s)
+
+		if retrieved, ok := GetTyped[TestStringer](result, "stringer"); !ok {
+			t.Error("Should retrieve interface type successfully")
+		} else {
+			if retrieved.String() != "test" {
+				t.Errorf("Expected 'test', got %s", retrieved.String())
+			}
+		}
+	})
+}
+
+// TestResultMemoryUsage tests memory efficiency
+func TestResultMemoryUsage(t *testing.T) {
+	t.Run("memory_reuse", func(t *testing.T) {
+		result := NewResult()
+
+		// Add and remove many entries to test memory reuse
+		for i := 0; i < 1000; i++ {
+			result.Set(fmt.Sprintf("temp-%d", i), i)
+		}
+
+		// Overwrite with fewer entries
+		for i := 0; i < 10; i++ {
+			result.Set(fmt.Sprintf("final-%d", i), i)
+		}
+
+		// The map should still work correctly
+		for i := 0; i < 10; i++ {
+			key := fmt.Sprintf("final-%d", i)
+			if result.Get(key) != i {
+				t.Errorf("Expected %d for %s, got %v", i, key, result.Get(key))
+			}
+		}
+	})
+}
+
+// TestResultErrorHandling tests comprehensive error handling
+func TestResultErrorHandling(t *testing.T) {
+	t.Run("multiple_errors", func(t *testing.T) {
+		result := NewResult()
+
+		// Add multiple errors
+		for i := 0; i < 5; i++ {
+			result.AddError(errors.OperationError{
+				Error:     systemErrors.New(fmt.Sprintf("error-%d", i)),
+				Index:     i,
+				Duration:  time.Duration(i) * time.Millisecond,
+				Timestamp: time.Now().Add(time.Duration(i) * time.Second),
+				OpID:      fmt.Sprintf("op-%d", i),
+			})
+		}
+
+		if !result.HasErrors() {
+			t.Error("Should have errors")
+		}
+
+		resultErrors := result.Errors()
+		if len(resultErrors) != 5 {
+			t.Errorf("Expected 5 errors, got %d", len(resultErrors))
+		}
+
+		// Verify error details
+		for i, err := range resultErrors {
+			expectedMsg := fmt.Sprintf("error-%d", i)
+			if err.Error.Error() != expectedMsg {
+				t.Errorf("Expected '%s', got '%s'", expectedMsg, err.Error.Error())
+			}
+
+			if err.Index != i {
+				t.Errorf("Expected index %d, got %d", i, err.Index)
+			}
+
+			expectedOpID := fmt.Sprintf("op-%d", i)
+			if err.OpID != expectedOpID {
+				t.Errorf("Expected OpID '%s', got '%s'", expectedOpID, err.OpID)
+			}
+		}
+	})
+
+	t.Run("error_immutability", func(t *testing.T) {
+		result := NewResult()
+		originalError := errors.OperationError{
+			Error: systemErrors.New("original"),
+			Index: 1,
+		}
+
+		result.AddError(originalError)
+
+		// Modify the original error
+		originalError.Index = 999
+
+		// The error in the result should not be affected
+		resultErrors := result.Errors()
+		if resultErrors[0].Index == 999 {
+			t.Error("Result errors should not be affected by modifications to original")
+		}
+	})
+}
+
+// BenchmarkResultMerge benchmarks merge operations
+func BenchmarkResultMerge(b *testing.B) {
+	result1 := NewResult()
+	result2 := NewResult()
+
+	// Populate result2
+	for i := 0; i < 100; i++ {
+		result2.Set(fmt.Sprintf("key-%d", i), i)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result1.Merge(result2)
+	}
+}
+
+// BenchmarkResultAddError benchmarks error addition
+func BenchmarkResultAddError(b *testing.B) {
+	result := NewResult()
+	err := errors.OperationError{
+		Error: systemErrors.New("benchmark error"),
+		Index: 1,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result.AddError(err)
+	}
 }

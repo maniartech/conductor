@@ -73,6 +73,11 @@ func GetTyped[T any](r *Result, name string) (T, bool) {
 		return zero, false
 	}
 
+	// Handle nil values explicitly
+	if value == nil {
+		return zero, true
+	}
+
 	if typed, ok := value.(T); ok {
 		return typed, true
 	}
@@ -138,6 +143,12 @@ func (r *Result) AddError(err errors.OperationError) {
 //	// result1 now contains both task1 and task2
 func (r *Result) Merge(other *Result) {
 	if other == nil {
+		return
+	}
+
+	// Handle self-merge case to prevent deadlock
+	if r == other {
+		// Merging with self is a no-op
 		return
 	}
 

@@ -81,20 +81,19 @@ func (nc *NamingContext) GenerateChildName(childName string, orchestrationType s
 		return childName
 	}
 
-	// Generate a name based on type and count
-	nc.childCounts[orchestrationType]++
-	count := nc.childCounts[orchestrationType]
+	// Generate a name based on type and index (1-based for display)
+	displayIndex := index + 1
 
 	// Use different naming patterns based on type
 	switch orchestrationType {
 	case "task":
-		return fmt.Sprintf("task-%d", count)
+		return fmt.Sprintf("task-%d", displayIndex)
 	case "sequential":
-		return fmt.Sprintf("seq-%d", count)
+		return fmt.Sprintf("seq-%d", displayIndex)
 	case "concurrent":
-		return fmt.Sprintf("conc-%d", count)
+		return fmt.Sprintf("conc-%d", displayIndex)
 	default:
-		return fmt.Sprintf("step-%d", count)
+		return fmt.Sprintf("step-%d", displayIndex)
 	}
 }
 
