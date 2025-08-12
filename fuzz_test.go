@@ -343,8 +343,8 @@ func FuzzResultOperations(f *testing.F) {
 	})
 }
 
-// FuzzConcurrentOperations tests concurrent operations with fuzzed inputs
-func FuzzConcurrentOperations(f *testing.F) {
+// FuzzBasicConcurrentOperations tests concurrent operations with fuzzed inputs
+func FuzzBasicConcurrentOperations(f *testing.F) {
 	// Seed with various operation counts
 	f.Add(1, 1)
 	f.Add(2, 5)

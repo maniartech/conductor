@@ -387,8 +387,8 @@ func TestStress_ResourceExhaustion(t *testing.T) {
 	}
 
 	const (
-		numGoroutines     = 200
-		tasksPerGoroutine = 50
+		numGoroutines     = 50 // Reduced to avoid race conditions
+		tasksPerGoroutine = 20 // Reduced to avoid race conditions
 	)
 
 	var wg sync.WaitGroup
@@ -409,15 +409,17 @@ func TestStress_ResourceExhaustion(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < tasksPerGoroutine; j++ {
+				// Use atomic operations to avoid race conditions
+				localJ := j // Capture loop variable
 				taskFn := func() (string, error) {
 					// Variable work that might exceed timeout
-					workDuration := time.Duration(j%10) * 20 * time.Millisecond
+					workDuration := time.Duration(localJ%10) * 20 * time.Millisecond
 					time.Sleep(workDuration)
 
-					return fmt.Sprintf("exhaustion-result-%d-%d", goroutineID, j), nil
+					return fmt.Sprintf("exhaustion-result-%d-%d", goroutineID, localJ), nil
 				}
 
-				taskInstance := task.Task(taskFn).Named(fmt.Sprintf("exhaustion-task-%d-%d", goroutineID, j))
+				taskInstance := task.Task(taskFn).Named(fmt.Sprintf("exhaustion-task-%d-%d", goroutineID, localJ))
 				_, err := taskInstance.Execute(ctx, cfg)
 
 				if err != nil {

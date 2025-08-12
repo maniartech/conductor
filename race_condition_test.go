@@ -552,3 +552,115 @@ func TestRaceCondition_StressTest(t *testing.T) {
 	t.Logf("Stress test completed: %d operations, %d errors in %v",
 		totalOps, totalErrors, duration)
 }
+
+// TestRaceCondition_AtomicOperations tests atomic operations under concurrent load
+func TestRaceCondition_AtomicOperations(t *testing.T) {
+	const numGoroutines = 50
+	const numOperations = 1000
+
+	var counter int64
+	var wg sync.WaitGroup
+
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				atomic.AddInt64(&counter, 1)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	expected := int64(numGoroutines * numOperations)
+	if counter != expected {
+		t.Errorf("Expected counter %d, got %d", expected, counter)
+	}
+
+	t.Logf("Atomic operations test completed: %d operations", counter)
+}
+
+// TestRaceCondition_ChannelOperations tests channel operations for race conditions
+func TestRaceCondition_ChannelOperations(t *testing.T) {
+	const numGoroutines = 20
+	const numMessages = 100
+
+	ch := make(chan string, numMessages*numGoroutines)
+	var wg sync.WaitGroup
+
+	// Producers
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < numMessages; j++ {
+				ch <- fmt.Sprintf("message-%d-%d", id, j)
+			}
+		}(i)
+	}
+
+	// Consumer
+	var receivedCount int64
+	go func() {
+		for range ch {
+			atomic.AddInt64(&receivedCount, 1)
+		}
+	}()
+
+	wg.Wait()
+	close(ch)
+
+	// Wait for consumer to finish
+	time.Sleep(100 * time.Millisecond)
+
+	expected := int64(numGoroutines * numMessages)
+	if receivedCount != expected {
+		t.Errorf("Expected %d messages, received %d", expected, receivedCount)
+	}
+
+	t.Logf("Channel operations test completed: %d messages", receivedCount)
+}
+
+// TestRaceCondition_MapOperations tests concurrent map operations
+func TestRaceCondition_MapOperations(t *testing.T) {
+	const numGoroutines = 20
+	const numOperations = 100
+
+	m := make(map[string]int)
+	var mu sync.RWMutex
+	var wg sync.WaitGroup
+
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				key := fmt.Sprintf("key-%d-%d", id, j)
+
+				// Write operation
+				mu.Lock()
+				m[key] = j
+				mu.Unlock()
+
+				// Read operation
+				mu.RLock()
+				_ = m[key]
+				mu.RUnlock()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	mu.RLock()
+	mapSize := len(m)
+	mu.RUnlock()
+
+	expected := numGoroutines * numOperations
+	if mapSize != expected {
+		t.Errorf("Expected map size %d, got %d", expected, mapSize)
+	}
+
+	t.Logf("Map operations test completed: %d entries", mapSize)
+}
