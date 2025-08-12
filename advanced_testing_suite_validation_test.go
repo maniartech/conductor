@@ -35,8 +35,8 @@ func countTestPatterns(t *testing.T) (basicRace, advancedRace, fuzz, stress, lea
 		}
 		if d.IsDir() {
 			name := d.Name()
-			// Skip common non-source folders
-			if strings.HasPrefix(name, ".") || name == "vendor" || name == "node_modules" || name == ".git" {
+			// Skip common non-source folders, but don't skip the root "."
+			if name != "." && (strings.HasPrefix(name, ".") || name == "vendor" || name == "node_modules" || name == ".git") {
 				return filepath.SkipDir
 			}
 			return nil

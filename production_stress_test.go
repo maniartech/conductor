@@ -389,27 +389,30 @@ func TestProductionStress_ErrorResilience(t *testing.T) {
 				case <-ctx.Done():
 					return
 				default:
+					// snapshot operation id to avoid racy capture in goroutines
+					opID := operationID
+
 					taskFn := func() (string, error) {
 						// Simulate various error conditions
-						errorType := float64(operationID%100) / 100.0
+						errorType := float64(opID%100) / 100.0
 
 						if errorType < errorRate/3 {
 							// Regular error
-							return "", fmt.Errorf("simulated error %d-%d", workerID, operationID)
+							return "", fmt.Errorf("simulated error %d-%d", workerID, opID)
 						} else if errorType < 2*errorRate/3 {
 							// Panic
-							panic(fmt.Sprintf("simulated panic %d-%d", workerID, operationID))
+							panic(fmt.Sprintf("simulated panic %d-%d", workerID, opID))
 						} else if errorType < errorRate {
 							// Timeout (long operation)
 							time.Sleep(200 * time.Millisecond)
-							return fmt.Sprintf("timeout-result-%d-%d", workerID, operationID), nil
+							return fmt.Sprintf("timeout-result-%d-%d", workerID, opID), nil
 						} else {
 							// Success
-							return fmt.Sprintf("success-result-%d-%d", workerID, operationID), nil
+							return fmt.Sprintf("success-result-%d-%d", workerID, opID), nil
 						}
 					}
 
-					taskInstance := task.Task(taskFn).Named(fmt.Sprintf("resilience-task-%d-%d", workerID, operationID))
+					taskInstance := task.Task(taskFn).Named(fmt.Sprintf("resilience-task-%d-%d", workerID, opID))
 					workflow := Setup(taskInstance)
 
 					// Random timeout

@@ -203,7 +203,11 @@ func FuzzComplexDataTypes(f *testing.F) {
 
 		var taskFn func() (interface{}, error)
 
-		switch variant % 8 {
+		v := variant % 8 // normalize to avoid accidental negative modulo paths
+		if v < 0 {
+			v = -v
+		}
+		switch v {
 		case 0: // String
 			taskFn = func() (interface{}, error) {
 				return fmt.Sprintf("fuzz-string-%s-%d", dataType, variant), nil
@@ -222,7 +226,10 @@ func FuzzComplexDataTypes(f *testing.F) {
 			}
 		case 4: // Slice
 			taskFn = func() (interface{}, error) {
-				size := int(variant%10) + 1
+				size := int((variant%10 + 10) % 10)
+				if size == 0 {
+					size = 1
+				}
 				slice := make([]string, size)
 				for i := range slice {
 					slice[i] = fmt.Sprintf("item-%d", i)
@@ -259,6 +266,11 @@ func FuzzComplexDataTypes(f *testing.F) {
 			}
 		}
 
+		// Ensure taskFn is not nil; if it is, skip this fuzz case instead of panicking
+		if taskFn == nil {
+			t.Skip("nil task function for variant")
+		}
+
 		taskInstance := task.Task(taskFn).Named(fmt.Sprintf("fuzz-data-task-%s", dataType))
 		workflow := Setup(taskInstance)
 
@@ -277,7 +289,7 @@ func FuzzComplexDataTypes(f *testing.F) {
 		// Verify result can be retrieved
 		taskName := fmt.Sprintf("fuzz-data-task-%s", dataType)
 		value := result.Get(taskName)
-		if value == nil && variant%8 != 7 { // Allow nil for interface test
+		if value == nil && v != 7 { // Allow nil for interface test
 			t.Errorf("Retrieved value is nil for data type %s", dataType)
 		}
 	})

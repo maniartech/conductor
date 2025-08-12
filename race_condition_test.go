@@ -602,7 +602,10 @@ func TestRaceCondition_ChannelOperations(t *testing.T) {
 
 	// Consumer
 	var receivedCount int64
+	var consumerWG sync.WaitGroup
+	consumerWG.Add(1)
 	go func() {
+		defer consumerWG.Done()
 		for range ch {
 			atomic.AddInt64(&receivedCount, 1)
 		}
@@ -611,15 +614,16 @@ func TestRaceCondition_ChannelOperations(t *testing.T) {
 	wg.Wait()
 	close(ch)
 
-	// Wait for consumer to finish
-	time.Sleep(100 * time.Millisecond)
+	// Wait for consumer to drain the channel completely
+	consumerWG.Wait()
 
 	expected := int64(numGoroutines * numMessages)
-	if receivedCount != expected {
-		t.Errorf("Expected %d messages, received %d", expected, receivedCount)
+	actual := atomic.LoadInt64(&receivedCount)
+	if actual != expected {
+		t.Errorf("Expected %d messages, received %d", expected, actual)
 	}
 
-	t.Logf("Channel operations test completed: %d messages", receivedCount)
+	t.Logf("Channel operations test completed: %d messages", actual)
 }
 
 // TestRaceCondition_MapOperations tests concurrent map operations

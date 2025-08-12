@@ -347,44 +347,47 @@ func TestAdvancedRaceConditions_ChaosEngineering(t *testing.T) {
 					return
 				default:
 					// Chaos engineering - random behaviors
-					chaosType := rand.Intn(10)
+					ct := rand.Intn(10) // snapshot chaos type
+
+					// snapshot operation id to avoid data race with concurrent goroutines
+					opID := operationID
 
 					taskFn := func() (string, error) {
-						switch chaosType {
+						switch ct {
 						case 0, 1, 2, 3: // Normal operation (40%)
 							time.Sleep(time.Duration(rand.Intn(1000)) * time.Microsecond)
-							return fmt.Sprintf("chaos-normal-%d-%d", chaosID, operationID), nil
+							return fmt.Sprintf("chaos-normal-%d-%d", chaosID, opID), nil
 
 						case 4, 5: // Error cases (20%)
-							return "", fmt.Errorf("chaos error %d-%d", chaosID, operationID)
+							return "", fmt.Errorf("chaos error %d-%d", chaosID, opID)
 
 						case 6: // Panic case (10%)
-							panic(fmt.Sprintf("chaos panic %d-%d", chaosID, operationID))
+							panic(fmt.Sprintf("chaos panic %d-%d", chaosID, opID))
 
 						case 7: // Long running task (10%)
 							time.Sleep(100 * time.Millisecond)
-							return fmt.Sprintf("chaos-long-%d-%d", chaosID, operationID), nil
+							return fmt.Sprintf("chaos-long-%d-%d", chaosID, opID), nil
 
 						case 8: // Memory intensive (10%)
 							data := make([]byte, 10*1024) // 10KB
 							for k := range data {
 								data[k] = byte(k % 256)
 							}
-							return fmt.Sprintf("chaos-memory-%d-%d", chaosID, operationID), nil
+							return fmt.Sprintf("chaos-memory-%d-%d", chaosID, opID), nil
 
 						case 9: // CPU intensive (10%)
 							sum := 0
 							for k := 0; k < 10000; k++ {
 								sum += k
 							}
-							return fmt.Sprintf("chaos-cpu-%d-%d-%d", chaosID, operationID, sum), nil
+							return fmt.Sprintf("chaos-cpu-%d-%d-%d", chaosID, opID, sum), nil
 
 						default:
-							return fmt.Sprintf("chaos-default-%d-%d", chaosID, operationID), nil
+							return fmt.Sprintf("chaos-default-%d-%d", chaosID, opID), nil
 						}
 					}
 
-					taskInstance := task.Task(taskFn).Named(fmt.Sprintf("chaos-task-%d-%d", chaosID, operationID))
+					taskInstance := task.Task(taskFn).Named(fmt.Sprintf("chaos-task-%d-%d", chaosID, opID))
 
 					// Random timeout
 					timeout := time.Duration(rand.Intn(50)+10) * time.Millisecond
