@@ -4,9 +4,19 @@ Updated: 2025-08-12
 
 ## 🔎 Latest Runs Summary
 
-- Race detector run: PASS (no data races)
-- Fuzzing runs: All targeted fuzz seeds pass (nil-task panic guarded)
-- Unit/integration tests: Passing
+- Race detector run: PASS (50.0s)
+- Fuzzing runs: Targeted seed PASS (FuzzComplexDataTypes/5a4c303d10b86c14)
+- Unit/integration tests: PASS (43.2s)
+
+---
+
+## 🖥️ Environment (latest run)
+
+- Host: Windows 11 Pro
+- Go: go1.24.0
+- CPU (logical): 16
+- Memory: total=64,312,922,112 bytes, used=49,877,639,168 bytes (77%), available=14,435,282,944 bytes
+- Uptime: 2,418,641s
 
 ---
 
@@ -101,6 +111,14 @@ Working benchmarks: stable (see previous baseline). Outstanding: 4 failures due 
 
 ---
 
+## 📈 Latest Performance Metrics (reportgen)
+
+- Throughput: 167,997 tasks/sec
+- Memory Growth: 285,976 bytes
+- Goroutine Growth: 1 (peak); Final growth observed in logs: 0
+
+---
+
 ## 🎯 Action Plan
 
 1. Monitor for regressions by adding CI step: `go test -race -count=1 ./...` and targeted fuzz seeds.
@@ -120,14 +138,6 @@ go test -run=FuzzComplexDataTypes/5a4c303d10b86c14 -v ./...
 # General suite
 go test -v ./...
 ```
-
----
-
-## 📈 Previous Performance Highlights (baseline)
-
-- Throughput: 151,132 tasks/sec in production stress tests
-- Memory Stability: ~22KB growth under sustained load
-- Goroutine Lifecycle: Zero leaks across scenarios
 
 ---
 
