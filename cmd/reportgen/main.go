@@ -14,34 +14,35 @@ import (
 	"strings"
 	"time"
 
+	cpu "github.com/shirou/gopsutil/v3/cpu"
 	host "github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
-	cpu "github.com/shirou/gopsutil/v3/cpu"
 )
 
 // Report encapsulates environment, test, race, fuzz, and perf summaries
 type Report struct {
-	GeneratedAt    time.Time          `json:"generatedAt"`
-	GoVersion      string             `json:"goVersion"`
-	NumCPU         int                `json:"numCPU"`
-	GOMAXPROCS     int                `json:"gomaxprocs"`
-	HostInfo       *HostInfo          `json:"hostInfo"`
-	MemoryInfo     *MemoryInfo        `json:"memoryInfo"`
-	CPUInfo        []CPUInfo          `json:"cpuInfo"`
-	RaceResult     *CmdResult         `json:"raceResult"`
-	UnitResult     *CmdResult         `json:"unitResult"`
-	FuzzSeedChecks []CmdResult        `json:"fuzzSeedChecks"`
-	PerfMetrics    *PerfMetrics       `json:"perfMetrics"`
-	Notes          map[string]string  `json:"notes"`
+	GeneratedAt    time.Time         `json:"generatedAt"`
+	GoVersion      string            `json:"goVersion"`
+	NumCPU         int               `json:"numCPU"`
+	PhysicalCores  int               `json:"physicalCores"`
+	GOMAXPROCS     int               `json:"gomaxprocs"`
+	HostInfo       *HostInfo         `json:"hostInfo"`
+	MemoryInfo     *MemoryInfo       `json:"memoryInfo"`
+	CPUInfo        []CPUInfo         `json:"cpuInfo"`
+	RaceResult     *CmdResult        `json:"raceResult"`
+	UnitResult     *CmdResult        `json:"unitResult"`
+	FuzzSeedChecks []CmdResult       `json:"fuzzSeedChecks"`
+	PerfMetrics    *PerfMetrics      `json:"perfMetrics"`
+	Notes          map[string]string `json:"notes"`
 }
 
 type HostInfo struct {
-	Hostname   string `json:"hostname"`
-	OS         string `json:"os"`
-	Platform   string `json:"platform"`
-	PlatformV  string `json:"platformVersion"`
-	Kernel     string `json:"kernelVersion"`
-	Uptime     uint64 `json:"uptimeSeconds"`
+	Hostname  string `json:"hostname"`
+	OS        string `json:"os"`
+	Platform  string `json:"platform"`
+	PlatformV string `json:"platformVersion"`
+	Kernel    string `json:"kernelVersion"`
+	Uptime    uint64 `json:"uptimeSeconds"`
 }
 
 type MemoryInfo struct {
@@ -114,33 +115,46 @@ func collectHost() (*HostInfo, *MemoryInfo, []CPUInfo) {
 	return hostInfo, memInfo, cpuList
 }
 
-func valueOr(def string, v string) string { if v == "" { return def }; return v }
+func valueOr(def string, v string) string {
+	if v == "" {
+		return def
+	}
+	return v
+}
 
 func main() {
 	var out string
 	var fuzzSeed string
 	var skipPerf bool
 	var format string
+	var updateReport string
+	var startMarker string
+	var endMarker string
 	flag.StringVar(&out, "out", "report.json", "output file path (json or md depending on -format)")
 	flag.StringVar(&fuzzSeed, "fuzz-seed", "FuzzComplexDataTypes/5a4c303d10b86c14", "fuzz seed to re-run (package-qualified)")
 	flag.BoolVar(&skipPerf, "skip-perf", false, "skip performance test runs")
 	flag.StringVar(&format, "format", "json", "output format: json|markdown|both")
+	flag.StringVar(&updateReport, "update-report", "", "path to CURRENT_STATUS_REPORT.md to embed markdown output")
+	flag.StringVar(&startMarker, "start-marker", "<!-- AUTO:START:REPORT -->", "start marker to replace in report file")
+	flag.StringVar(&endMarker, "end-marker", "<!-- AUTO:END:REPORT -->", "end marker to replace in report file")
 	flag.Parse()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
 	hostInfo, memInfo, cpuList := collectHost()
+	physCores, _ := cpu.Counts(false)
 
 	rep := &Report{
-		GeneratedAt: time.Now(),
-		GoVersion:   runtime.Version(),
-		NumCPU:      runtime.NumCPU(),
-		GOMAXPROCS:  runtime.GOMAXPROCS(0),
-		HostInfo:    hostInfo,
-		MemoryInfo:  memInfo,
-		CPUInfo:     cpuList,
-		Notes:       map[string]string{},
+		GeneratedAt:   time.Now(),
+		GoVersion:     runtime.Version(),
+		NumCPU:        runtime.NumCPU(),
+		PhysicalCores: physCores,
+		GOMAXPROCS:    runtime.GOMAXPROCS(0),
+		HostInfo:      hostInfo,
+		MemoryInfo:    memInfo,
+		CPUInfo:       cpuList,
+		Notes:         map[string]string{},
 	}
 
 	// Run unit/integration
@@ -184,26 +198,48 @@ func main() {
 		writeJSON(out, rep)
 	}
 
+	// Optionally embed markdown into a status report file between markers
+	if updateReport != "" {
+		mdContent := buildMarkdown(rep)
+		if err := replaceInFile(updateReport, startMarker, endMarker, mdContent); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to update report file: %v\n", err)
+		} else {
+			fmt.Printf("Updated report section in %s between markers.\n", updateReport)
+		}
+	}
+
 	fmt.Printf("Report generated: %s (format=%s)\n", out, format)
 }
 
 func writeJSON(path string, rep *Report) {
 	f, err := os.Create(path)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	defer f.Close()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(rep); err != nil { panic(err) }
+	if err := enc.Encode(rep); err != nil {
+		panic(err)
+	}
 }
 
 func writeMarkdown(path string, rep *Report) {
+	content := buildMarkdown(rep)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		panic(err)
+	}
+}
+
+func buildMarkdown(rep *Report) string {
 	var b strings.Builder
 	b.WriteString("# Automated Test & Performance Report\n\n")
 	b.WriteString(fmt.Sprintf("Generated: %s\\n\\n", rep.GeneratedAt.Format(time.RFC3339)))
 
 	b.WriteString("## Environment\n\n")
 	b.WriteString(fmt.Sprintf("- Go: %s\\n", rep.GoVersion))
-	b.WriteString(fmt.Sprintf("- Num CPU: %d\\n", rep.NumCPU))
+	b.WriteString(fmt.Sprintf("- Num CPU (logical): %d\\n", rep.NumCPU))
+	b.WriteString(fmt.Sprintf("- Physical Cores: %d\\n", rep.PhysicalCores))
 	b.WriteString(fmt.Sprintf("- GOMAXPROCS: %d\\n", rep.GOMAXPROCS))
 	if rep.HostInfo != nil {
 		b.WriteString(fmt.Sprintf("- Hostname: %s\\n", rep.HostInfo.Hostname))
@@ -244,11 +280,32 @@ func writeMarkdown(path string, rep *Report) {
 	} else {
 		b.WriteString("(perf skipped)\\n")
 	}
-
-	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil { panic(err) }
+	return b.String()
 }
 
-func okStr(ok bool) string { if ok { return "PASS" }; return "FAIL" }
+func replaceInFile(path, startMarker, endMarker, content string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(data)
+	startIdx := strings.Index(text, startMarker)
+	endIdx := strings.Index(text, endMarker)
+	if startIdx >= 0 && endIdx > startIdx {
+		newText := text[:startIdx+len(startMarker)] + "\n\n" + content + "\n\n" + text[endIdx:]
+		return os.WriteFile(path, []byte(newText), 0o644)
+	}
+	// markers not found: append at end with markers
+	appendText := "\n\n" + startMarker + "\n\n" + content + "\n\n" + endMarker + "\n"
+	return os.WriteFile(path, append([]byte(text), []byte(appendText)...), 0o644)
+}
+
+func okStr(ok bool) string {
+	if ok {
+		return "PASS"
+	}
+	return "FAIL"
+}
 
 var (
 	throughputRe = regexp.MustCompile(`Throughput:\s*([0-9,\.]+)\s*tasks/second`)
@@ -258,7 +315,9 @@ var (
 
 func parseThroughput(s string) float64 {
 	matches := throughputRe.FindAllStringSubmatch(s, -1)
-	if len(matches) == 0 { return 0 }
+	if len(matches) == 0 {
+		return 0
+	}
 	last := matches[len(matches)-1]
 	val := strings.ReplaceAll(last[1], ",", "")
 	v, _ := strconv.ParseFloat(val, 64)
@@ -267,7 +326,9 @@ func parseThroughput(s string) float64 {
 
 func parseMemoryGrowth(s string) int64 {
 	matches := memGrowthRe.FindAllStringSubmatch(s, -1)
-	if len(matches) == 0 { return 0 }
+	if len(matches) == 0 {
+		return 0
+	}
 	last := matches[len(matches)-1]
 	val := strings.ReplaceAll(last[1], ",", "")
 	v, _ := strconv.ParseInt(val, 10, 64)
@@ -276,7 +337,9 @@ func parseMemoryGrowth(s string) int64 {
 
 func parseGoroutineGrowth(s string) int {
 	matches := growthRe.FindAllStringSubmatch(s, -1)
-	if len(matches) == 0 { return 0 }
+	if len(matches) == 0 {
+		return 0
+	}
 	last := matches[len(matches)-1]
 	v, _ := strconv.Atoi(last[2])
 	return v
