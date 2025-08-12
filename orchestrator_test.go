@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -990,12 +991,13 @@ func BenchmarkTask(b *testing.B) {
 
 // BenchmarkWorkflow_Execute benchmarks workflow execution
 func BenchmarkWorkflow_Execute(b *testing.B) {
-	task := Task(func() (string, error) {
-		return "benchmark-result", nil
-	}).Named("benchmark-task")
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		// Create new task instance for each iteration to avoid reuse issues
+		task := Task(func() (string, error) {
+			return "benchmark-result", nil
+		}).Named(fmt.Sprintf("benchmark-task-%d", i))
+
 		workflow := Setup(task)
 		_, err := workflow.ExecuteBlocking()
 		if err != nil {
@@ -1006,22 +1008,23 @@ func BenchmarkWorkflow_Execute(b *testing.B) {
 
 // BenchmarkConditional_Execute benchmarks conditional execution
 func BenchmarkConditional_Execute(b *testing.B) {
-	condition := func(ctx orchContext.Context) (bool, error) {
-		return true, nil
-	}
-
-	trueTask := Task(func() (string, error) {
-		return "true-result", nil
-	})
-
-	falseTask := Task(func() (string, error) {
-		return "false-result", nil
-	})
-
-	conditional := Conditional(condition, trueTask, falseTask)
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		// Create new task instances for each iteration to avoid reuse issues
+		condition := func(ctx orchContext.Context) (bool, error) {
+			return true, nil
+		}
+
+		trueTask := Task(func() (string, error) {
+			return "true-result", nil
+		}).Named(fmt.Sprintf("true-task-%d", i))
+
+		falseTask := Task(func() (string, error) {
+			return "false-result", nil
+		}).Named(fmt.Sprintf("false-task-%d", i))
+
+		conditional := Conditional(condition, trueTask, falseTask).Named(fmt.Sprintf("conditional-%d", i))
+
 		workflow := Setup(conditional)
 		_, err := workflow.ExecuteBlocking()
 		if err != nil {

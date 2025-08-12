@@ -655,12 +655,13 @@ func TestWorkflow_EdgeCases(t *testing.T) {
 
 // BenchmarkWorkflow_SimpleExecution benchmarks simple workflow execution
 func BenchmarkWorkflow_SimpleExecution(b *testing.B) {
-	task := Task(func() (string, error) {
-		return "benchmark-result", nil
-	}).Named("benchmark-task")
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		// Create new task instance for each iteration to avoid reuse issues
+		task := Task(func() (string, error) {
+			return "benchmark-result", nil
+		}).Named(fmt.Sprintf("benchmark-task-%d", i))
+
 		workflow := Setup(task)
 		_, err := workflow.ExecuteBlocking()
 		if err != nil {
@@ -671,12 +672,13 @@ func BenchmarkWorkflow_SimpleExecution(b *testing.B) {
 
 // BenchmarkWorkflow_WithCallbacks benchmarks workflow with callbacks
 func BenchmarkWorkflow_WithCallbacks(b *testing.B) {
-	task := Task(func() (string, error) {
-		return "callback-benchmark-result", nil
-	}).Named("callback-benchmark-task")
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		// Create new task instance for each iteration to avoid reuse issues
+		task := Task(func() (string, error) {
+			return "callback-benchmark-result", nil
+		}).Named(fmt.Sprintf("callback-benchmark-task-%d", i))
+
 		workflow := Setup(task).
 			OnProgress(func(progress Progress) {}).
 			OnStatusChange(func(oldStatus, newStatus Status) {}).
