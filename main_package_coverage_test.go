@@ -532,7 +532,7 @@ func TestWorkflowStatusMethods(t *testing.T) {
 }
 
 // TestDefaultConfig tests the DefaultConfig function
-func TestDefaultConfig(t *testing.T) {
+func TestDefaultConfig_Coverage(t *testing.T) {
 	cfg := DefaultConfig()
 
 	// Verify default config is not nil

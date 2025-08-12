@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -494,8 +495,7 @@ func TestWorkflowContextPaths(t *testing.T) {
 			t.Error("Result should be nil on timeout")
 		}
 
-		// Verify error message contains timeout
-		if !fmt.Sprintf("%v", err).Contains("timeout") {
+		if !strings.Contains(fmt.Sprintf("%v", err), "timeout") {
 			t.Errorf("Error should mention timeout, got: %v", err)
 		}
 	})

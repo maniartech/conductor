@@ -386,7 +386,7 @@ func TestWorkflow_CancellationAdvanced(t *testing.T) {
 			workflow.CancelWithReason("test timeout")
 		}()
 
-		result, err := workflow.Await()
+		result, _ := workflow.Await()
 
 		if workflow.GetStatus() != Cancelled {
 			t.Errorf("Expected status Cancelled, got %v", workflow.GetStatus())
