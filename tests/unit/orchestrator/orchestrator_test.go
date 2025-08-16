@@ -10,7 +10,7 @@ import (
 	"time"
 
 	. "github.com/maniartech/orchestrator"
-	orchContext "github.com/maniartech/orchestrator/internal/context"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 // TestTask tests the Task constructor function

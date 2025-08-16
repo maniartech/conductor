@@ -76,9 +76,9 @@ import (
 	"fmt"
 	"time"
 
-	orchContext "github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 	"github.com/maniartech/orchestrator/types"

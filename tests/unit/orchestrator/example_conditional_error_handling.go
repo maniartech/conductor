@@ -6,7 +6,7 @@ import (
 	"log"
 
 	. "github.com/maniartech/orchestrator"
-	orchContext "github.com/maniartech/orchestrator/internal/context"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 // ExampleConditional_ErrorHandling demonstrates the new error-returning condition signature

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/internal/pool"
 	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/config"
+	"github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 )

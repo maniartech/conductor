@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/maniartech/orchestrator"
-	orchContext "github.com/maniartech/orchestrator/internal/context"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 // TestExampleConditional_ErrorHandling tests the example function with error handling

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	orchContext "github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 
 	. "github.com/maniartech/orchestrator"
 )

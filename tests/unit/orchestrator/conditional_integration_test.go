@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	. "github.com/maniartech/orchestrator"
-	orchContext "github.com/maniartech/orchestrator/internal/context"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 // TestConditional_NewSignature tests the new error-returning condition signature
