@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	. "github.com/maniartech/orchestrator"
 	orchContext "github.com/maniartech/orchestrator/internal/context"
 )
 

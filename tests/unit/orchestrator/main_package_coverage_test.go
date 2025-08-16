@@ -10,6 +10,8 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	orchContext "github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator"
 )
 
 // TestExampleFunctions tests all example functions to achieve 100% coverage

@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	. "github.com/maniartech/orchestrator"
 )
 
 // TestDeadlockReproduction attempts to reproduce the deadlock

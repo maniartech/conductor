@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator"
 )
 
 // TestWorkflow_ExecuteWorkflow tests the uncovered executeWorkflow function

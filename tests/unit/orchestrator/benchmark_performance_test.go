@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/task"
 )

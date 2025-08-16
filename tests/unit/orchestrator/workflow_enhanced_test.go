@@ -1,4 +1,4 @@
-package orchestrator
+package orchestrator_test
 
 import (
 	"errors"
@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	. "github.com/maniartech/orchestrator"
 )
 
 // TestEnhancedWorkflowAPI tests the new async execution and progress tracking features

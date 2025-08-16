@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	. "github.com/maniartech/orchestrator"
 )
 
 // TestSequential_Placeholder tests the Sequential function placeholder

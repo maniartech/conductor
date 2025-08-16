@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	. "github.com/maniartech/orchestrator"
 	orchContext "github.com/maniartech/orchestrator/internal/context"
 )
 

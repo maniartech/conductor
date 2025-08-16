@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/atomic"
 )
 
 // TestCounter tests atomic counter operations

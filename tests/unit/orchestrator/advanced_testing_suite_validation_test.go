@@ -1,4 +1,4 @@
-package orchestrator
+package orchestrator_test
 
 import (
 	"context"
@@ -100,7 +100,7 @@ func TestAdvancedTestingSuiteValidation(t *testing.T) {
 	}
 
 	// Documentation check
-	docsOK := fileExists("ADVANCED_TESTING_DOCUMENTATION.md")
+	docsOK := fileExists("../../../ADVANCED_TESTING_DOCUMENTATION.md")
 	if !docsOK {
 		t.Error("ADVANCED_TESTING_DOCUMENTATION.md not found")
 	}

@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"testing"
 	"time"
+
+	. "github.com/maniartech/orchestrator"
 )
 
 // TestAdvancedDeadlockScenarios tests more complex scenarios that might cause deadlocks

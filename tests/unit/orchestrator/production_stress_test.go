@@ -1,4 +1,4 @@
-package orchestrator
+package orchestrator_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/task"
 )
 
