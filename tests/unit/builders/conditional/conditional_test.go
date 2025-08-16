@@ -10,6 +10,8 @@ import (
 	orchContext "github.com/maniartech/orchestrator/internal/context"
 	orchErrors "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/conditional"
 )
 
 // TestConditional_Constructor tests the Conditional constructor function

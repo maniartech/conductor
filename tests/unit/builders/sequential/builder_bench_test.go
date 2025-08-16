@@ -7,6 +7,8 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	internalErrors "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/sequential"
 )
 
 func BenchmarkSequential_Execute(b *testing.B) {

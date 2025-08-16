@@ -8,6 +8,7 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
+	. "github.com/maniartech/orchestrator/internal/sequential"
 	"github.com/maniartech/orchestrator/internal/task"
 )
 
@@ -54,15 +55,11 @@ func TestDynamicNameGeneration(t *testing.T) {
 	t.Logf("✅ Generated names: %v", names)
 
 	// Test GetChildAt functionality
+	childNames := seqBuilder.GetChildNames()
 	for i := 0; i < seqBuilder.GetChildCount(); i++ {
-		child, err := seqBuilder.GetChildAt(i)
-		if err != nil {
-			t.Errorf("Failed to get child at index %d: %v", i, err)
-			continue
-		}
-
 		expectedName := expectedNames[i]
-		actualName := seqBuilder.getChildName(child, i) // Using internal method for testing
+
+		actualName := childNames[i] // Use proper name access method
 		if actualName != expectedName {
 			t.Errorf("Child at index %d: expected name %q, got %q", i, expectedName, actualName)
 		}
@@ -251,7 +248,8 @@ func TestIndexBasedAccess(t *testing.T) {
 	}
 	t.Logf("✅ Child count: %d", count)
 
-	// Test GetChildAt for all positions
+	// Test GetChildAt for all positions and verify names
+	childNames := seqBuilder.GetChildNames()
 	for i := 0; i < count; i++ {
 		child, err := seqBuilder.GetChildAt(i)
 		if err != nil {
@@ -272,7 +270,7 @@ func TestIndexBasedAccess(t *testing.T) {
 			expectedName = fmt.Sprintf("step-%d", i)
 		}
 
-		actualName := seqBuilder.getChildName(child, i)
+		actualName := childNames[i]
 		if actualName != expectedName {
 			t.Errorf("Child at index %d: expected name %q, got %q", i, expectedName, actualName)
 		} else {

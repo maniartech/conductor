@@ -11,6 +11,8 @@ import (
 	errorspkg "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/sequential"
 )
 
 // TestEnhancedErrorHandling_FailFast tests enhanced fail-fast error handling

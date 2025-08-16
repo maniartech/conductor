@@ -8,6 +8,7 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	internalErrors "github.com/maniartech/orchestrator/internal/errors"
+	. "github.com/maniartech/orchestrator/internal/sequential"
 	"github.com/maniartech/orchestrator/internal/task"
 )
 

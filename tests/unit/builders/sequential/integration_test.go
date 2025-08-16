@@ -8,6 +8,8 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	errorspkg "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/sequential"
 )
 
 func TestSequentialIntegration(t *testing.T) {
