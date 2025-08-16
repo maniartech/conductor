@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	errorspkg "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
+	errorspkg "github.com/maniartech/orchestrator/pkg/errors"
 
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 )

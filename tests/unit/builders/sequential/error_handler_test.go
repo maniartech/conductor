@@ -3,8 +3,8 @@ package sequential
 import (
 	"testing"
 
-	"github.com/maniartech/orchestrator/internal/errors"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 // TestCreateSequentialErrorContext ensures the helper delegates correctly to errors.CreateErrorContext

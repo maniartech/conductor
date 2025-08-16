@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 func TestDefaultConfig(t *testing.T) {

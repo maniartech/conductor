@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 // These tests specifically target small helper/state methods that were previously

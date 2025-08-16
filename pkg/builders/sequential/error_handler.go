@@ -4,7 +4,7 @@
 package sequential
 
 import (
-	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 // Sequential-specific helper functions for working with the common ErrorBoundaryHandler

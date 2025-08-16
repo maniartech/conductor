@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/pkg/config"
+	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/types"
 )
 

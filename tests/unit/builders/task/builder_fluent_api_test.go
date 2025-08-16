@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/errors"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 func TestTaskBuilderNamed(t *testing.T) {

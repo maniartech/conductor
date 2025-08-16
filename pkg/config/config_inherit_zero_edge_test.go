@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 // Focus: exercise subtle zero-value inheritance branches where parent itself has zero values.

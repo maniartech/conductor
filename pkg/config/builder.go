@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 // ConfigBuilder provides fluent configuration construction using the builder pattern.

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	internalErrors "github.com/maniartech/orchestrator/internal/errors"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
+	internalErrors "github.com/maniartech/orchestrator/pkg/errors"
 )
 
 func TestSequentialBuilder_PathResolution(t *testing.T) {

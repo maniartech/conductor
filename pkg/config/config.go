@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/errors"
+	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 // Config defines orchestration behavior with hierarchical inheritance.

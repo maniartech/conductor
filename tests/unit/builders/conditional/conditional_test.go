@@ -7,9 +7,9 @@ import (
 	"time"
 
 	orchContext "github.com/maniartech/orchestrator/internal/context"
-	orchErrors "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchErrors "github.com/maniartech/orchestrator/pkg/errors"
 
 	. "github.com/maniartech/orchestrator/pkg/builders/conditional"
 )
