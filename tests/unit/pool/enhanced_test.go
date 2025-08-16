@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	. "github.com/maniartech/orchestrator/internal/pool"
 )
 
 // TestEnhancedPoolFeatures tests all the enhanced pool features

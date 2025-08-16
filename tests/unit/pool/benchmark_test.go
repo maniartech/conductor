@@ -2,9 +2,9 @@ package pool
 
 import (
 	"runtime"
-	"sync"
-	"sync/atomic"
 	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/pool"
 )
 
 // BenchmarkOrchestratorPool benchmarks orchestrator pool operations
@@ -208,42 +208,6 @@ func BenchmarkMemoryEfficiency(b *testing.B) {
 		runtime.ReadMemStats(&m2)
 		b.ReportMetric(float64(m2.Mallocs-m1.Mallocs), "mallocs")
 		b.ReportMetric(float64(m2.TotalAlloc-m1.TotalAlloc), "bytes")
-	})
-}
-
-// BenchmarkStatsTracking benchmarks the overhead of statistics tracking
-func BenchmarkStatsTracking(b *testing.B) {
-	manager := NewManager()
-
-	b.Run("WithStatsTracking", func(b *testing.B) {
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			item := manager.GetOrchestrator()
-			manager.PutOrchestrator(item)
-		}
-	})
-
-	// Create a manager without stats tracking for comparison
-	basicManager := &Manager{
-		orchestratorPool: &sync.Pool{
-			New: func() any {
-				return &OrchestratorItem{
-					WG:     sync.WaitGroup{},
-					Status: atomic.Uint32{},
-				}
-			},
-		},
-	}
-
-	b.Run("WithoutStatsTracking", func(b *testing.B) {
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			item := basicManager.orchestratorPool.Get().(*OrchestratorItem)
-			item.Status.Store(0)
-			item.Result = nil
-			item.Error = nil
-			basicManager.orchestratorPool.Put(item)
-		}
 	})
 }
 

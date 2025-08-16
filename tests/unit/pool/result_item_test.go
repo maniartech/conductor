@@ -2,6 +2,8 @@ package pool
 
 import (
 	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/pool"
 )
 
 func TestResultItemReset(t *testing.T) {

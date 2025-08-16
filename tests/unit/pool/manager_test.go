@@ -3,31 +3,9 @@ package pool
 import (
 	"sync"
 	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/pool"
 )
-
-func TestNewManager(t *testing.T) {
-	manager := NewManager()
-
-	if manager == nil {
-		t.Fatal("NewManager() returned nil")
-	}
-
-	if manager.orchestratorPool == nil {
-		t.Error("orchestratorPool is nil")
-	}
-
-	if manager.slicePool == nil {
-		t.Error("slicePool is nil")
-	}
-
-	if manager.contextPool == nil {
-		t.Error("contextPool is nil")
-	}
-
-	if manager.resultPool == nil {
-		t.Error("resultPool is nil")
-	}
-}
 
 func TestOrchestratorPoolOperations(t *testing.T) {
 	manager := NewManager()

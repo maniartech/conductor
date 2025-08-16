@@ -4,6 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/pool"
 )
 
 func TestPoolStatsInitialization(t *testing.T) {
