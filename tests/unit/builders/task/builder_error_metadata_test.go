@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/config"
+	. "github.com/maniartech/orchestrator/internal/task"
 )
 
 func TestTaskBuilderErrorMetadata(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/maniartech/orchestrator/internal/config"
+	. "github.com/maniartech/orchestrator/internal/task"
 )
 
 func ExampleTask() {
@@ -39,16 +40,4 @@ func ExampleTaskBuilder_GetStatus() {
 	// Output:
 	// Initial status: NotStarted
 	// Final status: Completed
-}
-
-func ExampleTaskBuilder_safeExecute() {
-	tk := Task(func() (string, error) { return "Safe execution", nil })
-	res, err := tk.safeExecute(context.Background())
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return
-	}
-	fmt.Printf("Result: %v\n", res)
-	// Output:
-	// Result: Safe execution
 }

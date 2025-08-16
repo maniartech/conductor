@@ -1,6 +1,10 @@
 package task
 
-import "testing"
+import (
+	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/task"
+)
 
 func TestTask_PathResolutionCoverage(t *testing.T) {
 	tt := Task(func() (string, error) { return "x", nil }).Named("path-task")
