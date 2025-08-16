@@ -8,6 +8,8 @@ import (
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 	"github.com/maniartech/orchestrator/pkg/types"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 type nestedMock struct {

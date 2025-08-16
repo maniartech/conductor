@@ -11,6 +11,8 @@ import (
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 	"github.com/maniartech/orchestrator/pkg/types"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 // MockOrchestration implements types.Orchestration for testing

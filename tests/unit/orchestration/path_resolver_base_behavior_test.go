@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/maniartech/orchestrator/pkg/types"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 type simpleChild struct{ types.Orchestration }

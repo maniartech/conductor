@@ -1,6 +1,10 @@
 package orchestration
 
-import "testing"
+import (
+	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
+)
 
 // TestPathResolverBase_Callbacks_Minimal ensures SetCallbacks with the new 3-arg signature works.
 func TestPathResolverBase_Callbacks_Minimal(t *testing.T) {

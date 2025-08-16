@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/maniartech/orchestrator/pkg/types"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 // TestNewRootNamingContext tests root naming context creation

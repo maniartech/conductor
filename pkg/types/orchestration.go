@@ -87,6 +87,10 @@ type Orchestration interface {
 	// Returns empty string if no name was set.
 	GetName() string
 
+	// GetType returns the orchestration type as a string.
+	// This is useful for logging and debugging to identify the orchestration type.
+	GetType() string
+
 	// GetConfig returns the orchestration's configuration.
 	// Returns nil if no configuration was set.
 	GetConfig() *config.Config

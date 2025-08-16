@@ -1,6 +1,10 @@
 package orchestration
 
-import "testing"
+import (
+	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
+)
 
 func TestBaseOrchestrationBuilder_GetOperationID_UniqueUnnamed(t *testing.T) {
 	b1 := NewBaseOrchestrationBuilder("sequential")

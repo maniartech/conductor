@@ -6,6 +6,8 @@ import (
 
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/errors"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 func TestBaseOrchestrationBuilder_ApplyConfigurationInheritance_LocalOverrideAndParentIntact(t *testing.T) {

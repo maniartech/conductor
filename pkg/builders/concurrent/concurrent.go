@@ -189,6 +189,12 @@ func (cb *ConcurrentBuilder) Named(name string) types.Orchestration {
 	return cb
 }
 
+// GetType returns the orchestration type as a string.
+// This is useful for logging and debugging to identify the orchestration type.
+func (cb *ConcurrentBuilder) GetType() string {
+	return "concurrent"
+}
+
 // With applies configuration to the concurrent orchestration.
 // Configuration is inherited hierarchically with local overrides.
 // Child orchestrations inherit this configuration unless they specify their own.

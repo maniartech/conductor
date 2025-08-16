@@ -3,6 +3,8 @@ package orchestration
 import (
 	"fmt"
 	"testing"
+
+	. "github.com/maniartech/orchestrator/internal/orchestration"
 )
 
 // TestPathResolverBase_ParsePath tests the path parsing functionality
