@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 // PathResolverBase provides a base implementation for path resolution.

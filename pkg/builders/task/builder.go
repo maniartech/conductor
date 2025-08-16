@@ -61,7 +61,7 @@ import (
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 // TaskBuilder provides a fluent API for creating and configuring individual tasks.

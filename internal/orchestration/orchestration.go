@@ -3,7 +3,7 @@
 // enabling fluent API design and hierarchical configuration management.
 package orchestration
 
-import "github.com/maniartech/orchestrator/types"
+import "github.com/maniartech/orchestrator/pkg/types"
 
 // Orchestration is an alias to the types.Orchestration interface for backward compatibility.
 // All orchestration implementations should use types.Orchestration directly.

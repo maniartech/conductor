@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 func TestBaseOrchestrationBuilder_CompleteExecution_CancelledNoError(t *testing.T) {

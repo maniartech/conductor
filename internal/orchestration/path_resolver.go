@@ -3,7 +3,7 @@
 // without maintaining centralized maps, keeping the system allocation-efficient.
 package orchestration
 
-import "github.com/maniartech/orchestrator/types"
+import "github.com/maniartech/orchestrator/pkg/types"
 
 // PathResolver is an alias to the types.PathResolver interface for backward compatibility.
 // All path resolver implementations should use types.PathResolver directly.

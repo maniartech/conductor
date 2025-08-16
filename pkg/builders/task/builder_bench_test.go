@@ -7,7 +7,7 @@ import (
 
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/errors"
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 func BenchmarkTaskCreation(b *testing.B) {

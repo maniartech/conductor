@@ -8,7 +8,7 @@ import (
 
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 func TestTaskBuilderExecute(t *testing.T) {

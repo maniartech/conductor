@@ -10,7 +10,7 @@ import (
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	internalErrors "github.com/maniartech/orchestrator/pkg/errors"
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 // Success path with FailFast

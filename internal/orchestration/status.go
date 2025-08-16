@@ -1,6 +1,6 @@
 package orchestration
 
-import "github.com/maniartech/orchestrator/types"
+import "github.com/maniartech/orchestrator/pkg/types"
 
 // Status is an alias to the types.Status type for backward compatibility.
 // All status operations should use types.Status directly.

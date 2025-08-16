@@ -1,6 +1,6 @@
 package orchestration
 
-import "github.com/maniartech/orchestrator/types"
+import "github.com/maniartech/orchestrator/pkg/types"
 
 // NamingContext is an alias to the types.NamingContext struct for backward compatibility.
 // All naming context operations should use types.NamingContext directly.

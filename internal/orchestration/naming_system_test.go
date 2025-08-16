@@ -3,7 +3,7 @@ package orchestration
 import (
 	"testing"
 
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 // TestNewRootNamingContext tests root naming context creation

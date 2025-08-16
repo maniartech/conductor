@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 type simpleChild struct{ types.Orchestration }

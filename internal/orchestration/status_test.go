@@ -3,7 +3,7 @@ package orchestration
 import (
 	"testing"
 
-	"github.com/maniartech/orchestrator/types"
+	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 // TestStatusAliases tests that status aliases work correctly
