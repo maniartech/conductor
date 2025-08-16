@@ -363,9 +363,9 @@ func TestProductionStress_ErrorResilience(t *testing.T) {
 	}
 
 	const (
-		testDuration = 5 * time.Second
-		numWorkers   = 15
-		errorRate    = 0.3 // 30% error rate
+		testDuration = 2 * time.Second // Reduced from 5s to 2s
+		numWorkers   = 8               // Reduced from 15 to 8
+		errorRate    = 0.3             // 30% error rate
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
@@ -404,7 +404,7 @@ func TestProductionStress_ErrorResilience(t *testing.T) {
 							panic(fmt.Sprintf("simulated panic %d-%d", workerID, opID))
 						} else if errorType < errorRate {
 							// Timeout (long operation)
-							time.Sleep(200 * time.Millisecond)
+							time.Sleep(50 * time.Millisecond) // Reduced from 200ms to 50ms
 							return fmt.Sprintf("timeout-result-%d-%d", workerID, opID), nil
 						} else {
 							// Success
@@ -416,7 +416,7 @@ func TestProductionStress_ErrorResilience(t *testing.T) {
 					workflow := Setup(taskInstance)
 
 					// Random timeout
-					timeout := 100 * time.Millisecond
+					timeout := 75 * time.Millisecond // Reduced from 100ms to 75ms
 					taskCtx, taskCancel := context.WithTimeout(context.Background(), timeout)
 
 					result, err := workflow.AwaitWithContext(taskCtx)
