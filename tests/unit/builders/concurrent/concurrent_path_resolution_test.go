@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/concurrent"
 )
 
 func TestConcurrent_PathResolution(t *testing.T) {

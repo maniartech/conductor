@@ -9,6 +9,8 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	internalErrors "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/concurrent"
 )
 
 func TestConcurrent_Timeout_ConfigInheritance(t *testing.T) {

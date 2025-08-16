@@ -6,6 +6,8 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/task"
+
+	. "github.com/maniartech/orchestrator/internal/concurrent"
 )
 
 func TestConcurrent_ChildAccess(t *testing.T) {

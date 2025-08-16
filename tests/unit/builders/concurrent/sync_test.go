@@ -13,6 +13,8 @@ import (
 	internalErrors "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/task"
 	"github.com/maniartech/orchestrator/types"
+
+	. "github.com/maniartech/orchestrator/internal/concurrent"
 )
 
 // TestConcurrentSynchronization tests WaitGroup-based synchronization

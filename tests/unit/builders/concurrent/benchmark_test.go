@@ -8,6 +8,8 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/task"
 	"github.com/maniartech/orchestrator/types"
+
+	. "github.com/maniartech/orchestrator/internal/concurrent"
 )
 
 // BenchmarkConcurrentExecution benchmarks basic concurrent execution
