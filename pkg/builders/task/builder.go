@@ -121,6 +121,10 @@ func (tb *TaskBuilder[T]) Named(name string) types.Orchestration {
 	return tb
 }
 
+func (tb *TaskBuilder[T]) GetType() string {
+	return "task"
+}
+
 // With applies configuration to the task.
 // Configuration is inherited hierarchically with local overrides.
 // Returns the same TaskBuilder instance for method chaining.

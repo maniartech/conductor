@@ -54,7 +54,7 @@ func (n *nestedMock) ListAllPaths() []string { return n.resolver.ListAllPaths() 
 func (n *nestedMock) FindByName(name string) []types.PathMatch {
 	matches := n.resolver.FindByName(name)
 	if n.GetName() == name {
-		matches = append([]types.PathMatch{{Path: n.GetCurrentPath(), Orchestration: n, Depth: 0, Type: n.BaseOrchestrationBuilder.orchestrationType}}, matches...)
+		matches = append([]types.PathMatch{{Path: n.GetCurrentPath(), Orchestration: n, Depth: 0, Type: n.BaseOrchestrationBuilder.GetType()}}, matches...)
 	}
 	return matches
 }

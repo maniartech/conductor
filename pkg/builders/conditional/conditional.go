@@ -210,6 +210,10 @@ func (cb *ConditionalBuilder) Named(name string) types.Orchestration {
 	return cb
 }
 
+func (cb *ConditionalBuilder) GetType() string {
+	return "conditional"
+}
+
 // With applies configuration to the conditional orchestration.
 // Configuration is inherited hierarchically with local overrides.
 // The selected branch inherits this configuration unless it specifies its own.

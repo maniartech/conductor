@@ -193,6 +193,11 @@ func (sb *SequentialBuilder) Named(name string) types.Orchestration {
 	return sb
 }
 
+// GetName returns the sequential orchestration name for debugging and observability.
+func (sb *SequentialBuilder) GetType() string {
+	return "sequential"
+}
+
 // With applies configuration to the sequential orchestration.
 // Configuration is inherited hierarchically with local overrides.
 // Child orchestrations inherit this configuration unless they specify their own.

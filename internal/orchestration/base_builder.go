@@ -91,6 +91,12 @@ func (bob *BaseOrchestrationBuilder) GetName() string {
 	return bob.name
 }
 
+// GetType returns the orchestration type as a string.
+// This is useful for logging and debugging to identify the orchestration type.
+func (bob *BaseOrchestrationBuilder) GetType() string {
+	return bob.orchestrationType
+}
+
 // GetConfig returns the orchestration's configuration.
 // Returns nil if no configuration was set.
 func (bob *BaseOrchestrationBuilder) GetConfig() *config.Config {

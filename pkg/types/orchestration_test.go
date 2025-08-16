@@ -25,6 +25,11 @@ func (m *MockOrchestration) Named(name string) Orchestration {
 	return m
 }
 
+// GetType implements Orchestration interface
+func (m *MockOrchestration) GetType() string {
+	return "mock"
+}
+
 // With implements Orchestration interface
 func (m *MockOrchestration) With(cfg config.Config) Orchestration {
 	m.config = &cfg

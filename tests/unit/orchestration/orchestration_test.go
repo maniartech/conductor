@@ -32,6 +32,10 @@ func (m *mockOrchestration) Named(name string) Orchestration {
 	return m
 }
 
+func (m *mockOrchestration) GetType() string {
+	return "mock"
+}
+
 func (m *mockOrchestration) With(config config.Config) Orchestration {
 	m.config = &config
 	return m

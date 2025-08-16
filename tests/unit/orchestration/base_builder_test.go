@@ -93,8 +93,8 @@ func TestNewBaseOrchestrationBuilder(t *testing.T) {
 				t.Fatal("Expected builder to be created")
 			}
 
-			if builder.orchestrationType != tt.orchestrationType {
-				t.Errorf("Expected orchestration type '%s', got '%s'", tt.orchestrationType, builder.orchestrationType)
+			if builder.GetType() != tt.orchestrationType {
+				t.Errorf("Expected orchestration type '%s', got '%s'", tt.orchestrationType, builder.GetType())
 			}
 
 			if builder.GetName() != "" {
