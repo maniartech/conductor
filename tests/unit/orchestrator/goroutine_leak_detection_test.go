@@ -10,7 +10,7 @@ import (
 	"time"
 
 	. "github.com/maniartech/orchestrator"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 // GoroutineTracker helps track goroutine leaks

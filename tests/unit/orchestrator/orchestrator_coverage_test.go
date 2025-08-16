@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 
 	. "github.com/maniartech/orchestrator"
 )

@@ -9,7 +9,7 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	orchContext "github.com/maniartech/orchestrator/internal/context"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 
 	. "github.com/maniartech/orchestrator"
 )

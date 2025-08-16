@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/config"
-	. "github.com/maniartech/orchestrator/internal/task"
+	. "github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 func TestTaskBuilderStressConcurrentExecution(t *testing.T) {

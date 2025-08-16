@@ -9,7 +9,7 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	orchErrors "github.com/maniartech/orchestrator/internal/errors"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 // TestWorkflow_InternalMethods tests internal workflow methods

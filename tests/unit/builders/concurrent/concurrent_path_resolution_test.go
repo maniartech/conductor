@@ -3,9 +3,9 @@ package concurrent
 import (
 	"testing"
 
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 
-	. "github.com/maniartech/orchestrator/internal/concurrent"
+	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"
 )
 
 func TestConcurrent_PathResolution(t *testing.T) {

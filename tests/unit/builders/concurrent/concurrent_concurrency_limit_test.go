@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/config"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/types"
 
-	. "github.com/maniartech/orchestrator/internal/concurrent"
+	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"
 )
 
 func TestConcurrent_ConcurrencyLimit(t *testing.T) {

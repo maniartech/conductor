@@ -67,9 +67,9 @@ import (
     "log"
     "time"
 
-    "github.com/maniartech/orchestrator/internal/concurrent"
+    "github.com/maniartech/orchestrator/pkg/builders/concurrent"
     "github.com/maniartech/orchestrator/internal/config"
-    "github.com/maniartech/orchestrator/internal/task"
+    "github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 func main() {
@@ -192,19 +192,19 @@ func aggregateMarketData() (*MarketData, error) {
 
     // Aggregate available data
     marketData := &MarketData{}
-    
+
     if stockData := result.Get("stock-prices"); stockData != nil {
         marketData.Stocks = stockData.(*StockData)
     }
-    
+
     if forexData := result.Get("forex-rates"); forexData != nil {
         marketData.Forex = forexData.(*ForexData)
     }
-    
+
     if commodityData := result.Get("commodity-prices"); commodityData != nil {
         marketData.Commodities = commodityData.(*CommodityData)
     }
-    
+
     if newsData := result.Get("market-news"); newsData != nil {
         marketData.News = newsData.(*NewsData)
     }
@@ -391,7 +391,7 @@ concurrent := concurrent.Concurrent(tasks...).
 // Check for partial failures
 if result.HasErrors() {
     for _, opErr := range result.Errors() {
-        log.Printf("Operation %s failed after %v: %v", 
+        log.Printf("Operation %s failed after %v: %v",
             opErr.OpID, opErr.Duration, opErr.Error)
     }
 }
@@ -431,7 +431,7 @@ go test -bench=. ./internal/concurrent
 ```go
 // Validate concurrency limits to prevent DoS
 if config.MaxConcurrency > 1000 {
-    return fmt.Errorf("max concurrency %d exceeds safety limit", 
+    return fmt.Errorf("max concurrency %d exceeds safety limit",
         config.MaxConcurrency)
 }
 ```

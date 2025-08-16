@@ -9,7 +9,7 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 // TestExample_SimpleSequential demonstrates basic sequential orchestration

@@ -3,7 +3,7 @@ package task
 import (
 	"testing"
 
-	. "github.com/maniartech/orchestrator/internal/task"
+	. "github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 func TestTask(t *testing.T) {

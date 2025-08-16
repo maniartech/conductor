@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/maniartech/orchestrator/internal/config"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/types"
 
-	. "github.com/maniartech/orchestrator/internal/concurrent"
+	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"
 )
 
 // BenchmarkConcurrentExecution benchmarks basic concurrent execution

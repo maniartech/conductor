@@ -13,7 +13,7 @@ import (
 
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/config"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 // FuzzTaskExecution tests task execution with various inputs

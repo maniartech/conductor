@@ -9,9 +9,9 @@ import (
 	"github.com/maniartech/orchestrator/internal/config"
 	orchContext "github.com/maniartech/orchestrator/internal/context"
 	orchErrors "github.com/maniartech/orchestrator/internal/errors"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 
-	. "github.com/maniartech/orchestrator/internal/conditional"
+	. "github.com/maniartech/orchestrator/pkg/builders/conditional"
 )
 
 // TestConditional_Constructor tests the Conditional constructor function

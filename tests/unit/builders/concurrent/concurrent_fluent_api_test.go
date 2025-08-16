@@ -6,9 +6,9 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/config"
 	internalErrors "github.com/maniartech/orchestrator/internal/errors"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 
-	. "github.com/maniartech/orchestrator/internal/concurrent"
+	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"
 )
 
 func TestConcurrentBuilder_FluentAPI(t *testing.T) {

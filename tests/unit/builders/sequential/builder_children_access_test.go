@@ -3,8 +3,8 @@ package sequential
 import (
 	"testing"
 
-	. "github.com/maniartech/orchestrator/internal/sequential"
-	"github.com/maniartech/orchestrator/internal/task"
+	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 func TestSequentialBuilder_ChildrenAccess(t *testing.T) {

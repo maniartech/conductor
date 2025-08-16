@@ -13,7 +13,7 @@ import (
 
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/config"
-	"github.com/maniartech/orchestrator/internal/task"
+	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 // TestAdvancedRaceConditions_ConcurrentWorkflowExecution tests multiple workflows executing concurrently
