@@ -59,8 +59,8 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
-	"github.com/maniartech/orchestrator/internal/result"
 	"github.com/maniartech/orchestrator/pkg/config"
+	"github.com/maniartech/orchestrator/pkg/result"
 	"github.com/maniartech/orchestrator/types"
 )
 

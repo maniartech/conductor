@@ -11,9 +11,9 @@ import (
 	"github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/pool"
-	"github.com/maniartech/orchestrator/internal/result"
 	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/config"
+	"github.com/maniartech/orchestrator/pkg/result"
 )
 
 // TestInfrastructureIntegration tests all infrastructure components working together

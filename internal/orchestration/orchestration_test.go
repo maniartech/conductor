@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/errors"
-	"github.com/maniartech/orchestrator/internal/result"
 	"github.com/maniartech/orchestrator/pkg/config"
+	"github.com/maniartech/orchestrator/pkg/result"
 )
 
 // Test that our interface is properly defined
