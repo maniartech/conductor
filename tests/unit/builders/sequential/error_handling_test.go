@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	errorspkg "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 )

@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 // ExampleTaskBuilder_basicUsage demonstrates basic task creation and execution.

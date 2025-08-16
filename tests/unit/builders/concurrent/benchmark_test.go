@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/types"
 
 	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"

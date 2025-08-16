@@ -12,8 +12,8 @@ import (
 	"unsafe"
 
 	. "github.com/maniartech/orchestrator"
-	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 // FuzzTaskExecution tests task execution with various inputs

@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/config"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 // Context provides enhanced orchestration context with timeout management,

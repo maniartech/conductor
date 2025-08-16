@@ -10,10 +10,10 @@ import (
 	"time"
 
 	. "github.com/maniartech/orchestrator"
-	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/result"
 	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/types"
 )
 

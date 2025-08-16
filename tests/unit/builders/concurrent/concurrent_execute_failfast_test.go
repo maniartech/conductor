@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	internalErrors "github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 
 	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"
 )

@@ -6,9 +6,9 @@ package types
 import (
 	"context"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/result"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 // Orchestration defines the interface for all orchestration types.

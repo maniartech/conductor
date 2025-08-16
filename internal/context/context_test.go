@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/config"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 // TestBasicContextOperations tests the core context functionality

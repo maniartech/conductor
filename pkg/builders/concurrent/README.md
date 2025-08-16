@@ -68,7 +68,7 @@ import (
     "time"
 
     "github.com/maniartech/orchestrator/pkg/builders/concurrent"
-    "github.com/maniartech/orchestrator/internal/config"
+    "github.com/maniartech/orchestrator/pkg/config"
     "github.com/maniartech/orchestrator/pkg/builders/task"
 )
 

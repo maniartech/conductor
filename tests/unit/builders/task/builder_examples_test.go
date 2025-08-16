@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 func ExampleTask() {

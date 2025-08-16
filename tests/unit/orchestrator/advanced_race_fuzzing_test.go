@@ -12,8 +12,8 @@ import (
 	"unsafe"
 
 	. "github.com/maniartech/orchestrator"
-	"github.com/maniartech/orchestrator/internal/config"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
+	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 // TestAdvancedRaceConditions_ConcurrentWorkflowExecution tests multiple workflows executing concurrently

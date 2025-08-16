@@ -76,11 +76,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/config"
 	orchContext "github.com/maniartech/orchestrator/internal/context"
 	"github.com/maniartech/orchestrator/internal/errors"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/internal/result"
+	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/types"
 )
 
