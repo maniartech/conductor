@@ -3,11 +3,12 @@ package task
 import (
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 func TestTask_PathResolutionCoverage(t *testing.T) {
-	tt := Task(func() (string, error) { return "x", nil }).Named("path-task")
+	tt := Task(func(ctx orchestrator.Context) (string, error) { return "x", nil }).Named("path-task")
 	path := tt.GetCurrentPath()
 	if path == "" {
 		t.Fatalf("expected non-empty current path")

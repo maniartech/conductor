@@ -6,12 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 )
 
 func TestTaskBuilderErrorMetadata(t *testing.T) {
-	tk := Task(func() (string, error) { time.Sleep(1 * time.Millisecond); return "", errors.New("test error") }).Named("metadata-task")
+	tk := Task(func(ctx orchestrator.Context) (string, error) {
+		time.Sleep(1 * time.Millisecond)
+		return "", errors.New("test error")
+	}).Named("metadata-task")
 	cfg := config.DefaultConfig()
 	start := time.Now()
 	res, err := tk.Execute(context.Background(), cfg)

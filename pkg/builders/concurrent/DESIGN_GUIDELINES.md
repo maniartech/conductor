@@ -15,7 +15,7 @@ Unlike individual tasks, concurrent orchestration MUST use goroutines because:
 // Enterprise requirement: Execute operations simultaneously
 concurrent := Concurrent(
     Task(fetchUserData),      // Must run in parallel
-    Task(fetchOrderData),     // Must run in parallel  
+    Task(fetchOrderData),     // Must run in parallel
     Task(fetchInventoryData), // Must run in parallel
 )
 
@@ -38,7 +38,7 @@ type ConcurrentBuilder struct {
     config         *config.Config
     errorBoundary  *errors.ErrorStrategy
     status         atomic.Uint32
-    
+
     // Enterprise goroutine management
     maxConcurrency int           // Prevent goroutine explosion
     semaphore      chan struct{} // Control concurrent execution
@@ -61,14 +61,14 @@ The concurrent builder must handle multiple error scenarios:
 func (cb *ConcurrentBuilder) executeFailFast(ctx context.Context) error {
     ctx, cancel := context.WithCancel(ctx)
     defer cancel()
-    
+
     errorCollector := errors.NewErrorCollector(len(cb.orchestrations), errors.FailFast)
-    
+
     for i, orch := range cb.orchestrations {
         cb.wg.Add(1)
         go func(index int, orchestration types.Orchestration) {
             defer cb.wg.Done()
-            
+
             // Acquire semaphore for concurrency control
             select {
             case cb.semaphore <- struct{}{}:
@@ -77,12 +77,12 @@ func (cb *ConcurrentBuilder) executeFailFast(ctx context.Context) error {
                 errorCollector.AddError(index, ctx.Err(), 0)
                 return
             }
-            
+
             // Check if we should continue (fail-fast)
             if errorCollector.ShouldStopExecution() {
                 return // Early termination
             }
-            
+
             // Execute orchestration
             result, err := orchestration.Execute(ctx, cb.config)
             if err != nil {
@@ -91,7 +91,7 @@ func (cb *ConcurrentBuilder) executeFailFast(ctx context.Context) error {
             }
         }(i, orch)
     }
-    
+
     cb.wg.Wait()
     return errorCollector.GetFinalError()
 }
@@ -101,12 +101,12 @@ func (cb *ConcurrentBuilder) executeFailFast(ctx context.Context) error {
 ```go
 func (cb *ConcurrentBuilder) executeCollectAll(ctx context.Context) error {
     errorCollector := errors.NewErrorCollector(len(cb.orchestrations), errors.CollectAll)
-    
+
     for i, orch := range cb.orchestrations {
         cb.wg.Add(1)
         go func(index int, orchestration types.Orchestration) {
             defer cb.wg.Done()
-            
+
             // Acquire semaphore for concurrency control
             select {
             case cb.semaphore <- struct{}{}:
@@ -115,7 +115,7 @@ func (cb *ConcurrentBuilder) executeCollectAll(ctx context.Context) error {
                 errorCollector.AddError(index, ctx.Err(), 0)
                 return
             }
-            
+
             // Execute orchestration (continue on error)
             result, err := orchestration.Execute(ctx, cb.config)
             if err != nil {
@@ -124,7 +124,7 @@ func (cb *ConcurrentBuilder) executeCollectAll(ctx context.Context) error {
             }
         }(i, orch)
     }
-    
+
     cb.wg.Wait()
     return errorCollector.GetFinalError()
 }
@@ -140,7 +140,7 @@ func (cb *ConcurrentBuilder) getMaxConcurrency(config config.Config) int {
     if config.MaxConcurrency > 0 {
         return config.MaxConcurrency
     }
-    
+
     // Enterprise default: Conservative limit
     return runtime.NumCPU() * 2
 }
@@ -164,7 +164,7 @@ func (cb *ConcurrentBuilder) Execute(ctx context.Context, config config.Config) 
     // Initialize synchronization
     cb.wg = sync.WaitGroup{}
     cb.initializeSemaphore(cb.getMaxConcurrency(config))
-    
+
     // Execute based on strategy
     var err error
     switch cb.getErrorStrategy(config) {
@@ -173,10 +173,10 @@ func (cb *ConcurrentBuilder) Execute(ctx context.Context, config config.Config) 
     case errors.CollectAll:
         err = cb.executeCollectAll(ctx, config)
     }
-    
+
     // Ensure all goroutines complete
     cb.wg.Wait()
-    
+
     return result, err
 }
 ```
@@ -195,7 +195,7 @@ func (cb *ConcurrentBuilder) executeWithCancellation(ctx context.Context) error 
     // Create cancellable context for fail-fast
     ctx, cancel := context.WithCancel(ctx)
     defer cancel()
-    
+
     // Monitor for external cancellation
     go func() {
         select {
@@ -204,7 +204,7 @@ func (cb *ConcurrentBuilder) executeWithCancellation(ctx context.Context) error 
             cancel()
         }
     }()
-    
+
     // Execute orchestrations with cancellation support
     // ... (goroutine execution logic)
 }
@@ -349,7 +349,7 @@ var (
             return make(map[string]interface{}, 10)
         },
     }
-    
+
     errorSlicePool = sync.Pool{
         New: func() interface{} {
             return make([]errors.OperationError, 0, 10)
@@ -393,7 +393,7 @@ func (cb *ConcurrentBuilder) GetHealthMetrics() ConcurrentMetrics {
 // Prevent DoS attacks through resource exhaustion
 func (cb *ConcurrentBuilder) validateConcurrencyLimits(config config.Config) error {
     if config.MaxConcurrency > 1000 {
-        return fmt.Errorf("max concurrency %d exceeds safety limit of 1000", 
+        return fmt.Errorf("max concurrency %d exceeds safety limit of 1000",
             config.MaxConcurrency)
     }
     return nil
@@ -419,7 +419,7 @@ func TestConcurrentBuilderRaceConditions(t *testing.T) {
     // Test with -race flag enabled
     const numGoroutines = 100
     const operationsPerGoroutine = 1000
-    
+
     var wg sync.WaitGroup
     for i := 0; i < numGoroutines; i++ {
         wg.Add(1)
@@ -440,20 +440,20 @@ func TestConcurrentBuilderRaceConditions(t *testing.T) {
 func TestConcurrentBuilderHighLoad(t *testing.T) {
     // Test with thousands of concurrent orchestrations
     const numOrchestrations = 10000
-    
+
     orchestrations := make([]types.Orchestration, numOrchestrations)
     for i := 0; i < numOrchestrations; i++ {
-        orchestrations[i] = Task(func() (string, error) {
+        orchestrations[i] = Task(func(ctx orchContext.Context) (string, error) {
             return fmt.Sprintf("result-%d", i), nil
         })
     }
-    
+
     concurrent := Concurrent(orchestrations...)
     result, err := concurrent.Execute(ctx, config.Config{
         MaxConcurrency: 100,
         Timeout: 30*time.Second,
     })
-    
+
     // Verify all operations completed successfully
     assert.NoError(t, err)
     assert.Equal(t, numOrchestrations, len(result.GetAll()))

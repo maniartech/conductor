@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	errorspkg "github.com/maniartech/orchestrator/pkg/errors"
@@ -15,9 +16,9 @@ import (
 func TestSequentialIntegration(t *testing.T) {
 	// Create a simple sequential orchestration
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (int, error) { return 42, nil }).Named("step2"),
-		task.Task(func() (bool, error) { return true, nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 42, nil }).Named("step2"),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("step3"),
 	).Named("integration-test")
 
 	ctx := context.Background()
@@ -52,9 +53,9 @@ func TestSequentialIntegration(t *testing.T) {
 func TestSequentialWithError(t *testing.T) {
 	// Create a sequential with an error
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (int, error) { return 0, errors.New("step2 failed") }).Named("step2"),
-		task.Task(func() (bool, error) { return true, nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("step2 failed") }).Named("step2"),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("step3"),
 	).Named("error-test")
 
 	ctx := context.Background()

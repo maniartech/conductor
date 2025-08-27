@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/types"
@@ -27,7 +28,7 @@ func BenchmarkConcurrentExecution(b *testing.B) {
 		var orchestrations []types.Orchestration
 		for j := 0; j < taskCount; j++ {
 			value := fmt.Sprintf("task-%d", j)
-			orchestrations = append(orchestrations, task.Task(func() (string, error) {
+			orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 				return value, nil
 			}))
 		}

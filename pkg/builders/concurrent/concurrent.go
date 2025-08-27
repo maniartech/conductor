@@ -118,9 +118,9 @@ type ConcurrentBuilder struct {
 //
 //	// Simple concurrent execution
 //	conc := Concurrent(
-//	    Task(func() (string, error) { return "task1", nil }),
-//	    Task(func() (string, error) { return "task2", nil }),
-//	    Task(func() (string, error) { return "task3", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "task1", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "task2", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "task3", nil }),
 //	)
 //
 //	// Concurrent with different orchestration types
@@ -509,9 +509,9 @@ func (cb *ConcurrentBuilder) getOperationID() string {
 // Example:
 //
 //	conc := Concurrent(
-//	    Task(func() (string, error) { return "task1", nil }).Named("first-task"),
-//	    Task(func() (int, error) { return 42, nil }).Named("second-task"),
-//	    Task(func() (bool, error) { return true, nil }).Named("third-task"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "task1", nil }).Named("first-task"),
+//	    Task(func(ctx orchContext.Context) (int, error) { return 42, nil }).Named("second-task"),
+//	    Task(func(ctx orchContext.Context) (bool, error) { return true, nil }).Named("third-task"),
 //	)
 //
 //	// Access the second child (index 1)
@@ -577,8 +577,8 @@ func (cb *ConcurrentBuilder) GetChildren() []types.Orchestration {
 // Example:
 //
 //	conc := Concurrent(
-//	    Task(func() (string, error) { return "data", nil }).Named("fetch-data"),
-//	    Task(func() (string, error) { return "processed", nil }).Named("process-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "data", nil }).Named("fetch-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "processed", nil }).Named("process-data"),
 //	)
 //
 //	index, child := conc.FindChildByName("process-data")
@@ -606,9 +606,9 @@ func (cb *ConcurrentBuilder) FindChildByName(name string) (int, types.Orchestrat
 // Example:
 //
 //	conc := Concurrent(
-//	    Task(func() (string, error) { return "data", nil }).Named("fetch-data"),
-//	    Task(func() (string, error) { return "processed", nil }), // unnamed
-//	    Task(func() (string, error) { return "saved", nil }).Named("save-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "data", nil }).Named("fetch-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "processed", nil }), // unnamed
+//	    Task(func(ctx orchContext.Context) (string, error) { return "saved", nil }).Named("save-data"),
 //	)
 //
 //	names := conc.GetChildNames()

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/types"
@@ -20,7 +21,7 @@ func TestConcurrent_ConcurrencyLimit(t *testing.T) {
 
 	var orch []types.Orchestration
 	for i := 0; i < 6; i++ {
-		orch = append(orch, task.Task(func() (int, error) {
+		orch = append(orch, task.Task(func(ctx orchestrator.Context) (int, error) {
 			c := atomic.AddInt32(&current, 1)
 			for {
 				m := atomic.LoadInt32(&maxObserved)

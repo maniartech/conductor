@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/types"
@@ -14,14 +15,14 @@ import (
 func TestTaskBuilderExecute(t *testing.T) {
 	tests := []struct {
 		name        string
-		fn          func() (interface{}, error)
+		fn          func(ctx orchestrator.Context) (interface{}, error)
 		expected    interface{}
 		expectError bool
 		nameAssign  string
 	}{
-		{"successful execution", func() (interface{}, error) { return "success", nil }, "success", false, "success-task"},
-		{"execution with error", func() (interface{}, error) { return nil, systemErrors.New("task error") }, nil, true, "error-task"},
-		{"execution with panic", func() (interface{}, error) { panic("task panic") }, nil, true, "panic-task"},
+		{"successful execution", func(ctx orchestrator.Context) (interface{}, error) { return "success", nil }, "success", false, "success-task"},
+		{"execution with error", func(ctx orchestrator.Context) (interface{}, error) { return nil, systemErrors.New("task error") }, nil, true, "error-task"},
+		{"execution with panic", func(ctx orchestrator.Context) (interface{}, error) { panic("task panic") }, nil, true, "panic-task"},
 	}
 	for _, tc := range tests {
 		c := tc
@@ -51,7 +52,10 @@ func TestTaskBuilderExecute(t *testing.T) {
 }
 
 func TestTaskBuilderExecuteWithTimeout(t *testing.T) {
-	tsk := Task(func() (string, error) { time.Sleep(100 * time.Millisecond); return "completed", nil }).Named("timeout-task")
+	tsk := Task(func(ctx orchestrator.Context) (string, error) {
+		time.Sleep(100 * time.Millisecond)
+		return "completed", nil
+	}).Named("timeout-task")
 	res, err := tsk.Execute(context.Background(), config.Config{Timeout: 50 * time.Millisecond})
 	if err == nil {
 		t.Error("expected timeout error")
@@ -67,7 +71,7 @@ func TestTaskBuilderExecuteWithTimeout(t *testing.T) {
 func TestTaskBuilderExecuteWithCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	tsk := Task(func() (string, error) { return "completed", nil }).Named("cancel-task")
+	tsk := Task(func(ctx orchestrator.Context) (string, error) { return "completed", nil }).Named("cancel-task")
 	res, err := tsk.Execute(ctx, config.DefaultConfig())
 	if err == nil {
 		t.Error("expected cancellation error")
@@ -81,7 +85,7 @@ func TestTaskBuilderExecuteWithCancellation(t *testing.T) {
 }
 
 func TestTaskBuilderPanicRecoveryWithStackTrace(t *testing.T) {
-	tsk := Task(func() (string, error) { panic("test panic for stack trace") }).Named("panic-task")
+	tsk := Task(func(ctx orchestrator.Context) (string, error) { panic("test panic for stack trace") }).Named("panic-task")
 	res, err := tsk.Execute(context.Background(), config.DefaultConfig())
 	if err == nil {
 		t.Error("expected error from panic recovery")
@@ -105,7 +109,10 @@ func TestTaskBuilderPanicRecoveryWithStackTrace(t *testing.T) {
 }
 
 func TestTaskBuilderTimeoutHandling(t *testing.T) {
-	tsk := Task(func() (string, error) { time.Sleep(100 * time.Millisecond); return "completed", nil }).Named("timeout-task")
+	tsk := Task(func(ctx orchestrator.Context) (string, error) {
+		time.Sleep(100 * time.Millisecond)
+		return "completed", nil
+	}).Named("timeout-task")
 	start := time.Now()
 	res, err := tsk.Execute(context.Background(), config.Config{Timeout: 50 * time.Millisecond})
 	dur := time.Since(start)
@@ -130,7 +137,7 @@ func TestTaskBuilderTimeoutHandling(t *testing.T) {
 }
 
 func TestTaskBuilderCancellationHandling(t *testing.T) {
-	tsk := Task(func() (string, error) { return "completed", nil }).Named("cancel-task")
+	tsk := Task(func(ctx orchestrator.Context) (string, error) { return "completed", nil }).Named("cancel-task")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	res, err := tsk.Execute(ctx, config.DefaultConfig())

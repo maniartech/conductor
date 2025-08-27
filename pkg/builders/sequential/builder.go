@@ -119,9 +119,9 @@ type SequentialBuilder struct {
 //
 //	// Simple sequential execution
 //	seq := Sequential(
-//	    Task(func() (string, error) { return "step1", nil }),
-//	    Task(func() (string, error) { return "step2", nil }),
-//	    Task(func() (string, error) { return "step3", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "step1", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "step2", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "step3", nil }),
 //	)
 //
 //	// Sequential with different orchestration types
@@ -609,9 +609,9 @@ func (sb *SequentialBuilder) GetStatus() types.Status {
 // Example:
 //
 //	seq := Sequential(
-//	    Task(func() (string, error) { return "task1", nil }).Named("first-task"),
-//	    Task(func() (int, error) { return 42, nil }).Named("second-task"),
-//	    Task(func() (bool, error) { return true, nil }).Named("third-task"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "task1", nil }).Named("first-task"),
+//	    Task(func(ctx orchContext.Context) (int, error) { return 42, nil }).Named("second-task"),
+//	    Task(func(ctx orchContext.Context) (bool, error) { return true, nil }).Named("third-task"),
 //	)
 //
 //	// Access the second child (index 1)
@@ -677,8 +677,8 @@ func (sb *SequentialBuilder) GetChildren() []types.Orchestration {
 // Example:
 //
 //	seq := Sequential(
-//	    Task(func() (string, error) { return "data", nil }).Named("fetch-data"),
-//	    Task(func() (string, error) { return "processed", nil }).Named("process-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "data", nil }).Named("fetch-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "processed", nil }).Named("process-data"),
 //	)
 //
 //	index, child := seq.FindChildByName("process-data")
@@ -706,9 +706,9 @@ func (sb *SequentialBuilder) FindChildByName(name string) (int, types.Orchestrat
 // Example:
 //
 //	seq := Sequential(
-//	    Task(func() (string, error) { return "data", nil }).Named("fetch-data"),
-//	    Task(func() (string, error) { return "processed", nil }), // unnamed
-//	    Task(func() (string, error) { return "saved", nil }).Named("save-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "data", nil }).Named("fetch-data"),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "processed", nil }), // unnamed
+//	    Task(func(ctx orchContext.Context) (string, error) { return "saved", nil }).Named("save-data"),
 //	)
 //
 //	names := seq.GetChildNames()

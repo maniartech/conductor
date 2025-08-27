@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/errors"
@@ -14,7 +15,7 @@ import (
 // ExampleTaskBuilder_basicUsage demonstrates basic task creation and execution.
 func ExampleTaskBuilder_basicUsage() {
 	// Create a simple task
-	task := Task(func() (string, error) {
+	task := Task(func(ctx orchestrator.Context) (string, error) {
 		return "Hello, World!", nil
 	})
 
@@ -39,7 +40,7 @@ func ExampleTaskBuilder_basicUsage() {
 // ExampleTaskBuilder_fluentAPI demonstrates the fluent API for task configuration.
 func ExampleTaskBuilder_fluentAPI() {
 	// Create a task with fluent configuration
-	task := Task(func() (int, error) {
+	task := Task(func(ctx orchestrator.Context) (int, error) {
 		time.Sleep(10 * time.Millisecond) // Simulate work
 		return 42, nil
 	}).Named("answer-task").
@@ -68,12 +69,12 @@ func ExampleTaskBuilder_fluentAPI() {
 // ExampleTaskBuilder_genericTypes demonstrates generic type support.
 func ExampleTaskBuilder_genericTypes() {
 	// String task
-	stringTask := Task(func() (string, error) {
+	stringTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "text result", nil
 	})
 
 	// Integer task
-	intTask := Task(func() (int, error) {
+	intTask := Task(func(ctx orchestrator.Context) (int, error) {
 		return 123, nil
 	})
 
@@ -83,7 +84,7 @@ func ExampleTaskBuilder_genericTypes() {
 		Name string
 	}
 
-	userTask := Task(func() (User, error) {
+	userTask := Task(func(ctx orchestrator.Context) (User, error) {
 		return User{ID: 1, Name: "John Doe"}, nil
 	})
 
@@ -108,12 +109,12 @@ func ExampleTaskBuilder_genericTypes() {
 // ExampleTaskBuilder_errorHandling demonstrates comprehensive error handling.
 func ExampleTaskBuilder_errorHandling() {
 	// Task that returns an error
-	errorTask := Task(func() (string, error) {
+	errorTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "", fmt.Errorf("something went wrong")
 	}).Named("error-task")
 
 	// Task that panics
-	panicTask := Task(func() (string, error) {
+	panicTask := Task(func(ctx orchestrator.Context) (string, error) {
 		panic("unexpected panic")
 	}).Named("panic-task")
 
@@ -145,7 +146,7 @@ func ExampleTaskBuilder_errorHandling() {
 // ExampleTaskBuilder_timeoutHandling demonstrates timeout handling.
 func ExampleTaskBuilder_timeoutHandling() {
 	// Task that takes longer than timeout
-	slowTask := Task(func() (string, error) {
+	slowTask := Task(func(ctx orchestrator.Context) (string, error) {
 		time.Sleep(100 * time.Millisecond)
 		return "completed", nil
 	})
@@ -177,7 +178,7 @@ func ExampleTaskBuilder_timeoutHandling() {
 
 // ExampleTaskBuilder_cancellation demonstrates context cancellation.
 func ExampleTaskBuilder_cancellation() {
-	task := Task(func() (string, error) {
+	task := Task(func(ctx orchestrator.Context) (string, error) {
 		return "completed", nil
 	})
 	namedTask := task.Named("cancellable-task")
@@ -202,7 +203,7 @@ func ExampleTaskBuilder_cancellation() {
 
 // ExampleTaskBuilder_statusTracking demonstrates status tracking throughout execution.
 func ExampleTaskBuilder_statusTracking() {
-	task := Task(func() (string, error) {
+	task := Task(func(ctx orchestrator.Context) (string, error) {
 		time.Sleep(10 * time.Millisecond)
 		return "done", nil
 	})
@@ -242,7 +243,7 @@ func ExampleTaskBuilder_configurationInheritance() {
 	}
 
 	// Task with local configuration override
-	task := Task(func() (string, error) {
+	task := Task(func(ctx orchestrator.Context) (string, error) {
 		return "configured", nil
 	})
 
@@ -272,7 +273,7 @@ func ExampleTaskBuilder_configurationInheritance() {
 
 // ExampleTaskBuilder_performanceCharacteristics demonstrates performance features.
 func ExampleTaskBuilder_performanceCharacteristics() {
-	task := Task(func() (int, error) {
+	task := Task(func(ctx orchestrator.Context) (int, error) {
 		return 42, nil
 	}).Named("perf-task")
 

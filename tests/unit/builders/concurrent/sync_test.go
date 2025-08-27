@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	internalErrors "github.com/maniartech/orchestrator/pkg/errors"
@@ -26,7 +27,7 @@ func TestConcurrentSynchronization(t *testing.T) {
 	// Create tasks that track execution
 	var orchestrations []types.Orchestration
 	for i := 0; i < taskCount; i++ {
-		orchestrations = append(orchestrations, task.Task(func() (string, error) {
+		orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 			atomic.AddInt32(&startedCount, 1)
 			time.Sleep(10 * time.Millisecond) // Simulate work
 			atomic.AddInt32(&completedCount, 1)
@@ -74,12 +75,12 @@ func TestAtomicErrorCollection(t *testing.T) {
 		shouldFail := float64(i)/float64(taskCount) < errorRate
 
 		if shouldFail {
-			orchestrations = append(orchestrations, task.Task(func() (string, error) {
+			orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 				atomic.AddInt32(&errorCount, 1)
 				return "", errors.New("task failed")
 			}))
 		} else {
-			orchestrations = append(orchestrations, task.Task(func() (string, error) {
+			orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 				atomic.AddInt32(&successCount, 1)
 				return "success", nil
 			}))
@@ -128,14 +129,14 @@ func TestFailFastCancellation(t *testing.T) {
 	var completedCount int32
 
 	// Create tasks where one fails quickly and others take longer
-	fastFailTask := task.Task(func() (string, error) {
+	fastFailTask := task.Task(func(ctx orchestrator.Context) (string, error) {
 		atomic.AddInt32(&startedCount, 1)
 		return "", errors.New("fast failure")
 	})
 
 	var slowTasks []types.Orchestration
 	for i := 0; i < 10; i++ {
-		slowTasks = append(slowTasks, task.Task(func() (string, error) {
+		slowTasks = append(slowTasks, task.Task(func(ctx orchestrator.Context) (string, error) {
 			atomic.AddInt32(&startedCount, 1)
 
 			// Check for cancellation during execution
@@ -200,7 +201,7 @@ func TestConcurrencyLimitSynchronization(t *testing.T) {
 	var orchestrations []types.Orchestration
 	for i := 0; i < taskCount; i++ {
 		taskID := i
-		orchestrations = append(orchestrations, task.Task(func() (string, error) {
+		orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 			// Track execution order
 			mu.Lock()
 			executionOrder = append(executionOrder, taskID)
@@ -272,7 +273,7 @@ func TestResourceCleanup(t *testing.T) {
 	// Create tasks that simulate resource acquisition/release
 	var orchestrations []types.Orchestration
 	for i := 0; i < taskCount; i++ {
-		orchestrations = append(orchestrations, task.Task(func() (string, error) {
+		orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 			// Simulate resource acquisition
 			atomic.AddInt32(&resourcesAcquired, 1)
 
@@ -325,7 +326,7 @@ func TestContextCancellationPropagation(t *testing.T) {
 	// Create tasks that can detect cancellation
 	var orchestrations []types.Orchestration
 	for i := 0; i < taskCount; i++ {
-		orchestrations = append(orchestrations, task.Task(func() (string, error) {
+		orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 			atomic.AddInt32(&startedCount, 1)
 
 			// Simulate work with cancellation checking
@@ -382,7 +383,7 @@ func TestZeroAllocationErrorCollection(t *testing.T) {
 	// Create tasks that succeed (no errors to collect)
 	var orchestrations []types.Orchestration
 	for i := 0; i < taskCount; i++ {
-		orchestrations = append(orchestrations, task.Task(func() (string, error) {
+		orchestrations = append(orchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "success", nil
 		}))
 	}
@@ -400,7 +401,7 @@ func TestZeroAllocationErrorCollection(t *testing.T) {
 		// Create fresh orchestrations for each iteration
 		var freshOrchestrations []types.Orchestration
 		for j := 0; j < taskCount; j++ {
-			freshOrchestrations = append(freshOrchestrations, task.Task(func() (string, error) {
+			freshOrchestrations = append(freshOrchestrations, task.Task(func(ctx orchestrator.Context) (string, error) {
 				return "success", nil
 			}))
 		}

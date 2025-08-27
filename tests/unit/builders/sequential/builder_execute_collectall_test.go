@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -15,10 +16,10 @@ import (
 // CollectAll with mixed success/fail
 func TestSequentialBuilder_Execute_CollectAll_Mixed(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { return "A", nil }).Named("a"),
-		task.Task(func() (int, error) { return 0, stdErrors.New("fail B") }).Named("b"),
-		task.Task(func() (bool, error) { return true, nil }).Named("c"),
-		task.Task(func() (string, error) { return "", stdErrors.New("fail D") }).Named("d"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "A", nil }).Named("a"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 0, stdErrors.New("fail B") }).Named("b"),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("c"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "", stdErrors.New("fail D") }).Named("d"),
 	)
 	res, err := seq.Execute(context.Background(), config.Config{ErrorStrategy: internalErrors.CollectAll})
 	if err == nil {
@@ -35,9 +36,9 @@ func TestSequentialBuilder_Execute_CollectAll_Mixed(t *testing.T) {
 // CollectAll with panic recovery in one step
 func TestSequentialBuilder_Execute_CollectAll_Panic(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { return "A", nil }).Named("a"),
-		task.Task(func() (int, error) { panic("boom") }).Named("panic-step"),
-		task.Task(func() (string, error) { return "C", nil }).Named("c"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "A", nil }).Named("a"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { panic("boom") }).Named("panic-step"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "C", nil }).Named("c"),
 	)
 	res, err := seq.Execute(context.Background(), config.Config{ErrorStrategy: internalErrors.CollectAll})
 	if err == nil {
@@ -55,9 +56,13 @@ func TestSequentialBuilder_Execute_CollectAll_Panic(t *testing.T) {
 func TestSequentialBuilder_Execute_CollectAll_Cancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	seq := Sequential(
-		task.Task(func() (string, error) { time.Sleep(10 * time.Millisecond); cancel(); return "one", nil }).Named("one"),
-		task.Task(func() (string, error) { time.Sleep(100 * time.Millisecond); return "two", nil }).Named("two"),
-		task.Task(func() (string, error) { return "three", nil }).Named("three"),
+		task.Task(func(ctx orchestrator.Context) (string, error) {
+			time.Sleep(10 * time.Millisecond)
+			cancel()
+			return "one", nil
+		}).Named("one"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { time.Sleep(100 * time.Millisecond); return "two", nil }).Named("two"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "three", nil }).Named("three"),
 	)
 	_, err := seq.Execute(ctx, config.Config{ErrorStrategy: internalErrors.CollectAll})
 	if err == nil {
@@ -68,8 +73,8 @@ func TestSequentialBuilder_Execute_CollectAll_Cancellation(t *testing.T) {
 // CollectAll with timeout (uses provided config timeout)
 func TestSequentialBuilder_Execute_CollectAll_Timeout(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { time.Sleep(50 * time.Millisecond); return "slow", nil }).Named("slow"),
-		task.Task(func() (string, error) { return "fast", nil }).Named("fast"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { time.Sleep(50 * time.Millisecond); return "slow", nil }).Named("slow"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "fast", nil }).Named("fast"),
 	)
 	ctx := context.Background()
 	cfg := config.Config{ErrorStrategy: internalErrors.CollectAll, Timeout: 10 * time.Millisecond}

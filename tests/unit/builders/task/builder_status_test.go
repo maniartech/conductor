@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 func TestTaskBuilderAtomicStatusManagement(t *testing.T) {
-	tk := Task(func() (string, error) { return "test", nil })
+	tk := Task(func(ctx orchestrator.Context) (string, error) { return "test", nil })
 	if tk.GetStatus() != types.NotStarted {
 		t.Errorf("expected NotStarted got %v", tk.GetStatus())
 	}
@@ -32,7 +33,7 @@ func TestTaskBuilderAtomicStatusManagement(t *testing.T) {
 }
 
 func TestTaskBuilderConcurrentStatusAccess(t *testing.T) {
-	tk := Task(func() (string, error) { time.Sleep(10 * time.Millisecond); return "test", nil })
+	tk := Task(func(ctx orchestrator.Context) (string, error) { time.Sleep(10 * time.Millisecond); return "test", nil })
 	var wg sync.WaitGroup
 	const n = 50
 	wg.Add(n)
@@ -50,7 +51,7 @@ func TestTaskBuilderConcurrentStatusAccess(t *testing.T) {
 
 func TestTaskBuilderSingleExecution(t *testing.T) {
 	count := 0
-	tk := Task(func() (string, error) { count++; return "test", nil })
+	tk := Task(func(ctx orchestrator.Context) (string, error) { count++; return "test", nil })
 	cfg := config.DefaultConfig()
 	if _, err := tk.Execute(context.Background(), cfg); err != nil {
 		t.Fatalf("first execute err %v", err)

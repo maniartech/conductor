@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -19,9 +20,9 @@ import (
 func TestEnhancedErrorHandling_FailFast(t *testing.T) {
 	// Create a sequential with an error in the middle
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (int, error) { return 0, errors.New("step2 failed") }).Named("step2"),
-		task.Task(func() (bool, error) { return true, nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("step2 failed") }).Named("step2"),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("step3"),
 	).Named("enhanced-fail-fast-test")
 
 	ctx := context.Background()
@@ -69,10 +70,10 @@ func TestEnhancedErrorHandling_FailFast(t *testing.T) {
 func TestEnhancedErrorHandling_CollectAll(t *testing.T) {
 	// Create a sequential with multiple errors
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (int, error) { return 0, errors.New("step2 failed") }).Named("step2"),
-		task.Task(func() (bool, error) { return true, nil }).Named("step3"),
-		task.Task(func() (string, error) { return "", errors.New("step4 failed") }).Named("step4"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("step2 failed") }).Named("step2"),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "", errors.New("step4 failed") }).Named("step4"),
 	).Named("enhanced-collect-all-test")
 
 	ctx := context.Background()
@@ -176,8 +177,8 @@ func TestErrorBoundaryHandler(t *testing.T) {
 // TestErrorContextCreation tests error context creation and updates
 func TestErrorContextCreation(t *testing.T) {
 	orchestrations := []orchestration.Orchestration{
-		task.Task(func() (string, error) { return "test", nil }),
-		task.Task(func() (int, error) { return 42, nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "test", nil }),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 42, nil }),
 	}
 
 	ctx := errorspkg.CreateErrorContext("test-seq", "test-id", "sequential", len(orchestrations), errorspkg.FailFast, nil)
@@ -220,7 +221,7 @@ func TestErrorContextCreation(t *testing.T) {
 func TestEnhancedErrorReporting(t *testing.T) {
 	// Create error context and handler
 	orchestrations := []orchestration.Orchestration{
-		task.Task(func() (string, error) { return "test", nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "test", nil }),
 	}
 
 	ctx := errorspkg.CreateErrorContext("test-reporting", "report-id", "sequential", len(orchestrations), errorspkg.CollectAll, nil)
@@ -261,9 +262,9 @@ func TestEnhancedErrorReporting(t *testing.T) {
 func TestPanicRecovery(t *testing.T) {
 	// Create a sequential that panics
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (int, error) { panic("test panic") }).Named("step2"),
-		task.Task(func() (bool, error) { return true, nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { panic("test panic") }).Named("step2"),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("step3"),
 	).Named("panic-test")
 
 	ctx := context.Background()
@@ -309,9 +310,9 @@ func BenchmarkEnhancedErrorHandling(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Create new sequential for each iteration
 		testSeq := Sequential(
-			task.Task(func() (int, error) { return 1, nil }),
-			task.Task(func() (int, error) { return 0, errors.New("test error") }),
-			task.Task(func() (int, error) { return 3, nil }),
+			task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }),
+			task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("test error") }),
+			task.Task(func(ctx orchestrator.Context) (int, error) { return 3, nil }),
 		).Named("benchmark-test")
 
 		result, err := testSeq.Execute(ctx, cfg)

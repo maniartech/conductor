@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	internalErrors "github.com/maniartech/orchestrator/pkg/errors"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestConcurrentBuilder_FluentAPI(t *testing.T) {
-	c := Concurrent(task.Task(func() (string, error) { return "a", nil }), task.Task(func() (int, error) { return 1, nil }))
+	c := Concurrent(task.Task(func(ctx orchestrator.Context) (string, error) { return "a", nil }), task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }))
 
 	returned := c.Named("pipeline")
 	if returned != c {

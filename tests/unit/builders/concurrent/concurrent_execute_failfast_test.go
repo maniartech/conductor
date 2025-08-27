@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	internalErrors "github.com/maniartech/orchestrator/pkg/errors"
@@ -17,8 +18,8 @@ import (
 func TestConcurrent_Execute_FailFast_Success(t *testing.T) {
 	c := Concurrent(
 		// ensure parallelism
-		task.Task(func() (int, error) { time.Sleep(5 * time.Millisecond); return 1, nil }).Named("one"),
-		task.Task(func() (int, error) { return 2, nil }).Named("two"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { time.Sleep(5 * time.Millisecond); return 1, nil }).Named("one"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 2, nil }).Named("two"),
 	)
 	res, err := c.Execute(context.Background(), config.Config{ErrorStrategy: internalErrors.FailFast})
 	if err != nil {
@@ -33,8 +34,8 @@ func TestConcurrent_Execute_FailFast_FirstError(t *testing.T) {
 	boom := stdErrors.New("boom")
 	var secondStarted int32
 	c := Concurrent(
-		task.Task(func() (string, error) { return "", boom }),
-		task.Task(func() (int, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "", boom }),
+		task.Task(func(ctx orchestrator.Context) (int, error) {
 			atomic.AddInt32(&secondStarted, 1)
 			time.Sleep(100 * time.Millisecond)
 			return 42, nil
@@ -56,8 +57,12 @@ func TestConcurrent_Execute_FailFast_Cancellation(t *testing.T) {
 	var started int32
 	ctx, cancel := context.WithCancel(context.Background())
 	c := Concurrent(
-		task.Task(func() (string, error) { atomic.AddInt32(&started, 1); cancel(); return "early", nil }),
-		task.Task(func() (string, error) { time.Sleep(40 * time.Millisecond); return "late", nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) {
+			atomic.AddInt32(&started, 1)
+			cancel()
+			return "early", nil
+		}),
+		task.Task(func(ctx orchestrator.Context) (string, error) { time.Sleep(40 * time.Millisecond); return "late", nil }),
 	).ErrorBoundary(internalErrors.FailFast)
 	_, err := c.Execute(ctx, config.DefaultConfig())
 	if err == nil {

@@ -31,7 +31,7 @@ task := Task(unpredictableThirdPartyAPI).
 #### 2. **Fault Isolation & System Stability**
 ```go
 // Enterprise scenario: Prevent cascade failures
-task := Task(func() (string, error) {
+task := Task(func(ctx orchContext.Context) (string, error) {
     // This could panic, hang, or consume excessive resources
     return riskyThirdPartyOperation()
 })
@@ -115,9 +115,9 @@ graph TD
 ### 1. **Generic Type Safety**
 ```go
 // Type-safe task execution with compile-time guarantees
-stringTask := Task(func() (string, error) { return "result", nil })
-intTask := Task(func() (int, error) { return 42, nil })
-userTask := Task(func() (User, error) { return User{ID: 1}, nil })
+stringTask := Task(func(ctx orchContext.Context) (string, error) { return "result", nil })
+intTask := Task(func(ctx orchContext.Context) (int, error) { return 42, nil })
+userTask := Task(func(ctx orchContext.Context) (User, error) { return User{ID: 1}, nil })
 ```
 
 ### 2. **Comprehensive Error Handling**
@@ -180,7 +180,7 @@ BenchmarkTaskPanicRecovery-8        300000    4800 ns/op    2 allocs/op
 ### 1. **Financial Services**
 ```go
 // SLA: All trading operations must complete within 100ms
-tradingTask := Task(func() (TradeResult, error) {
+tradingTask := Task(func(ctx orchContext.Context) (TradeResult, error) {
     return executeTradeWithExternalBroker(order)
 }).With(config.Config{Timeout: 100*time.Millisecond})
 
@@ -190,7 +190,7 @@ tradingTask := Task(func() (TradeResult, error) {
 ### 2. **Healthcare Systems**
 ```go
 // Critical: Patient data operations must never hang
-patientTask := Task(func() (PatientRecord, error) {
+patientTask := Task(func(ctx orchContext.Context) (PatientRecord, error) {
     return fetchPatientFromLegacySystem(patientID)
 }).With(config.Config{
     Timeout: 5*time.Second,
@@ -203,7 +203,7 @@ patientTask := Task(func() (PatientRecord, error) {
 ### 3. **E-commerce Platforms**
 ```go
 // High-throughput: Process thousands of orders per second
-orderTask := Task(func() (OrderResult, error) {
+orderTask := Task(func(ctx orchContext.Context) (OrderResult, error) {
     return processPaymentWithProvider(payment)
 }).Named("payment-processing")
 
@@ -215,7 +215,7 @@ orderTask := Task(func() (OrderResult, error) {
 ### Panic Recovery
 ```go
 // All panics are caught and converted to errors
-task := Task(func() (string, error) {
+task := Task(func(ctx orchContext.Context) (string, error) {
     panic("something went wrong")  // This won't crash the system
 })
 
@@ -225,7 +225,7 @@ task := Task(func() (string, error) {
 ### Timeout Handling
 ```go
 // Guaranteed termination within timeout
-task := Task(func() (string, error) {
+task := Task(func(ctx orchContext.Context) (string, error) {
     time.Sleep(10*time.Second)  // This will be cancelled
 }).With(config.Config{Timeout: 1*time.Second})
 
@@ -328,9 +328,9 @@ concurrent := Concurrent(
 ```go
 // Rich error context for debugging
 if err != nil {
-    log.Printf("Task %s failed after %v: %v", 
-        task.GetName(), 
-        duration, 
+    log.Printf("Task %s failed after %v: %v",
+        task.GetName(),
+        duration,
         err)
 }
 ```

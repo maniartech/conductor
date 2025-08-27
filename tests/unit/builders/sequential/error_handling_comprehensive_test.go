@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	errorspkg "github.com/maniartech/orchestrator/pkg/errors"
@@ -23,19 +24,19 @@ func TestErrorHandlingStrategies_Comprehensive(t *testing.T) {
 		var mu sync.Mutex
 
 		seq := Sequential(
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 1)
 				mu.Unlock()
 				return "step1", nil
 			}).Named("step1"),
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 2)
 				mu.Unlock()
 				return "", errors.New("step2 failed")
 			}).Named("step2"),
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 3)
 				mu.Unlock()
@@ -81,25 +82,25 @@ func TestErrorHandlingStrategies_Comprehensive(t *testing.T) {
 		var mu sync.Mutex
 
 		seq := Sequential(
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 1)
 				mu.Unlock()
 				return "step1", nil
 			}).Named("step1"),
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 2)
 				mu.Unlock()
 				return "", errors.New("step2 failed")
 			}).Named("step2"),
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 3)
 				mu.Unlock()
 				return "step3", nil
 			}).Named("step3"),
-			task.Task(func() (string, error) {
+			task.Task(func(ctx orchestrator.Context) (string, error) {
 				mu.Lock()
 				executionOrder = append(executionOrder, 4)
 				mu.Unlock()
@@ -145,11 +146,11 @@ func TestErrorHandlingStrategies_Comprehensive(t *testing.T) {
 // TestRichErrorMetadata tests rich error metadata collection
 func TestRichErrorMetadata(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(10 * time.Millisecond) // Simulate work
 			return "step1", nil
 		}).Named("step1"),
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(20 * time.Millisecond) // Simulate work before failure
 			return "", errors.New("detailed error with context")
 		}).Named("step2"),
@@ -205,15 +206,15 @@ func TestRichErrorMetadata(t *testing.T) {
 func TestErrorBoundaryContainment(t *testing.T) {
 	// Create nested sequential with different error boundaries
 	innerSeq := Sequential(
-		task.Task(func() (string, error) { return "inner1", nil }).Named("inner1"),
-		task.Task(func() (string, error) { return "", errors.New("inner error") }).Named("inner2"),
-		task.Task(func() (string, error) { return "inner3", nil }).Named("inner3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "inner1", nil }).Named("inner1"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "", errors.New("inner error") }).Named("inner2"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "inner3", nil }).Named("inner3"),
 	).Named("inner-seq").ErrorBoundary(errorspkg.CollectAll)
 
 	outerSeq := Sequential(
-		task.Task(func() (string, error) { return "outer1", nil }).Named("outer1"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "outer1", nil }).Named("outer1"),
 		innerSeq,
-		task.Task(func() (string, error) { return "outer3", nil }).Named("outer3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "outer3", nil }).Named("outer3"),
 	).Named("outer-seq").ErrorBoundary(errorspkg.FailFast)
 
 	ctx := context.Background()
@@ -253,9 +254,9 @@ func TestHierarchicalErrorConfiguration(t *testing.T) {
 
 	// Child overrides with CollectAll
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (string, error) { return "", errors.New("step2 error") }).Named("step2"),
-		task.Task(func() (string, error) { return "step3", nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "", errors.New("step2 error") }).Named("step2"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step3", nil }).Named("step3"),
 	).Named("hierarchy-test").With(config.Config{ErrorStrategy: errorspkg.CollectAll})
 
 	ctx := context.Background()
@@ -288,15 +289,15 @@ func TestZeroAllocationErrorCollection(t *testing.T) {
 	var errorCount int64
 
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			atomic.AddInt64(&errorCount, 1)
 			return "", errors.New("error 1")
 		}).Named("step1"),
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			atomic.AddInt64(&errorCount, 1)
 			return "", errors.New("error 2")
 		}).Named("step2"),
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			atomic.AddInt64(&errorCount, 1)
 			return "", errors.New("error 3")
 		}).Named("step3"),
@@ -330,15 +331,15 @@ func TestContextCancellationWithErrorHandling(t *testing.T) {
 	defer cancel()
 
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(20 * time.Millisecond)
 			return "step1", nil
 		}).Named("step1"),
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(100 * time.Millisecond) // This will be cancelled
 			return "step2", nil
 		}).Named("step2"),
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "step3", nil // Never reached
 		}).Named("step3"),
 	).Named("cancellation-test")
@@ -369,11 +370,11 @@ func TestContextCancellationWithErrorHandling(t *testing.T) {
 // TestPanicRecoveryWithStackTrace tests panic recovery with detailed stack traces
 func TestPanicRecoveryWithStackTrace(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			panic("test panic with stack trace")
 		}).Named("panic-step"),
-		task.Task(func() (string, error) { return "step3", nil }).Named("step3"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "step3", nil }).Named("step3"),
 	).Named("panic-recovery-test")
 
 	ctx := context.Background()
@@ -434,8 +435,8 @@ func TestConcurrentErrorHandling(t *testing.T) {
 
 			// Create a new sequential for each goroutine to avoid shared state
 			testSeq := Sequential(
-				task.Task(func() (string, error) { return "step1", nil }).Named("step1"),
-				task.Task(func() (string, error) { return "", errors.New("concurrent error") }).Named("step2"),
+				task.Task(func(ctx orchestrator.Context) (string, error) { return "step1", nil }).Named("step1"),
+				task.Task(func(ctx orchestrator.Context) (string, error) { return "", errors.New("concurrent error") }).Named("step2"),
 			).Named("concurrent-test")
 
 			result, err := testSeq.Execute(ctx, cfg)
@@ -475,9 +476,9 @@ func BenchmarkErrorHandlingPerformance(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			seq := Sequential(
-				task.Task(func() (int, error) { return 1, nil }),
-				task.Task(func() (int, error) { return 0, errors.New("benchmark error") }),
-				task.Task(func() (int, error) { return 3, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("benchmark error") }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 3, nil }),
 			).Named("benchmark-fail-fast")
 
 			result, err := seq.Execute(ctx, cfg)
@@ -497,9 +498,9 @@ func BenchmarkErrorHandlingPerformance(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			seq := Sequential(
-				task.Task(func() (int, error) { return 1, nil }),
-				task.Task(func() (int, error) { return 0, errors.New("benchmark error") }),
-				task.Task(func() (int, error) { return 3, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("benchmark error") }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 3, nil }),
 			).Named("benchmark-collect-all")
 
 			result, err := seq.Execute(ctx, cfg)
@@ -519,9 +520,9 @@ func BenchmarkErrorHandlingPerformance(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			seq := Sequential(
-				task.Task(func() (int, error) { return 1, nil }),
-				task.Task(func() (int, error) { return 2, nil }),
-				task.Task(func() (int, error) { return 3, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 2, nil }),
+				task.Task(func(ctx orchestrator.Context) (int, error) { return 3, nil }),
 			).Named("benchmark-no-error")
 
 			result, err := seq.Execute(ctx, cfg)
@@ -545,9 +546,9 @@ func BenchmarkErrorMetadataCollection(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		seq := Sequential(
-			task.Task(func() (int, error) { return 0, errors.New("error 1") }),
-			task.Task(func() (int, error) { return 0, errors.New("error 2") }),
-			task.Task(func() (int, error) { return 0, errors.New("error 3") }),
+			task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("error 1") }),
+			task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("error 2") }),
+			task.Task(func(ctx orchestrator.Context) (int, error) { return 0, errors.New("error 3") }),
 		).Named("metadata-benchmark")
 
 		result, err := seq.Execute(ctx, cfg)

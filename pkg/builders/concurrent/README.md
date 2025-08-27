@@ -74,17 +74,17 @@ import (
 
 func main() {
     // Create concurrent tasks
-    fetchUser := task.Task(func() (string, error) {
+    fetchUser := task.Task(func(ctx orchContext.Context) (string, error) {
         time.Sleep(100 * time.Millisecond) // Simulate API call
         return "user-data", nil
     }).Named("fetch-user")
 
-    fetchOrders := task.Task(func() ([]string, error) {
+    fetchOrders := task.Task(func(ctx orchContext.Context) ([]string, error) {
         time.Sleep(150 * time.Millisecond) // Simulate API call
         return []string{"order1", "order2"}, nil
     }).Named("fetch-orders")
 
-    fetchInventory := task.Task(func() (map[string]int, error) {
+    fetchInventory := task.Task(func(ctx orchContext.Context) (map[string]int, error) {
         time.Sleep(80 * time.Millisecond) // Simulate API call
         return map[string]int{"item1": 10, "item2": 5}, nil
     }).Named("fetch-inventory")
@@ -117,19 +117,19 @@ func main() {
 func processOrder(orderID string) error {
     // Concurrent validation and processing
     concurrent := concurrent.Concurrent(
-        task.Task(func() (bool, error) {
+        task.Task(func(ctx orchContext.Context) (bool, error) {
             return validatePayment(orderID)
         }).Named("validate-payment"),
 
-        task.Task(func() (bool, error) {
+        task.Task(func(ctx orchContext.Context) (bool, error) {
             return checkInventory(orderID)
         }).Named("check-inventory"),
 
-        task.Task(func() (float64, error) {
+        task.Task(func(ctx orchContext.Context) (float64, error) {
             return calculateShipping(orderID)
         }).Named("calculate-shipping"),
 
-        task.Task(func() (float64, error) {
+        task.Task(func(ctx orchContext.Context) (float64, error) {
             return applyDiscounts(orderID)
         }).Named("apply-discounts"),
     ).With(config.Config{
@@ -161,19 +161,19 @@ func processOrder(orderID string) error {
 func aggregateMarketData() (*MarketData, error) {
     // Fetch data from multiple sources concurrently
     concurrent := concurrent.Concurrent(
-        task.Task(func() (*StockData, error) {
+        task.Task(func(ctx orchContext.Context) (*StockData, error) {
             return fetchStockPrices()
         }).Named("stock-prices"),
 
-        task.Task(func() (*ForexData, error) {
+        task.Task(func(ctx orchContext.Context) (*ForexData, error) {
             return fetchForexRates()
         }).Named("forex-rates"),
 
-        task.Task(func() (*CommodityData, error) {
+        task.Task(func(ctx orchContext.Context) (*CommodityData, error) {
             return fetchCommodityPrices()
         }).Named("commodity-prices"),
 
-        task.Task(func() (*NewsData, error) {
+        task.Task(func(ctx orchContext.Context) (*NewsData, error) {
             return fetchMarketNews()
         }).Named("market-news"),
     ).With(config.Config{
@@ -219,19 +219,19 @@ func aggregateMarketData() (*MarketData, error) {
 func getPatientData(patientID string) (*PatientRecord, error) {
     // Fetch patient data from multiple systems
     concurrent := concurrent.Concurrent(
-        task.Task(func() (*EHRData, error) {
+        task.Task(func(ctx orchContext.Context) (*EHRData, error) {
             return fetchEHRData(patientID)
         }).Named("ehr-data"),
 
-        task.Task(func() (*LabResults, error) {
+        task.Task(func(ctx orchContext.Context) (*LabResults, error) {
             return fetchLabResults(patientID)
         }).Named("lab-results"),
 
-        task.Task(func() (*ImagingData, error) {
+        task.Task(func(ctx orchContext.Context) (*ImagingData, error) {
             return fetchImagingData(patientID)
         }).Named("imaging-data"),
 
-        task.Task(func() (*PharmacyData, error) {
+        task.Task(func(ctx orchContext.Context) (*PharmacyData, error) {
             return fetchPharmacyData(patientID)
         }).Named("pharmacy-data"),
     ).With(config.Config{

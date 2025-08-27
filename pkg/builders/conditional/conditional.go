@@ -134,8 +134,8 @@ type ConditionalBuilder struct {
 //	        }
 //	        return authenticated, nil
 //	    },
-//	    Task(func() (string, error) { return "Welcome!", nil }),
-//	    Task(func() (string, error) { return "Please login", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "Welcome!", nil }),
+//	    Task(func(ctx orchContext.Context) (string, error) { return "Please login", nil }),
 //	)
 //
 //	// Conditional with complex logic and error handling

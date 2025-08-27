@@ -19,9 +19,9 @@ The sequential orchestration system provides military-grade error handling with:
 ```go
 // FailFast stops execution on the first error
 seq := Sequential(
-    Task(func() (string, error) { return "step1", nil }).Named("fetch-data"),
-    Task(func() (int, error) { return 0, errors.New("validation failed") }).Named("validate-data"),
-    Task(func() (bool, error) { return true, nil }).Named("process-data"),
+    Task(func(ctx orchContext.Context) (string, error) { return "step1", nil }).Named("fetch-data"),
+    Task(func(ctx orchContext.Context) (int, error) { return 0, errors.New("validation failed") }).Named("validate-data"),
+    Task(func(ctx orchContext.Context) (bool, error) { return true, nil }).Named("process-data"),
 ).Named("data-pipeline")
 
 ctx := context.Background()
@@ -43,10 +43,10 @@ if err != nil {
 ```go
 // CollectAll continues execution and collects all errors
 seq := Sequential(
-    Task(func() (string, error) { return "step1", nil }).Named("fetch-user"),
-    Task(func() (int, error) { return 0, errors.New("email failed") }).Named("send-email"),
-    Task(func() (bool, error) { return false, errors.New("sms failed") }).Named("send-sms"),
-    Task(func() (string, error) { return "success", nil }).Named("log-activity"),
+    Task(func(ctx orchContext.Context) (string, error) { return "step1", nil }).Named("fetch-user"),
+    Task(func(ctx orchContext.Context) (int, error) { return 0, errors.New("email failed") }).Named("send-email"),
+    Task(func(ctx orchContext.Context) (bool, error) { return false, errors.New("sms failed") }).Named("send-sms"),
+    Task(func(ctx orchContext.Context) (string, error) { return "success", nil }).Named("log-activity"),
 ).Named("notification-pipeline")
 
 ctx := context.Background()
@@ -56,7 +56,7 @@ result, err := seq.Execute(ctx, config)
 if err != nil {
     // Error contains comprehensive report of all failures
     log.Printf("Pipeline completed with errors: %v", err)
-    
+
     // Access individual results
     if result.Get("fetch-user") != nil {
         log.Println("User data was fetched successfully")
@@ -64,10 +64,10 @@ if err != nil {
     if result.Get("log-activity") != nil {
         log.Println("Activity was logged successfully")
     }
-    
+
     // Examine all errors
     for i, opErr := range result.Errors() {
-        log.Printf("Error %d: %s failed after %v: %v", 
+        log.Printf("Error %d: %s failed after %v: %v",
             i+1, opErr.OpID, opErr.Duration, opErr.Error)
     }
 }
@@ -122,11 +122,11 @@ result, err := mainPipeline.Execute(ctx, config)
 
 ```go
 seq := Sequential(
-    Task(func() (string, error) { 
+    Task(func(ctx orchContext.Context) (string, error) {
         time.Sleep(100 * time.Millisecond)
-        return "", errors.New("database connection failed") 
+        return "", errors.New("database connection failed")
     }).Named("connect-db"),
-    Task(func() (int, error) { return 42, nil }).Named("process-data"),
+    Task(func(ctx orchContext.Context) (int, error) { return 42, nil }).Named("process-data"),
 ).Named("database-pipeline")
 
 result, err := seq.Execute(ctx, config)
@@ -167,7 +167,7 @@ if err != nil && result != nil {
     for _, opErr := range errors {
         log.Printf("Operation %s (index %d) failed after %v: %v",
             opErr.OpID, opErr.Index, opErr.Duration, opErr.Error)
-        
+
         // Stack trace is available for debugging
         if len(opErr.Stack) > 0 {
             log.Printf("Stack trace: %s", string(opErr.Stack))
@@ -182,11 +182,11 @@ if err != nil && result != nil {
 
 ```go
 seq := Sequential(
-    Task(func() (string, error) { return "step1", nil }).Named("safe-step"),
-    Task(func() (int, error) { 
-        panic("unexpected panic occurred") 
+    Task(func(ctx orchContext.Context) (string, error) { return "step1", nil }).Named("safe-step"),
+    Task(func(ctx orchContext.Context) (int, error) {
+        panic("unexpected panic occurred")
     }).Named("panic-step"),
-    Task(func() (bool, error) { return true, nil }).Named("cleanup-step"),
+    Task(func(ctx orchContext.Context) (bool, error) { return true, nil }).Named("cleanup-step"),
 ).Named("panic-recovery-test")
 
 result, err := seq.Execute(ctx, config)
@@ -208,15 +208,15 @@ ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 defer cancel()
 
 seq := Sequential(
-    Task(func() (string, error) {
+    Task(func(ctx orchContext.Context) (string, error) {
         time.Sleep(2 * time.Second)
         return "step1", nil
     }).Named("slow-step1"),
-    Task(func() (int, error) {
+    Task(func(ctx orchContext.Context) (int, error) {
         time.Sleep(2 * time.Second)
         return 42, nil
     }).Named("slow-step2"),
-    Task(func() (bool, error) {
+    Task(func(ctx orchContext.Context) (bool, error) {
         time.Sleep(2 * time.Second) // This will timeout
         return true, nil
     }).Named("slow-step3"),
@@ -226,7 +226,7 @@ result, err := seq.Execute(ctx, config)
 if err != nil {
     // Error includes timeout information and partial results
     log.Printf("Pipeline timed out: %v", err)
-    
+
     // Check which steps completed before timeout
     if result.Get("slow-step1") != nil {
         log.Println("Step 1 completed before timeout")
@@ -263,16 +263,16 @@ cancel() // This will cancel the sequential execution
 func BenchmarkErrorHandling(b *testing.B) {
     ctx := context.Background()
     config := Config{ErrorStrategy: FailFast}
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         seq := Sequential(
-            Task(func() (int, error) { return 1, nil }),
-            Task(func() (int, error) { return 0, errors.New("test error") }),
+            Task(func(ctx orchContext.Context) (int, error) { return 1, nil }),
+            Task(func(ctx orchContext.Context) (int, error) { return 0, errors.New("test error") }),
         ).Named("benchmark-test")
-        
+
         result, err := seq.Execute(ctx, config)
         if err == nil {
             b.Fatal("Expected error")
@@ -330,14 +330,14 @@ result, err := seq.Execute(ctx, config)
 if err != nil {
     // Log the detailed error report
     log.Printf("Pipeline failed: %v", err)
-    
+
     // Check for partial results
     if result != nil {
         // Process any successful results
         if userData := result.Get("fetch-user"); userData != nil {
             // Handle partial success
         }
-        
+
         // Analyze specific errors
         for _, opErr := range result.Errors() {
             if strings.Contains(opErr.Error.Error(), "timeout") {
@@ -345,7 +345,7 @@ if err != nil {
             }
         }
     }
-    
+
     return err
 }
 ```

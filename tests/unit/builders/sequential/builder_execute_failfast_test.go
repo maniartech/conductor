@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -16,8 +17,8 @@ import (
 // Success path with FailFast
 func TestSequentialBuilder_Execute_FailFast_Success(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { return "a", nil }).Named("first"),
-		task.Task(func() (int, error) { return 2, nil }).Named("second"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "a", nil }).Named("first"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 2, nil }).Named("second"),
 	)
 	res, err := seq.Execute(context.Background(), config.Config{ErrorStrategy: internalErrors.FailFast})
 	if err != nil {
@@ -35,8 +36,8 @@ func TestSequentialBuilder_Execute_FailFast_Success(t *testing.T) {
 func TestSequentialBuilder_Execute_FailFast_FirstError(t *testing.T) {
 	boom := stdErrors.New("boom")
 	seq := Sequential(
-		task.Task(func() (string, error) { return "", boom }).Named("fail"),
-		task.Task(func() (int, error) { t.Fatalf("second should not run"); return 0, nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "", boom }).Named("fail"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { t.Fatalf("second should not run"); return 0, nil }),
 	)
 	res, err := seq.Execute(context.Background(), config.Config{ErrorStrategy: internalErrors.FailFast})
 	if err == nil {
@@ -54,8 +55,8 @@ func TestSequentialBuilder_Execute_FailFast_FirstError(t *testing.T) {
 func TestSequentialBuilder_Execute_FailFast_Cancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	seq := Sequential(
-		task.Task(func() (string, error) { cancel(); return "done", nil }),
-		task.Task(func() (int, error) { time.Sleep(50 * time.Millisecond); return 1, nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { cancel(); return "done", nil }),
+		task.Task(func(ctx orchestrator.Context) (int, error) { time.Sleep(50 * time.Millisecond); return 1, nil }),
 	)
 	_, err := seq.Execute(ctx, config.Config{ErrorStrategy: internalErrors.FailFast})
 	if err == nil {

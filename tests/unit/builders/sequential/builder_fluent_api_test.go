@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -12,8 +13,8 @@ import (
 
 func TestSequentialBuilder_FluentAPI(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { return "x", nil }),
-		task.Task(func() (int, error) { return 1, nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "x", nil }),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }),
 	)
 
 	// Named
@@ -46,7 +47,7 @@ func TestSequentialBuilder_FluentAPI(t *testing.T) {
 	// }
 
 	// Chain
-	seq2 := Sequential(task.Task(func() (string, error) { return "y", nil })).
+	seq2 := Sequential(task.Task(func(ctx orchestrator.Context) (string, error) { return "y", nil })).
 		Named("chain").
 		With(config.Config{Timeout: 5 * time.Second}).
 		ErrorBoundary(errors.FailFast)

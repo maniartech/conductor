@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/types"
 )
 
 func BenchmarkTaskCreation(b *testing.B) {
-	fn := func() (string, error) { return "test", nil }
+	fn := func(ctx orchContext.Context) (string, error) { return "test", nil }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Task(fn)
@@ -19,7 +20,7 @@ func BenchmarkTaskCreation(b *testing.B) {
 }
 
 func BenchmarkTaskBuilderFluentAPI(b *testing.B) {
-	fn := func() (string, error) { return "test", nil }
+	fn := func(ctx orchContext.Context) (string, error) { return "test", nil }
 	cfg := config.Config{ErrorStrategy: errors.CollectAll, Timeout: 30 * time.Second, MaxConcurrency: 100}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -28,7 +29,7 @@ func BenchmarkTaskBuilderFluentAPI(b *testing.B) {
 }
 
 func BenchmarkTaskExecution(b *testing.B) {
-	tk := Task(func() (string, error) { return "benchmark", nil }).Named("benchmark-task")
+	tk := Task(func(ctx orchContext.Context) (string, error) { return "benchmark", nil }).Named("benchmark-task")
 	cfg := config.DefaultConfig()
 	ctx := context.Background()
 	b.ResetTimer()
@@ -38,16 +39,16 @@ func BenchmarkTaskExecution(b *testing.B) {
 }
 
 func BenchmarkTaskBuilderSafeExecute(b *testing.B) {
-	tk := Task(func() (string, error) { return "benchmark", nil })
+	tk := Task(func(ctx orchContext.Context) (string, error) { return "benchmark", nil })
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tk.safeExecute(ctx)
+		tk.safeExecute(ctx, config.Config{})
 	}
 }
 
 func BenchmarkTaskBuilderStatusOperations(b *testing.B) {
-	tk := Task(func() (string, error) { return "test", nil })
+	tk := Task(func(ctx orchContext.Context) (string, error) { return "test", nil })
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tk.GetStatus()
@@ -57,7 +58,7 @@ func BenchmarkTaskBuilderStatusOperations(b *testing.B) {
 }
 
 func BenchmarkTaskBuilderStackCapture(b *testing.B) {
-	tk := Task(func() (string, error) { return "test", nil })
+	tk := Task(func(ctx orchContext.Context) (string, error) { return "test", nil })
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tk.captureStack()
@@ -67,7 +68,7 @@ func BenchmarkTaskBuilderStackCapture(b *testing.B) {
 func BenchmarkTaskBuilderConcurrentExecution(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Task(func() (string, error) { return "benchmark", nil }).Execute(context.Background(), config.DefaultConfig())
+			Task(func(ctx orchContext.Context) (string, error) { return "benchmark", nil }).Execute(context.Background(), config.DefaultConfig())
 		}
 	})
 }

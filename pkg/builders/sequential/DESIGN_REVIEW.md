@@ -338,19 +338,19 @@ orchResult, err := orch.Execute(ctx, config)
 // Load testing for enterprise scenarios
 func TestSequentialBuilderHighLoad(t *testing.T) {
     const numOrchestrations = 1000
-    
+
     orchestrations := make([]types.Orchestration, numOrchestrations)
     for i := 0; i < numOrchestrations; i++ {
-        orchestrations[i] = Task(func() (string, error) {
+        orchestrations[i] = Task(func(ctx orchContext.Context) (string, error) {
             return fmt.Sprintf("result-%d", i), nil
         })
     }
-    
+
     sequential := Sequential(orchestrations...)
     result, err := sequential.Execute(ctx, config.Config{
         Timeout: 60*time.Second,
     })
-    
+
     assert.NoError(t, err)
     assert.Equal(t, numOrchestrations, len(result.GetAll()))
 }
@@ -376,7 +376,7 @@ var (
             return make([]types.Orchestration, 0, 10)
         },
     }
-    
+
     errorContextPool = sync.Pool{
         New: func() interface{} {
             return &errors.ErrorContext{}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 )
@@ -26,7 +27,7 @@ func TestTaskBuilderStressConcurrentExecution(t *testing.T) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			tk := Task(func() (int, error) {
+			tk := Task(func(ctx orchestrator.Context) (int, error) {
 				time.Sleep(time.Microsecond * time.Duration(i%5))
 				return i, nil
 			}).Named(fmt.Sprintf("stress-task-%d", i))
@@ -61,15 +62,15 @@ func TestTaskBuilderStressErrorHandling(t *testing.T) {
 
 			var tk *TaskBuilder[string]
 			if i%3 == 0 {
-				tk = Task(func() (string, error) {
+				tk = Task(func(ctx orchestrator.Context) (string, error) {
 					panic(fmt.Sprintf("panic-%d", i))
 				})
 			} else if i%3 == 1 {
-				tk = Task(func() (string, error) {
+				tk = Task(func(ctx orchestrator.Context) (string, error) {
 					return "", fmt.Errorf("error-%d", i)
 				})
 			} else {
-				tk = Task(func() (string, error) {
+				tk = Task(func(ctx orchestrator.Context) (string, error) {
 					return fmt.Sprintf("success-%d", i), nil
 				})
 			}

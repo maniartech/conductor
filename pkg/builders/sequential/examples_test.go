@@ -9,6 +9,7 @@ import (
 
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
@@ -18,17 +19,17 @@ func TestExample_SimpleSequential(t *testing.T) {
 
 	// Create a simple 3-step sequential process
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 1: Fetching user data...")
 			return "user-123", nil
 		}).Named("fetch-user"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 2: Validating user...")
 			return "validated", nil
 		}).Named("validate-user"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 3: Processing user...")
 			return "processed", nil
 		}).Named("process-user"),
@@ -56,17 +57,17 @@ func TestExample_ErrorHandling(t *testing.T) {
 	// Test FailFast strategy
 	t.Log("--- Testing FailFast Strategy ---")
 	failFastSeq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 1: Success")
 			return "success", nil
 		}).Named("success-step"),
 
-		task.Task(func() (int, error) {
+		task.Task(func(ctx orchContext.Context) (int, error) {
 			t.Log("Step 2: Failure")
 			return 0, stderrors.New("intentional failure")
 		}).Named("failure-step"),
 
-		task.Task(func() (bool, error) {
+		task.Task(func(ctx orchContext.Context) (bool, error) {
 			t.Log("Step 3: Should not execute")
 			return true, nil
 		}).Named("skipped-step"),
@@ -87,17 +88,17 @@ func TestExample_ErrorHandling(t *testing.T) {
 	// Test CollectAll strategy
 	t.Log("--- Testing CollectAll Strategy ---")
 	collectAllSeq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 1: Success")
 			return "success", nil
 		}).Named("success-step"),
 
-		task.Task(func() (int, error) {
+		task.Task(func(ctx orchContext.Context) (int, error) {
 			t.Log("Step 2: Failure")
 			return 0, stderrors.New("intentional failure")
 		}).Named("failure-step"),
 
-		task.Task(func() (bool, error) {
+		task.Task(func(ctx orchContext.Context) (bool, error) {
 			t.Log("Step 3: Another success")
 			return true, nil
 		}).Named("another-success-step"),
@@ -138,7 +139,7 @@ func TestExample_RealWorldEcommerce(t *testing.T) {
 
 	orderPipeline := Sequential(
 		// Step 1: Validate order
-		task.Task(func() (Order, error) {
+		task.Task(func(ctx orchContext.Context) (Order, error) {
 			t.Log("🔍 Validating order...")
 			time.Sleep(10 * time.Millisecond) // Simulate validation time
 			if order.Total <= 0 {
@@ -150,7 +151,7 @@ func TestExample_RealWorldEcommerce(t *testing.T) {
 		}).Named("validate-order"),
 
 		// Step 2: Check inventory
-		task.Task(func() (map[string]int, error) {
+		task.Task(func(ctx orchContext.Context) (map[string]int, error) {
 			t.Log("📦 Checking inventory...")
 			time.Sleep(20 * time.Millisecond) // Simulate inventory check
 			inventory := map[string]int{
@@ -168,7 +169,7 @@ func TestExample_RealWorldEcommerce(t *testing.T) {
 		}).Named("check-inventory"),
 
 		// Step 3: Process payment
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("💳 Processing payment...")
 			time.Sleep(30 * time.Millisecond) // Simulate payment processing
 			if order.Total > 10000 {
@@ -180,7 +181,7 @@ func TestExample_RealWorldEcommerce(t *testing.T) {
 		}).Named("process-payment"),
 
 		// Step 4: Create shipment
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("📮 Creating shipment...")
 			time.Sleep(25 * time.Millisecond) // Simulate shipment creation
 			shipmentID := "shipment-" + order.ID
@@ -189,7 +190,7 @@ func TestExample_RealWorldEcommerce(t *testing.T) {
 		}).Named("create-shipment"),
 
 		// Step 5: Send confirmation
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("📧 Sending confirmation...")
 			time.Sleep(10 * time.Millisecond) // Simulate email sending
 			confirmationID := "confirmation-" + order.ID
@@ -229,24 +230,24 @@ func TestExample_NestedOrchestrations(t *testing.T) {
 
 	// Create sub-pipelines
 	authPipeline := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("  Auth Step 1: Validate credentials")
 			return "credentials-valid", nil
 		}).Named("validate-credentials"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("  Auth Step 2: Generate token")
 			return "token-abc123", nil
 		}).Named("generate-token"),
 	).Named("authentication-pipeline")
 
 	dataPipeline := Sequential(
-		task.Task(func() ([]string, error) {
+		task.Task(func(ctx orchContext.Context) ([]string, error) {
 			t.Log("  Data Step 1: Fetch user data")
 			return []string{"user1", "user2", "user3"}, nil
 		}).Named("fetch-data"),
 
-		task.Task(func() (map[string]interface{}, error) {
+		task.Task(func(ctx orchContext.Context) (map[string]interface{}, error) {
 			t.Log("  Data Step 2: Transform data")
 			return map[string]interface{}{
 				"users":     3,
@@ -280,19 +281,19 @@ func TestExample_ContextCancellation(t *testing.T) {
 	t.Log("=== Example: Context Cancellation ===")
 
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 1: Quick task")
 			time.Sleep(10 * time.Millisecond)
 			return "quick-done", nil
 		}).Named("quick-task"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 2: Long task (will be cancelled)")
 			time.Sleep(2 * time.Second) // This will be cancelled
 			return "long-done", nil
 		}).Named("long-task"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("Step 3: Should not execute")
 			return "never-executed", nil
 		}).Named("never-executed"),
@@ -336,7 +337,7 @@ func TestExample_DataPipeline(t *testing.T) {
 
 	dataPipeline := Sequential(
 		// Step 1: Load data
-		task.Task(func() ([]DataRecord, error) {
+		task.Task(func(ctx orchContext.Context) ([]DataRecord, error) {
 			t.Log("📥 Loading raw data...")
 			time.Sleep(20 * time.Millisecond)
 			t.Logf("   Loaded %d records", len(rawData))
@@ -344,7 +345,7 @@ func TestExample_DataPipeline(t *testing.T) {
 		}).Named("load-data"),
 
 		// Step 2: Validate data
-		task.Task(func() ([]DataRecord, error) {
+		task.Task(func(ctx orchContext.Context) ([]DataRecord, error) {
 			t.Log("✅ Validating data...")
 			time.Sleep(30 * time.Millisecond)
 			validRecords := make([]DataRecord, 0)
@@ -358,7 +359,7 @@ func TestExample_DataPipeline(t *testing.T) {
 		}).Named("validate-data"),
 
 		// Step 3: Transform data
-		task.Task(func() ([]DataRecord, error) {
+		task.Task(func(ctx orchContext.Context) ([]DataRecord, error) {
 			t.Log("🔄 Transforming data...")
 			time.Sleep(40 * time.Millisecond)
 			transformedRecords := make([]DataRecord, len(rawData))
@@ -375,7 +376,7 @@ func TestExample_DataPipeline(t *testing.T) {
 		}).Named("transform-data"),
 
 		// Step 4: Save results
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("💾 Saving results...")
 			time.Sleep(15 * time.Millisecond)
 			saveID := "save-" + time.Now().Format("20060102150405")
@@ -412,12 +413,12 @@ func TestExample_ErrorBoundaries(t *testing.T) {
 
 	// Critical section that must succeed
 	criticalSection := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("🔒 Critical: Authenticating...")
 			return "auth-success", nil
 		}).Named("authenticate"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("🔒 Critical: Validating permissions...")
 			return "permissions-valid", nil
 		}).Named("validate-permissions"),
@@ -426,7 +427,7 @@ func TestExample_ErrorBoundaries(t *testing.T) {
 
 	// Optional section that can have failures
 	optionalSection := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("📧 Optional: Sending welcome email...")
 			// Simulate email service failure
 			if time.Now().UnixNano()%3 == 0 {
@@ -435,7 +436,7 @@ func TestExample_ErrorBoundaries(t *testing.T) {
 			return "email-sent", nil
 		}).Named("send-welcome-email"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchContext.Context) (string, error) {
 			t.Log("📊 Optional: Logging analytics...")
 			return "analytics-logged", nil
 		}).Named("log-analytics"),

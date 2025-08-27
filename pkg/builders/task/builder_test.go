@@ -5,10 +5,13 @@ import (
 	systemErrors "errors"
 	"fmt"
 	"testing"
+
+	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 func TestTaskBuilderCaptureStack(t *testing.T) {
-	tk := Task(func() (string, error) { return "test", nil })
+	tk := Task(func(ctx orchContext.Context) (string, error) { return "test", nil })
 	stk := tk.captureStack()
 	if len(stk) == 0 {
 		t.Error("expected non-empty stack")
@@ -21,18 +24,18 @@ func TestTaskBuilderCaptureStack(t *testing.T) {
 func TestTaskBuilderSafeExecute(t *testing.T) {
 	cases := []struct {
 		name        string
-		fn          func() (string, error)
+		fn          func(ctx orchContext.Context) (string, error)
 		expectErr   bool
 		expectPanic bool
 	}{
-		{"successful", func() (string, error) { return "success", nil }, false, false},
-		{"error", func() (string, error) { return "", systemErrors.New("task error") }, true, false},
-		{"panic", func() (string, error) { panic("task panic") }, true, true},
+		{"successful", func(ctx orchContext.Context) (string, error) { return "success", nil }, false, false},
+		{"error", func(ctx orchContext.Context) (string, error) { return "", systemErrors.New("task error") }, true, false},
+		{"panic", func(ctx orchContext.Context) (string, error) { panic("task panic") }, true, true},
 	}
 	for _, c := range cases {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
-			res, err := Task(c.fn).safeExecute(context.Background())
+			res, err := Task(c.fn).safeExecute(context.Background(), config.Config{})
 			if c.expectErr {
 				if err == nil {
 					t.Error("expected error")
@@ -53,8 +56,8 @@ func TestTaskBuilderSafeExecute(t *testing.T) {
 }
 
 func ExampleTaskBuilder_safeExecute() {
-	tk := Task(func() (string, error) { return "Safe execution", nil })
-	res, err := tk.safeExecute(context.Background())
+	tk := Task(func(ctx orchContext.Context) (string, error) { return "Safe execution", nil })
+	res, err := tk.safeExecute(context.Background(), config.Config{})
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return

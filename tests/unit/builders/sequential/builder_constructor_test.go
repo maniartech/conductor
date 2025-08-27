@@ -3,6 +3,7 @@ package sequential
 import (
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
@@ -12,8 +13,8 @@ import (
 func TestSequential_Constructor(t *testing.T) {
 	// Valid construction
 	seq := Sequential(
-		task.Task(func() (string, error) { return "a", nil }),
-		task.Task(func() (int, error) { return 1, nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "a", nil }),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }),
 	)
 	if seq == nil {
 		t.Fatal("expected non-nil sequential builder")
@@ -42,6 +43,6 @@ func TestSequential_Constructor(t *testing.T) {
 				t.Error("expected panic for nil orchestration")
 			}
 		}()
-		Sequential(task.Task(func() (string, error) { return "x", nil }), nil)
+		Sequential(task.Task(func(ctx orchestrator.Context) (string, error) { return "x", nil }), nil)
 	}()
 }

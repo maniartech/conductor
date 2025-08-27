@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -12,12 +13,12 @@ import (
 
 func TestSequentialBuilder_PathResolution(t *testing.T) {
 	inner := Sequential(
-		task.Task(func() (string, error) { return "x", nil }).Named("inner-task"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "x", nil }).Named("inner-task"),
 	).Named("inner")
 	outer := Sequential(
-		task.Task(func() (string, error) { return "a", nil }).Named("alpha"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "a", nil }).Named("alpha"),
 		inner,
-		task.Task(func() (string, error) { return "b", nil }),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "b", nil }),
 	).Named("outer")
 
 	// Execute to register results for tree resolution validations

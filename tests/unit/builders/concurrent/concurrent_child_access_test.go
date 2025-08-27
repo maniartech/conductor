@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 
@@ -13,8 +14,8 @@ import (
 func TestConcurrent_ChildAccess(t *testing.T) {
 	c := Concurrent(
 		// use task.Task directly; Named returns types.Orchestration
-		task.Task(func() (int, error) { return 1, nil }).Named("one"),
-		task.Task(func() (int, error) { return 2, nil }).Named("two"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }).Named("one"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 2, nil }).Named("two"),
 	)
 
 	if c.GetChildCount() != 2 {

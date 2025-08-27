@@ -29,9 +29,9 @@
 //
 // Tasks support generic types for type-safe execution:
 //
-//	stringTask := Task(func() (string, error) { return "hello", nil })
-//	intTask := Task(func() (int, error) { return 42, nil })
-//	userTask := Task(func() (User, error) { return User{ID: 1}, nil })
+//	stringTask := Task(func(ctx orchContext.Context) (string, error) { return "hello", nil })
+//	intTask := Task(func(ctx orchContext.Context) (int, error) { return 42, nil })
+//	userTask := Task(func(ctx orchContext.Context) (User, error) { return User{ID: 1}, nil })
 //
 // # Configuration Inheritance
 //
@@ -71,7 +71,7 @@ import (
 //
 // Example:
 //
-//	task := Task(func() (string, error) {
+//	task := Task(func(ctx orchContext.Context) (string, error) {
 //	    return "Hello, World!", nil
 //	}).Named("greeting-task").
 //	With(config.Config{Timeout: 5*time.Second})
@@ -93,18 +93,18 @@ type TaskBuilder[T any] struct {
 // Example:
 //
 //	// String task
-//	stringTask := Task(func(ctx orchestrator.Context) (string, error) {
+//	stringTask := Task(func(ctx orchContext.Context) (string, error) {
 //	    return "result", nil
 //	})
 //
 //	// Integer task with context usage
-//	intTask := Task(func(ctx orchestrator.Context) (int, error) {
+//	intTask := Task(func(ctx orchContext.Context) (int, error) {
 //	    userID := ctx.Get("user_id").(int)
 //	    return userID * 2, nil
 //	})
 //
 //	// Custom type task
-//	userTask := Task(func(ctx orchestrator.Context) (User, error) {
+//	userTask := Task(func(ctx orchContext.Context) (User, error) {
 //	    return User{ID: 123, Name: "John"}, nil
 //	})
 func Task[T any](fn func(orchContext.Context) (T, error)) *TaskBuilder[T] {

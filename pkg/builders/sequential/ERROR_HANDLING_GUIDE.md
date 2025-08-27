@@ -48,7 +48,7 @@ The CollectAll strategy provides comprehensive error visibility:
 ```go
 seq := Sequential(
     Task(sendEmail),       // May fail, but continue
-    Task(logAnalytics),    // May fail, but continue  
+    Task(logAnalytics),    // May fail, but continue
     Task(updateCache),     // May fail, but continue
 ).ErrorBoundary(errors.CollectAll)
 
@@ -125,7 +125,7 @@ if err != nil {
     for _, opErr := range result.Errors() {
         log.Printf("Operation %s failed at index %d after %v: %v",
             opErr.OpID, opErr.Index, opErr.Duration, opErr.Error)
-        
+
         if len(opErr.Stack) > 0 {
             log.Printf("Stack trace: %s", string(opErr.Stack))
         }
@@ -164,9 +164,9 @@ The sequential orchestration automatically recovers from panics and converts the
 
 ```go
 seq := Sequential(
-    Task(func() (string, error) { return "step1", nil }),
-    Task(func() (string, error) { panic("something went wrong") }),
-    Task(func() (string, error) { return "step3", nil }),
+    Task(func(ctx orchContext.Context) (string, error) { return "step1", nil }),
+    Task(func(ctx orchContext.Context) (string, error) { panic("something went wrong") }),
+    Task(func(ctx orchContext.Context) (string, error) { return "step3", nil }),
 )
 
 result, err := seq.Execute(ctx, config)
@@ -206,7 +206,7 @@ pipeline := Sequential(
         Task(authenticate),
         Task(validateInput),
     ).Named("critical").ErrorBoundary(errors.FailFast),
-    
+
     // Optional operations that can fail
     Sequential(
         Task(sendNotification),
@@ -247,7 +247,7 @@ if err != nil {
     for _, opErr := range result.Errors() {
         // Send metrics to monitoring system
         metrics.RecordError(opErr.OpID, opErr.Duration, opErr.Error)
-        
+
         // Log structured error information
         logger.WithFields(map[string]interface{}{
             "operation_id": opErr.OpID,
@@ -276,16 +276,16 @@ The error handling system is designed for high performance:
 func BenchmarkErrorHandling(b *testing.B) {
     ctx := context.Background()
     cfg := config.Config{ErrorStrategy: errors.FailFast}
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         seq := Sequential(
-            Task(func() (int, error) { return 1, nil }),
-            Task(func() (int, error) { return 0, errors.New("test") }),
+            Task(func(ctx orchContext.Context) (int, error) { return 1, nil }),
+            Task(func(ctx orchContext.Context) (int, error) { return 0, errors.New("test") }),
         )
-        
+
         result, err := seq.Execute(ctx, cfg)
         // Process result and error
     }
@@ -299,7 +299,7 @@ func BenchmarkErrorHandling(b *testing.B) {
 ```go
 // Implement retry logic within error boundaries
 retryableTask := Sequential(
-    Task(func() (string, error) {
+    Task(func(ctx orchContext.Context) (string, error) {
         // Attempt operation with potential for transient failure
         return attemptOperation()
     }),
@@ -311,7 +311,7 @@ for attempt := 0; attempt < maxRetries; attempt++ {
     if err == nil {
         break // Success
     }
-    
+
     if attempt < maxRetries-1 {
         time.Sleep(backoffDelay)
         backoffDelay *= 2 // Exponential backoff
@@ -336,13 +336,13 @@ func (cb *CircuitBreaker) Execute(operation func() (interface{}, error)) (interf
         }
         atomic.StoreInt64(&cb.failures, 0) // Reset
     }
-    
+
     result, err := operation()
     if err != nil {
         atomic.AddInt64(&cb.failures, 1)
         cb.lastFailure = time.Now()
     }
-    
+
     return result, err
 }
 ```
@@ -358,18 +358,18 @@ type ErrorAggregator struct {
 func (ea *ErrorAggregator) CollectErrors(pipelineName string, result *result.Result) {
     ea.mu.Lock()
     defer ea.mu.Unlock()
-    
+
     if ea.errors == nil {
         ea.errors = make(map[string][]errors.OperationError)
     }
-    
+
     ea.errors[pipelineName] = append(ea.errors[pipelineName], result.Errors()...)
 }
 
 func (ea *ErrorAggregator) GenerateReport() string {
     ea.mu.RLock()
     defer ea.mu.RUnlock()
-    
+
     var report strings.Builder
     for pipeline, errs := range ea.errors {
         report.WriteString(fmt.Sprintf("Pipeline: %s (%d errors)\n", pipeline, len(errs)))
@@ -396,39 +396,39 @@ func TestErrorStrategy(t *testing.T) {
         {"FailFast", errors.FailFast, 2, 1},
         {"CollectAll", errors.CollectAll, 4, 2},
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             var executedSteps int64
-            
+
             seq := Sequential(
-                Task(func() (string, error) {
+                Task(func(ctx orchContext.Context) (string, error) {
                     atomic.AddInt64(&executedSteps, 1)
                     return "step1", nil
                 }),
-                Task(func() (string, error) {
+                Task(func(ctx orchContext.Context) (string, error) {
                     atomic.AddInt64(&executedSteps, 1)
                     return "", errors.New("error1")
                 }),
-                Task(func() (string, error) {
+                Task(func(ctx orchContext.Context) (string, error) {
                     atomic.AddInt64(&executedSteps, 1)
                     return "step3", nil
                 }),
-                Task(func() (string, error) {
+                Task(func(ctx orchContext.Context) (string, error) {
                     atomic.AddInt64(&executedSteps, 1)
                     return "", errors.New("error2")
                 }),
             ).ErrorBoundary(tt.strategy)
-            
+
             result, err := seq.Execute(context.Background(), config.Config{})
-            
+
             if int(atomic.LoadInt64(&executedSteps)) != tt.wantSteps {
-                t.Errorf("Expected %d steps executed, got %d", 
+                t.Errorf("Expected %d steps executed, got %d",
                     tt.wantSteps, atomic.LoadInt64(&executedSteps))
             }
-            
+
             if len(result.Errors()) != tt.wantErrors {
-                t.Errorf("Expected %d errors, got %d", 
+                t.Errorf("Expected %d errors, got %d",
                     tt.wantErrors, len(result.Errors()))
             }
         })
@@ -447,7 +447,7 @@ func TestRealWorldErrorScenario(t *testing.T) {
         Task(transformData).Named("transform-data"),
         Task(saveData).Named("save-data"),
     ).Named("data-pipeline").ErrorBoundary(errors.CollectAll)
-    
+
     // Test with various failure scenarios
     scenarios := []struct {
         name           string
@@ -459,19 +459,19 @@ func TestRealWorldErrorScenario(t *testing.T) {
         {"ValidateFailure", []int{1}, []string{"loaded"}},
         {"MultipleFailures", []int{1, 3}, []string{"loaded", "transformed"}},
     }
-    
+
     for _, scenario := range scenarios {
         t.Run(scenario.name, func(t *testing.T) {
             // Configure failure injection
             configureFailures(scenario.injectFailures)
-            
+
             result, err := pipeline.Execute(context.Background(), config.Config{})
-            
+
             // Verify expected behavior
             if len(scenario.injectFailures) > 0 && err == nil {
                 t.Error("Expected error when failures are injected")
             }
-            
+
             // Verify partial results
             for _, expectedResult := range scenario.expectResults {
                 if result.Get(expectedResult) == nil {

@@ -3,15 +3,16 @@ package sequential
 import (
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
 
 func TestSequentialBuilder_ChildrenAccess(t *testing.T) {
 	seq := Sequential(
-		task.Task(func() (string, error) { return "a", nil }).Named("first"),
-		task.Task(func() (int, error) { return 2, nil }),
-		task.Task(func() (bool, error) { return true, nil }).Named("third"),
+		task.Task(func(ctx orchestrator.Context) (string, error) { return "a", nil }).Named("first"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 2, nil }),
+		task.Task(func(ctx orchestrator.Context) (bool, error) { return true, nil }).Named("third"),
 	)
 	builder := seq // already *SequentialBuilder
 

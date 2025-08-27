@@ -3,6 +3,7 @@ package concurrent
 import (
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 
 	. "github.com/maniartech/orchestrator/pkg/builders/concurrent"
@@ -11,10 +12,10 @@ import (
 func TestConcurrent_PathResolution(t *testing.T) {
 	c := Concurrent(
 		Concurrent(
-			task.Task(func() (string, error) { return "a", nil }).Named("inner-a"),
-			task.Task(func() (string, error) { return "b", nil }),
+			task.Task(func(ctx orchestrator.Context) (string, error) { return "a", nil }).Named("inner-a"),
+			task.Task(func(ctx orchestrator.Context) (string, error) { return "b", nil }),
 		).Named("inner"),
-		task.Task(func() (int, error) { return 1, nil }).Named("leaf"),
+		task.Task(func(ctx orchestrator.Context) (int, error) { return 1, nil }).Named("leaf"),
 	).Named("root")
 
 	paths := c.ListAllPaths()

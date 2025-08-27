@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
@@ -18,8 +19,8 @@ import (
 func TestConditional_Constructor(t *testing.T) {
 	t.Run("valid_parameters", func(t *testing.T) {
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		trueTask := task.Task(func() (string, error) { return "true", nil })
-		falseTask := task.Task(func() (string, error) { return "false", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true", nil })
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask)
 
@@ -40,8 +41,8 @@ func TestConditional_Constructor(t *testing.T) {
 			}
 		}()
 
-		trueTask := task.Task(func() (string, error) { return "true", nil })
-		falseTask := task.Task(func() (string, error) { return "false", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true", nil })
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false", nil })
 
 		Conditional(nil, trueTask, falseTask)
 	})
@@ -54,7 +55,7 @@ func TestConditional_Constructor(t *testing.T) {
 		}()
 
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		falseTask := task.Task(func() (string, error) { return "false", nil })
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false", nil })
 
 		Conditional(condition, nil, falseTask)
 	})
@@ -67,7 +68,7 @@ func TestConditional_Constructor(t *testing.T) {
 		}()
 
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		trueTask := task.Task(func() (string, error) { return "true", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true", nil })
 
 		Conditional(condition, trueTask, nil)
 	})
@@ -76,8 +77,8 @@ func TestConditional_Constructor(t *testing.T) {
 // TestConditionalBuilder_FluentAPI tests the fluent API methods
 func TestConditionalBuilder_FluentAPI(t *testing.T) {
 	condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-	trueTask := task.Task(func() (string, error) { return "true", nil })
-	falseTask := task.Task(func() (string, error) { return "false", nil })
+	trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true", nil })
+	falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false", nil })
 
 	t.Run("named", func(t *testing.T) {
 		conditional := Conditional(condition, trueTask, falseTask).Named("test-conditional")
@@ -130,8 +131,8 @@ func TestConditionalBuilder_FluentAPI(t *testing.T) {
 func TestConditionalBuilder_Execute(t *testing.T) {
 	t.Run("condition_true_executes_ifTrue", func(t *testing.T) {
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		trueTask := task.Task(func() (string, error) { return "true-result", nil }).Named("true-task")
-		falseTask := task.Task(func() (string, error) { return "false-result", nil }).Named("false-task")
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil }).Named("true-task")
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil }).Named("false-task")
 
 		conditional := Conditional(condition, trueTask, falseTask).Named("test-conditional")
 
@@ -157,8 +158,8 @@ func TestConditionalBuilder_Execute(t *testing.T) {
 
 	t.Run("condition_false_executes_ifFalse", func(t *testing.T) {
 		condition := func(ctx orchContext.Context) (bool, error) { return false, nil }
-		trueTask := task.Task(func() (string, error) { return "true-result", nil }).Named("true-task")
-		falseTask := task.Task(func() (string, error) { return "false-result", nil }).Named("false-task")
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil }).Named("true-task")
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil }).Named("false-task")
 
 		conditional := Conditional(condition, trueTask, falseTask).Named("test-conditional")
 
@@ -185,8 +186,8 @@ func TestConditionalBuilder_Execute(t *testing.T) {
 	t.Run("condition_error_propagates", func(t *testing.T) {
 		conditionError := errors.New("condition evaluation failed")
 		condition := func(ctx orchContext.Context) (bool, error) { return false, conditionError }
-		trueTask := task.Task(func() (string, error) { return "true-result", nil })
-		falseTask := task.Task(func() (string, error) { return "false-result", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil })
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask).Named("error-conditional")
 
@@ -216,8 +217,8 @@ func TestConditionalBuilder_Execute(t *testing.T) {
 	t.Run("branch_execution_error_propagates", func(t *testing.T) {
 		branchError := errors.New("branch execution failed")
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		trueTask := task.Task(func() (string, error) { return "", branchError }).Named("failing-task")
-		falseTask := task.Task(func() (string, error) { return "false-result", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "", branchError }).Named("failing-task")
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask).Named("branch-error-conditional")
 
@@ -248,8 +249,8 @@ func TestConditionalBuilder_Execute(t *testing.T) {
 		condition := func(ctx orchContext.Context) (bool, error) {
 			panic("condition panic")
 		}
-		trueTask := task.Task(func() (string, error) { return "true-result", nil })
-		falseTask := task.Task(func() (string, error) { return "false-result", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil })
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask).Named("panic-conditional")
 
@@ -277,8 +278,8 @@ func TestConditionalBuilder_Execute(t *testing.T) {
 			time.Sleep(100 * time.Millisecond) // Simulate slow condition
 			return true, nil
 		}
-		trueTask := task.Task(func() (string, error) { return "true-result", nil })
-		falseTask := task.Task(func() (string, error) { return "false-result", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil })
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask).Named("cancellation-conditional")
 
@@ -305,8 +306,8 @@ func TestConditionalBuilder_Execute(t *testing.T) {
 // TestConditionalBuilder_GetChildren tests child orchestration access
 func TestConditionalBuilder_GetChildren(t *testing.T) {
 	condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-	trueTask := task.Task(func() (string, error) { return "true", nil }).Named("true-task")
-	falseTask := task.Task(func() (string, error) { return "false", nil }).Named("false-task")
+	trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true", nil }).Named("true-task")
+	falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false", nil }).Named("false-task")
 
 	conditional := Conditional(condition, trueTask, falseTask)
 
@@ -328,8 +329,8 @@ func TestConditionalBuilder_GetChildren(t *testing.T) {
 // TestConditionalBuilder_PathResolution tests path-based orchestration resolution
 func TestConditionalBuilder_PathResolution(t *testing.T) {
 	condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-	trueTask := task.Task(func() (string, error) { return "true", nil }).Named("true-task")
-	falseTask := task.Task(func() (string, error) { return "false", nil }).Named("false-task")
+	trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true", nil }).Named("true-task")
+	falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false", nil }).Named("false-task")
 
 	conditional := Conditional(condition, trueTask, falseTask).Named("test-conditional")
 
@@ -373,8 +374,8 @@ func TestConditionalBuilder_PathResolution(t *testing.T) {
 // TestConditionalBuilder_ConfigurationInheritance tests configuration inheritance
 func TestConditionalBuilder_ConfigurationInheritance(t *testing.T) {
 	condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-	trueTask := task.Task(func() (string, error) { return "true-result", nil }).Named("true-task")
-	falseTask := task.Task(func() (string, error) { return "false-result", nil }).Named("false-task")
+	trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil }).Named("true-task")
+	falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil }).Named("false-task")
 
 	parentConfig := config.Config{
 		Timeout:        60 * time.Second,
@@ -415,8 +416,8 @@ func TestConditionalBuilder_ErrorBoundaries(t *testing.T) {
 	t.Run("fail_fast_strategy", func(t *testing.T) {
 		branchError := errors.New("branch execution failed")
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		trueTask := task.Task(func() (string, error) { return "", branchError }).Named("failing-task")
-		falseTask := task.Task(func() (string, error) { return "false-result", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "", branchError }).Named("failing-task")
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask).
 			Named("fail-fast-conditional").
@@ -444,8 +445,8 @@ func TestConditionalBuilder_ErrorBoundaries(t *testing.T) {
 	t.Run("collect_all_strategy", func(t *testing.T) {
 		branchError := errors.New("branch execution failed")
 		condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		trueTask := task.Task(func() (string, error) { return "", branchError }).Named("failing-task")
-		falseTask := task.Task(func() (string, error) { return "false-result", nil })
+		trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "", branchError }).Named("failing-task")
+		falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil })
 
 		conditional := Conditional(condition, trueTask, falseTask).
 			Named("collect-all-conditional").
@@ -474,8 +475,8 @@ func TestConditionalBuilder_ErrorBoundaries(t *testing.T) {
 // BenchmarkConditionalBuilder_Execute benchmarks conditional execution
 func BenchmarkConditionalBuilder_Execute(b *testing.B) {
 	condition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-	trueTask := task.Task(func() (string, error) { return "true-result", nil }).Named("true-task")
-	falseTask := task.Task(func() (string, error) { return "false-result", nil }).Named("false-task")
+	trueTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "true-result", nil }).Named("true-task")
+	falseTask := task.Task(func(ctx orchestrator.Context) (string, error) { return "false-result", nil }).Named("false-task")
 
 	conditional := Conditional(condition, trueTask, falseTask).Named("benchmark-conditional")
 

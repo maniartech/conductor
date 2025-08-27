@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	. "github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
@@ -18,19 +19,19 @@ func TestDynamicNameGeneration(t *testing.T) {
 
 	// Create a sequential with mixed named and unnamed tasks
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "user-data", nil
 		}).Named("fetch-user"), // Explicit name
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "validated", nil
 		}), // Unnamed - should generate "step-1"
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "processed", nil
 		}).Named("process-user"), // Explicit name
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "saved", nil
 		}), // Unnamed - should generate "step-3"
 	).Named("user-pipeline")
@@ -133,23 +134,23 @@ func TestHierarchicalNaming(t *testing.T) {
 
 	// Create nested sequential orchestrations
 	innerSeq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "inner-result-1", nil
 		}), // Should generate name based on parent context
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "inner-result-2", nil
 		}).Named("custom-inner"),
 	).Named("inner-pipeline")
 
 	outerSeq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "outer-result-1", nil
 		}).Named("setup"),
 
 		innerSeq,
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "outer-result-3", nil
 		}), // Should generate "step-2"
 	).Named("outer-pipeline")
@@ -227,12 +228,12 @@ func TestIndexBasedAccess(t *testing.T) {
 		taskIndex := i // Capture loop variable
 		if i%3 == 0 {
 			// Every third task gets an explicit name
-			tasks[i] = task.Task(func() (int, error) {
+			tasks[i] = task.Task(func(ctx orchestrator.Context) (int, error) {
 				return taskIndex * 10, nil
 			}).Named(fmt.Sprintf("explicit-task-%d", taskIndex))
 		} else {
 			// Others get generated names
-			tasks[i] = task.Task(func() (int, error) {
+			tasks[i] = task.Task(func(ctx orchestrator.Context) (int, error) {
 				return taskIndex * 10, nil
 			})
 		}
@@ -302,15 +303,15 @@ func TestNameConsistencyAcrossExecution(t *testing.T) {
 	t.Log("=== Testing Name Consistency Across Execution ===")
 
 	seq := Sequential(
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "step1-result", nil
 		}), // step-0
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "step2-result", nil
 		}).Named("named-step"),
 
-		task.Task(func() (string, error) {
+		task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "step3-result", nil
 		}), // step-2
 	).Named("consistency-test")

@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	"github.com/maniartech/orchestrator/pkg/errors"
 )
 
 func TestTaskBuilderNamed(t *testing.T) {
-	task := Task(func() (string, error) { return "test", nil })
+	task := Task(func(ctx orchestrator.Context) (string, error) { return "test", nil })
 	res := task.Named("test-task")
 	if res.(*TaskBuilder[string]) != task {
 		t.Error("Named should return same instance")
@@ -21,7 +22,7 @@ func TestTaskBuilderNamed(t *testing.T) {
 }
 
 func TestTaskBuilderWith(t *testing.T) {
-	task := Task(func() (string, error) { return "test", nil })
+	task := Task(func(ctx orchestrator.Context) (string, error) { return "test", nil })
 	cfg := config.Config{ErrorStrategy: errors.CollectAll, Timeout: 30 * time.Second, MaxConcurrency: 50}
 	res := task.With(cfg)
 	if res.(*TaskBuilder[string]) != task {
@@ -33,7 +34,7 @@ func TestTaskBuilderWith(t *testing.T) {
 }
 
 func TestTaskBuilderErrorBoundary(t *testing.T) {
-	task := Task(func() (string, error) { return "test", nil })
+	task := Task(func(ctx orchestrator.Context) (string, error) { return "test", nil })
 	res := task.ErrorBoundary(errors.CollectAll)
 	if res.(*TaskBuilder[string]) != task {
 		t.Error("ErrorBoundary same instance")
@@ -48,7 +49,7 @@ func TestTaskBuilderErrorBoundary(t *testing.T) {
 }
 
 func TestTaskBuilderFluentAPI(t *testing.T) {
-	res := Task(func() (string, error) { return "x", nil }).Named("chain").With(config.Config{Timeout: time.Second}).ErrorBoundary(errors.CollectAll)
+	res := Task(func(ctx orchestrator.Context) (string, error) { return "x", nil }).Named("chain").With(config.Config{Timeout: time.Second}).ErrorBoundary(errors.CollectAll)
 	task := res.(*TaskBuilder[string])
 	if task.GetName() != "chain" || task.GetConfig() == nil || task.GetConfig().Timeout <= 0 || task.GetConfig().ErrorStrategy != errors.CollectAll {
 		t.Error("fluent chain failed")
