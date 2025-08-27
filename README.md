@@ -35,7 +35,7 @@ import (
 func main() {
     // Simple task execution
     result, err := orchestrator.Setup(
-        orchestrator.Task(func() (string, error) {
+        orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
             return "Hello, World!", nil
         }).Named("greeting"),
     ).Await()
@@ -84,7 +84,7 @@ func main() {
 ```go
 func monitoredExecution() {
     workflow := orchestrator.Setup(
-        orchestrator.Task(func() (string, error) {
+        orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
             time.Sleep(100 * time.Millisecond)
             return "completed", nil
         }).Named("slow-task"),
@@ -141,7 +141,7 @@ func HandleResource(resourceId int) error {
             orchestrator.Concurrent(
                 // Main resource processing pipeline
                 orchestrator.Sequential(
-                    orchestrator.Task(func() error { return fetchResource(resourceId) }).Named("fetch-resource"),
+                    orchestrator.Task(func(ctx orchestrator.Context) error { return fetchResource(resourceId) }).Named("fetch-resource"),
                     orchestrator.Task(processResource).Named("process-resource"),
                     orchestrator.Task(submitResource).Named("submit-resource"),
                 ).Named("resource-pipeline"),
@@ -178,7 +178,7 @@ import (
 func advancedTaskExample() error {
     // Task with comprehensive configuration
     result, err := orchestrator.Setup(
-        orchestrator.Task(func() (string, error) {
+        orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
             // Simulate complex processing
             time.Sleep(50 * time.Millisecond)
             return "processed", nil
@@ -218,7 +218,7 @@ func HandleResourceAdvanced(resourceId int) error {
             orchestrator.Concurrent(
                 // Critical path - fail fast
                 orchestrator.Sequential(
-                    orchestrator.Task(func() error { return fetchResource(resourceId) }).
+                    orchestrator.Task(func(ctx orchestrator.Context) error { return fetchResource(resourceId) }).
                         Named("fetch-resource").
                         With(orchestrator.Config{
                             Timeout: 10 * time.Second,
@@ -248,7 +248,7 @@ func HandleResourceAdvanced(resourceId int) error {
 ```go
 func monitorTaskExecution() error {
     workflow := orchestrator.Setup(
-        orchestrator.Task(func() (string, error) {
+        orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
             // Simulate long-running task
             time.Sleep(200 * time.Millisecond)
             return "processing complete", nil

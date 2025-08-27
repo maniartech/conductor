@@ -134,7 +134,7 @@ workflow := orchestrator.Setup(
 ### Simple Migration
 ```go
 // OLD: No context access
-orchestrator.Task(func() (Result, error) {
+orchestrator.Task(func(ctx orchestrator.Context) (Result, error) {
     return processData(capturedData) // Closure captures data
 })
 

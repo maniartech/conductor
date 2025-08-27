@@ -263,8 +263,8 @@ paginatedProcessing := For(
     condition: func(i int, ctx context.Context) bool { return i < totalPages },
     increment: func(i int) int { return i + 1 },
     orchestration: Sequential(
-        Task(func() error { return fetchPage(i) }).Named("fetch-page"),
-        Task(func() error { return processPage(i) }).Named("process-page"),
+        Task(func(ctx orchestrator.Context) error { return fetchPage(i) }).Named("fetch-page"),
+        Task(func(ctx orchestrator.Context) error { return processPage(i) }).Named("process-page"),
     ).Named("page-processing"),
 ).Named("paginated-data-processing")
 

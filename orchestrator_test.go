@@ -15,7 +15,7 @@ import (
 // TestWorkflow_InternalMethods tests internal workflow methods
 func TestWorkflow_InternalMethods(t *testing.T) {
 	t.Run("apply_workflow_configuration", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "config-test", nil
 		}).Named("config-task")
 
@@ -46,7 +46,7 @@ func TestWorkflow_InternalMethods(t *testing.T) {
 	})
 
 	t.Run("apply_workflow_configuration_defaults", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "defaults-test", nil
 		}).Named("defaults-task")
 
@@ -67,7 +67,7 @@ func TestWorkflow_InternalMethods(t *testing.T) {
 	})
 
 	t.Run("enhance_error_with_metadata", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "", errors.New("test error")
 		}).Named("error-task")
 
@@ -90,7 +90,7 @@ func TestWorkflow_InternalMethods(t *testing.T) {
 	})
 
 	t.Run("wrap_execution_error", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "", errors.New("execution error")
 		}).Named("wrap-task")
 
@@ -111,7 +111,7 @@ func TestWorkflow_InternalMethods(t *testing.T) {
 	})
 
 	t.Run("wrap_execution_error_unnamed", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "", errors.New("execution error")
 		}) // No name
 
@@ -152,7 +152,7 @@ func TestWorkflow_ResourceTracker(t *testing.T) {
 
 	t.Run("track_orchestration", func(t *testing.T) {
 		tracker := newResourceTracker()
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "tracked", nil
 		}).Named("tracked-task")
 
@@ -244,7 +244,7 @@ func TestWorkflow_ResourceTracker(t *testing.T) {
 // TestWorkflow_AsyncExecutionInternal tests internal async execution methods
 func TestWorkflow_AsyncExecutionInternal(t *testing.T) {
 	t.Run("execute_async_completion", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "async-internal", nil
 		}).Named("async-internal-task")
 
@@ -273,7 +273,7 @@ func TestWorkflow_AsyncExecutionInternal(t *testing.T) {
 
 	t.Run("execute_async_with_error", func(t *testing.T) {
 		expectedError := errors.New("async error")
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "", expectedError
 		}).Named("async-error-task")
 
@@ -300,7 +300,7 @@ func TestWorkflow_AsyncExecutionInternal(t *testing.T) {
 	})
 
 	t.Run("double_execute_error", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "double-execute", nil
 		}).Named("double-execute-task")
 
@@ -334,7 +334,7 @@ func TestWorkflow_AsyncExecutionInternal(t *testing.T) {
 // TestWorkflow_ProgressTrackingInternal tests internal progress tracking
 func TestWorkflow_ProgressTrackingInternal(t *testing.T) {
 	t.Run("initialize_progress_tracking", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "progress-init", nil
 		}).Named("progress-init-task")
 
@@ -356,7 +356,7 @@ func TestWorkflow_ProgressTrackingInternal(t *testing.T) {
 	})
 
 	t.Run("update_progress_with_stage", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "stage-progress", nil
 		}).Named("stage-progress-task")
 
@@ -372,7 +372,7 @@ func TestWorkflow_ProgressTrackingInternal(t *testing.T) {
 	})
 
 	t.Run("notify_progress_update", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "notify-progress", nil
 		}).Named("notify-progress-task")
 
@@ -415,7 +415,7 @@ func TestWorkflow_ProgressTrackingInternal(t *testing.T) {
 // TestWorkflow_StatusManagement tests status management
 func TestWorkflow_StatusManagement(t *testing.T) {
 	t.Run("set_status_internal", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "status-test", nil
 		}).Named("status-test-task")
 
@@ -450,7 +450,7 @@ func TestWorkflow_StatusManagement(t *testing.T) {
 	})
 
 	t.Run("status_callbacks_internal", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "status-callback-test", nil
 		}).Named("status-callback-test-task")
@@ -510,7 +510,7 @@ func TestWorkflow_StatusManagement(t *testing.T) {
 // TestWorkflow_GetResult tests internal result retrieval
 func TestWorkflow_GetResult(t *testing.T) {
 	t.Run("get_result_before_execution", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "result-test", nil
 		}).Named("result-test-task")
 
@@ -534,7 +534,7 @@ func TestWorkflow_GetResult(t *testing.T) {
 	})
 
 	t.Run("get_result_after_execution", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "result-after-test", nil
 		}).Named("result-after-test-task")
 
@@ -567,7 +567,7 @@ func TestWorkflow_GetResult(t *testing.T) {
 // timeout and error aggregation plus direct invocation via a test helper wrapper.
 func TestWorkflow_InternalExecutionBranches(t *testing.T) {
 	// Long running task for timeout branch
-	longTask := task.Task(func() (string, error) {
+	longTask := task.Task(func(ctx Context) (string, error) {
 		time.Sleep(50 * time.Millisecond)
 		return "slow", nil
 	}).Named("slow-task")
@@ -583,7 +583,7 @@ func TestWorkflow_InternalExecutionBranches(t *testing.T) {
 
 // Direct invocation via exported-like shim (using same package access)
 func TestWorkflow_executeWorkflow_Direct(t *testing.T) {
-	fast := task.Task(func() (string, error) { return "ok", nil }).Named("fast")
+	fast := task.Task(func(ctx Context) (string, error) { return "ok", nil }).Named("fast")
 	wf := Setup(fast)
 	cfg := config.DefaultConfig()
 	res, err := wf.executeWorkflow(context.Background(), cfg)
@@ -597,7 +597,7 @@ func TestWorkflow_executeWorkflow_Direct(t *testing.T) {
 
 // BenchmarkWorkflow_InternalMethods benchmarks internal methods
 func BenchmarkWorkflow_ApplyConfiguration(b *testing.B) {
-	task := Task(func() (string, error) {
+	task := Task(func(ctx Context) (string, error) {
 		return "benchmark", nil
 	}).Named("benchmark-task")
 
@@ -617,7 +617,7 @@ func BenchmarkWorkflow_ApplyConfiguration(b *testing.B) {
 
 // BenchmarkWorkflow_EnhanceError benchmarks error enhancement
 func BenchmarkWorkflow_EnhanceError(b *testing.B) {
-	task := Task(func() (string, error) {
+	task := Task(func(ctx Context) (string, error) {
 		return "", errors.New("benchmark error")
 	}).Named("benchmark-error-task")
 
