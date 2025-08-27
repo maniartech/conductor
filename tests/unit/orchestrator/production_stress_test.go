@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
@@ -49,7 +48,7 @@ func TestProductionStress_HighThroughput(t *testing.T) {
 				default:
 					taskStart := time.Now()
 
-					taskFn := func(ctx orchestrator.Context) (string, error) {
+					taskFn := func(ctx Context) (string, error) {
 						// Simulate realistic work
 						workType := j % 5
 						switch workType {
@@ -177,7 +176,7 @@ func TestProductionStress_MemoryStability(t *testing.T) {
 				case <-ctx.Done():
 					return
 				default:
-					taskFn := func(ctx orchestrator.Context) ([]byte, error) {
+					taskFn := func(ctx Context) ([]byte, error) {
 						// Allocate memory
 						data := make([]byte, allocationSize)
 						for j := range data {
@@ -276,7 +275,7 @@ func TestProductionStress_GoroutineLifecycle(t *testing.T) {
 					atomic.AddInt64(&completedTasks, 1)
 				}()
 
-				taskFn := func(ctx orchestrator.Context) (string, error) {
+				taskFn := func(ctx Context) (string, error) {
 					// Simulate work with goroutine creation
 					var innerWg sync.WaitGroup
 					innerWg.Add(3)
@@ -394,7 +393,7 @@ func TestProductionStress_ErrorResilience(t *testing.T) {
 					// snapshot operation id to avoid racy capture in goroutines
 					opID := operationID
 
-					taskFn := func(ctx orchestrator.Context) (string, error) {
+					taskFn := func(ctx Context) (string, error) {
 						// Simulate various error conditions
 						errorType := float64(opID%100) / 100.0
 
@@ -521,7 +520,7 @@ func TestProductionStress_ConcurrentCancellation(t *testing.T) {
 			go func(iteration, taskID int) {
 				defer wg.Done()
 
-				taskFn := func(ctx orchestrator.Context) (string, error) {
+				taskFn := func(ctx Context) (string, error) {
 					// Long-running task that can be cancelled
 					for k := 0; k < 1000; k++ {
 						select {

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -16,7 +15,7 @@ import (
 func BenchmarkTask_BasicExecution(b *testing.B) {
 	b.ReportAllocs()
 
-	taskFn := func(ctx orchestrator.Context) (string, error) {
+	taskFn := func(ctx Context) (string, error) {
 		return "result", nil
 	}
 
@@ -36,7 +35,7 @@ func BenchmarkTask_BasicExecution(b *testing.B) {
 func BenchmarkWorkflow_BasicExecution(b *testing.B) {
 	b.ReportAllocs()
 
-	taskFn := func(ctx orchestrator.Context) (string, error) {
+	taskFn := func(ctx Context) (string, error) {
 		return "result", nil
 	}
 
@@ -53,7 +52,7 @@ func BenchmarkTask_ErrorHandling(b *testing.B) {
 	b.Run("NoErrors", func(b *testing.B) {
 		b.ReportAllocs()
 
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "success", nil
 		}
 
@@ -70,7 +69,7 @@ func BenchmarkTask_ErrorHandling(b *testing.B) {
 	b.Run("WithErrors", func(b *testing.B) {
 		b.ReportAllocs()
 
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("test error")
 		}
 
@@ -95,7 +94,7 @@ func BenchmarkTask_TypeVariations(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			t := task.Task(func(ctx orchestrator.Context) (string, error) {
+			t := task.Task(func(ctx Context) (string, error) {
 				return "result", nil
 			}).Named("string-task")
 			_, _ = t.Execute(ctx, cfg)
@@ -107,7 +106,7 @@ func BenchmarkTask_TypeVariations(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			t := task.Task(func(ctx orchestrator.Context) (int, error) {
+			t := task.Task(func(ctx Context) (int, error) {
 				return 42, nil
 			}).Named("int-task")
 			_, _ = t.Execute(ctx, cfg)
@@ -124,7 +123,7 @@ func BenchmarkTask_TypeVariations(b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			t := task.Task(func(ctx orchestrator.Context) (TestStruct, error) {
+			t := task.Task(func(ctx Context) (TestStruct, error) {
 				return TestStruct{ID: 1, Name: "test"}, nil
 			}).Named("struct-task")
 			_, _ = t.Execute(ctx, cfg)
@@ -139,7 +138,7 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			_ = task.Task(func(ctx orchestrator.Context) (string, error) {
+			_ = task.Task(func(ctx Context) (string, error) {
 				return "result", nil
 			}).Named("memory-task")
 		}
@@ -148,7 +147,7 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 	b.Run("WorkflowSetup", func(b *testing.B) {
 		b.ReportAllocs()
 
-		t := task.Task(func(ctx orchestrator.Context) (string, error) {
+		t := task.Task(func(ctx Context) (string, error) {
 			return "result", nil
 		}).Named("test-task")
 
@@ -171,7 +170,7 @@ func BenchmarkScalability(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// Create and execute multiple tasks
 				for j := 0; j < size; j++ {
-					t := task.Task(func(ctx orchestrator.Context) (string, error) {
+					t := task.Task(func(ctx Context) (string, error) {
 						return "result", nil
 					}).Named(fmt.Sprintf("scale-task-%d", j))
 
@@ -194,7 +193,7 @@ func BenchmarkConcurrentWorkflows(b *testing.B) {
 		// Create multiple workflows and execute them sequentially
 		// (since we don't have concurrent orchestration implemented yet)
 		for j := 0; j < numWorkflows; j++ {
-			t := task.Task(func(ctx orchestrator.Context) (string, error) {
+			t := task.Task(func(ctx Context) (string, error) {
 				return "result", nil
 			}).Named(fmt.Sprintf("concurrent-workflow-%d", j))
 
@@ -218,7 +217,7 @@ func BenchmarkLongRunningTasks(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				t := task.Task(func(ctx orchestrator.Context) (string, error) {
+				t := task.Task(func(ctx Context) (string, error) {
 					time.Sleep(duration)
 					return "completed", nil
 				}).Named(fmt.Sprintf("long-task-%s", duration))
@@ -238,7 +237,7 @@ func BenchmarkContextCancellation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ctx, cancel := context.WithCancel(context.Background())
 
-		t := task.Task(func(ctx orchestrator.Context) (string, error) {
+		t := task.Task(func(ctx Context) (string, error) {
 			time.Sleep(time.Millisecond) // Long enough to be cancelled
 			return "result", nil
 		}).Named("cancellable-task")

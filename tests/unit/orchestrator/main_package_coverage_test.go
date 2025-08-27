@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
-	orchContext "github.com/maniartech/orchestrator/pkg/context"
 
 	. "github.com/maniartech/orchestrator"
 )
@@ -19,15 +17,15 @@ import (
 func TestExampleFunctions(t *testing.T) {
 	t.Run("ConditionalErrorHandlingBehavior", func(t *testing.T) {
 		// Test the actual behavior of conditional error handling, not just execution
-		condition := func(ctx orchContext.Context) (bool, error) {
+		condition := func(ctx Context) (bool, error) {
 			return false, fmt.Errorf("user_role not found in context")
 		}
 
-		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
+		trueTask := Task(func(ctx Context) (string, error) {
 			return "true branch", nil
 		}).Named("true-task")
 
-		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
+		falseTask := Task(func(ctx Context) (string, error) {
 			return "false branch", nil
 		}).Named("false-task")
 
@@ -57,15 +55,15 @@ func TestExampleFunctions(t *testing.T) {
 
 	t.Run("ConditionalSuccessfulExecutionBehavior", func(t *testing.T) {
 		// Test successful conditional execution behavior
-		condition := func(ctx orchContext.Context) (bool, error) {
+		condition := func(ctx Context) (bool, error) {
 			return true, nil // Morning condition
 		}
 
-		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
+		trueTask := Task(func(ctx Context) (string, error) {
 			return "Good morning! Starting the day.", nil
 		}).Named("morning-task")
 
-		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
+		falseTask := Task(func(ctx Context) (string, error) {
 			return "Good evening! Winding down.", nil
 		}).Named("evening-task")
 
@@ -99,7 +97,7 @@ func TestExampleFunctions(t *testing.T) {
 	t.Run("SimpleTaskLogic", func(t *testing.T) {
 		// Test the same logic as Example_simpleTask to improve coverage
 		result, err := Setup(
-			Task(func(ctx orchestrator.Context) (string, error) {
+			Task(func(ctx Context) (string, error) {
 				return "Hello from orchestrator!", nil
 			}).Named("greeting-task"),
 		).Await()
@@ -121,7 +119,7 @@ func TestExampleFunctions(t *testing.T) {
 	t.Run("TaskWithConfigurationLogic", func(t *testing.T) {
 		// Test the same logic as Example_taskWithConfiguration
 		result, err := Setup(
-			Task(func(ctx orchestrator.Context) (int, error) {
+			Task(func(ctx Context) (int, error) {
 				return 42, nil
 			}).Named("answer-task"),
 		).With(DefaultConfig()).Await()
@@ -143,7 +141,7 @@ func TestExampleFunctions(t *testing.T) {
 	t.Run("StatusMonitoringLogic", func(t *testing.T) {
 		// Test the same logic as Example_statusMonitoring
 		workflow := Setup(
-			Task(func(ctx orchestrator.Context) (string, error) {
+			Task(func(ctx Context) (string, error) {
 				return "Task completed", nil
 			}).Named("monitored-task"),
 		)
@@ -176,7 +174,7 @@ func TestExampleFunctions(t *testing.T) {
 		}
 
 		result, err := Setup(
-			Task(func(ctx orchestrator.Context) (string, error) {
+			Task(func(ctx Context) (string, error) {
 				time.Sleep(10 * time.Millisecond)
 				return "configured result", nil
 			}).Named("advanced-config-task"),
@@ -199,7 +197,7 @@ func TestExampleFunctions(t *testing.T) {
 	t.Run("WorkflowEdgeCases", func(t *testing.T) {
 		// Test workflow with nil task name
 		result, err := Setup(
-			Task(func(ctx orchestrator.Context) (string, error) {
+			Task(func(ctx Context) (string, error) {
 				return "unnamed task", nil
 			}), // No .Named() call
 		).Await()
@@ -216,7 +214,7 @@ func TestExampleFunctions(t *testing.T) {
 	t.Run("ErrorPathVariations", func(t *testing.T) {
 		// Test various error paths
 		result, err := Setup(
-			Task(func(ctx orchestrator.Context) (string, error) {
+			Task(func(ctx Context) (string, error) {
 				return "", fmt.Errorf("test error")
 			}).Named("error-task"),
 		).Await()
@@ -239,7 +237,7 @@ func TestExampleFunctions(t *testing.T) {
 func TestUncoveredOrchestratorPaths(t *testing.T) {
 	t.Run("Await_AlreadyStarted", func(t *testing.T) {
 		// Test the path where execution is already started
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond) // Small delay
 			return "result", nil
 		}
@@ -264,7 +262,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 
 	t.Run("AwaitWithContext_AlreadyStarted", func(t *testing.T) {
 		// Test the path where execution is already started with context
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "result", nil
 		}
@@ -290,7 +288,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 
 	t.Run("Execute_AlreadyStarted", func(t *testing.T) {
 		// Test double execution error
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "result", nil
 		}
 
@@ -314,7 +312,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 
 	t.Run("ExecuteBlocking_Error", func(t *testing.T) {
 		// Test ExecuteBlocking with execution error
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "result", nil
 		}
 
@@ -338,7 +336,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 
 	t.Run("AwaitWithTimeout_Success", func(t *testing.T) {
 		// Test successful timeout case
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "timeout-result", nil
 		}
 
@@ -362,7 +360,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 
 	t.Run("executeWorkflow_Error", func(t *testing.T) {
 		// Test executeWorkflow error path
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("task execution error")
 		}
 
@@ -382,7 +380,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 
 	t.Run("executeOrchestrationTree_Error", func(t *testing.T) {
 		// Test orchestration tree execution error path
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("orchestration tree error")
 		}
 
@@ -402,7 +400,7 @@ func TestUncoveredOrchestratorPaths(t *testing.T) {
 func TestWorkflowConfigurationPaths(t *testing.T) {
 	t.Run("applyWorkflowConfiguration_AllFields", func(t *testing.T) {
 		// Test all configuration inheritance paths
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "config-result", nil
 		}
 
@@ -426,7 +424,7 @@ func TestWorkflowConfigurationPaths(t *testing.T) {
 
 	t.Run("applyWorkflowConfiguration_Defaults", func(t *testing.T) {
 		// Test default configuration application
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "default-config-result", nil
 		}
 
@@ -447,7 +445,7 @@ func TestWorkflowConfigurationPaths(t *testing.T) {
 func TestProgressTrackingPaths(t *testing.T) {
 	t.Run("GetProgress_ManualMode", func(t *testing.T) {
 		// Test manual progress mode path
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "progress-result", nil
 		}
@@ -487,7 +485,7 @@ func TestProgressTrackingPaths(t *testing.T) {
 
 	t.Run("GetProgress_HybridMode", func(t *testing.T) {
 		// Test hybrid progress mode path
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "hybrid-result", nil
 		}
 
@@ -511,7 +509,7 @@ func TestProgressTrackingPaths(t *testing.T) {
 
 	t.Run("ReportProgress_WithStage", func(t *testing.T) {
 		// Test progress reporting with stage
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "stage-result", nil
 		}
 
@@ -538,7 +536,7 @@ func TestProgressTrackingPaths(t *testing.T) {
 func TestErrorHandlingPaths(t *testing.T) {
 	t.Run("enhanceErrorWithMetadata", func(t *testing.T) {
 		// Test error enhancement
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("test error for enhancement")
 		}
 
@@ -558,7 +556,7 @@ func TestErrorHandlingPaths(t *testing.T) {
 
 	t.Run("wrapExecutionError", func(t *testing.T) {
 		// Test error wrapping
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("wrapped error test")
 		}
 
@@ -575,7 +573,7 @@ func TestErrorHandlingPaths(t *testing.T) {
 
 	t.Run("wrapExecutionError_UnnamedTask", func(t *testing.T) {
 		// Test error wrapping with unnamed task
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("unnamed task error")
 		}
 
@@ -596,7 +594,7 @@ func TestErrorHandlingPaths(t *testing.T) {
 func TestResourceTrackerPaths(t *testing.T) {
 	t.Run("resourceTracker_Operations", func(t *testing.T) {
 		// Test resource tracker functionality
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "resource-result", nil
 		}
 
@@ -676,7 +674,7 @@ func TestWorkflowStatusMethods(t *testing.T) {
 	t.Run("IsRunning", func(t *testing.T) {
 		// Use a channel to control task execution timing
 		startChan := make(chan struct{})
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			<-startChan // Wait for signal to proceed
 			return "running-test", nil
 		}
@@ -724,7 +722,7 @@ func TestWorkflowStatusMethods(t *testing.T) {
 	})
 
 	t.Run("IsCompleted", func(t *testing.T) {
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "completed-test", nil
 		}
 
@@ -751,7 +749,7 @@ func TestWorkflowStatusMethods(t *testing.T) {
 	})
 
 	t.Run("IsInTerminalState", func(t *testing.T) {
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "terminal-test", nil
 		}
 

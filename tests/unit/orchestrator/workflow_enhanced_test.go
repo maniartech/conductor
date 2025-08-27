@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 )
 
@@ -15,7 +14,7 @@ import (
 func TestEnhancedWorkflowAPI(t *testing.T) {
 	t.Run("async execution", func(t *testing.T) {
 		// Create a simple task with longer delay
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			time.Sleep(50 * time.Millisecond)
 			return "async-result", nil
 		}).Named("async-task")
@@ -57,7 +56,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("progress tracking", func(t *testing.T) {
 		// Create a task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "progress-result", nil
 		}).Named("progress-task")
 
@@ -96,7 +95,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("manual progress reporting", func(t *testing.T) {
 		// Create a task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "manual-result", nil
 		}).Named("manual-task")
 
@@ -157,7 +156,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("stage-based progress", func(t *testing.T) {
 		// Create a task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "stage-result", nil
 		}).Named("stage-task")
 
@@ -210,7 +209,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("status change callbacks", func(t *testing.T) {
 		// Create a task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "status-result", nil
 		}).Named("status-task")
@@ -275,7 +274,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("error handling with callbacks", func(t *testing.T) {
 		// Create a failing task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "", errors.New("test error")
 		}).Named("error-task")
 
@@ -340,7 +339,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("cancellation", func(t *testing.T) {
 		// Create a long-running task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "should-not-complete", nil
 		}).Named("long-task")
@@ -382,7 +381,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 
 	t.Run("backward compatibility", func(t *testing.T) {
 		// Create a task
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "compat-result", nil
 		}).Named("compat-task")
 
@@ -411,7 +410,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 // TestHybridProgressTracking tests the hybrid progress tracking approach
 func TestHybridProgressTracking(t *testing.T) {
 	t.Run("automatic mode", func(t *testing.T) {
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "auto-result", nil
 		}).Named("auto-task")
 
@@ -425,7 +424,7 @@ func TestHybridProgressTracking(t *testing.T) {
 	})
 
 	t.Run("manual mode", func(t *testing.T) {
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "manual-result", nil
 		}).Named("manual-task")
 
@@ -446,7 +445,7 @@ func TestHybridProgressTracking(t *testing.T) {
 	})
 
 	t.Run("hybrid mode", func(t *testing.T) {
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "hybrid-result", nil
 		}).Named("hybrid-task")
 
@@ -473,7 +472,7 @@ func TestHybridProgressTracking(t *testing.T) {
 	})
 
 	t.Run("legacy progress format", func(t *testing.T) {
-		task := Task(func(ctx orchestrator.Context) (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "legacy-result", nil
 		}).Named("legacy-task")
 

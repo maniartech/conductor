@@ -3,9 +3,7 @@ package orchestrator
 import (
 	"testing"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
-	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 // TestExampleConditional_ErrorHandling tests the example function with error handling
@@ -16,16 +14,16 @@ func TestExampleConditional_ErrorHandling(t *testing.T) {
 		// we'll reproduce its logic in a testable way
 
 		// Simulate the error handling workflow from the example
-		condition := func(ctx orchContext.Context) (bool, error) {
+		condition := func(ctx Context) (bool, error) {
 			// Simulate an error condition
 			return false, nil // This will execute the error path
 		}
 
-		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
+		trueTask := Task(func(ctx Context) (string, error) {
 			return "success path", nil
 		}).Named("success-task")
 
-		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
+		falseTask := Task(func(ctx Context) (string, error) {
 			return "error path", nil
 		}).Named("error-task")
 
@@ -50,15 +48,15 @@ func TestExampleConditional_ErrorHandling(t *testing.T) {
 
 	t.Run("execute_with_error_condition", func(t *testing.T) {
 		// Test the example with a condition that returns an error
-		condition := func(ctx orchContext.Context) (bool, error) {
+		condition := func(ctx Context) (bool, error) {
 			return false, nil // Return an error to test error handling
 		}
 
-		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
+		trueTask := Task(func(ctx Context) (string, error) {
 			return "should not execute", nil
 		}).Named("true-task")
 
-		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
+		falseTask := Task(func(ctx Context) (string, error) {
 			return "executed on false", nil
 		}).Named("false-task")
 
@@ -86,15 +84,15 @@ func TestExampleConditional_ErrorHandling(t *testing.T) {
 func TestExampleConditional_SuccessfulExecution(t *testing.T) {
 	t.Run("execute_successful_example", func(t *testing.T) {
 		// Reproduce the successful execution example logic
-		condition := func(ctx orchContext.Context) (bool, error) {
+		condition := func(ctx Context) (bool, error) {
 			return true, nil // This will execute the success path
 		}
 
-		successTask := Task(func(ctx orchestrator.Context) (string, error) {
+		successTask := Task(func(ctx Context) (string, error) {
 			return "success result", nil
 		}).Named("success-task")
 
-		errorTask := Task(func(ctx orchestrator.Context) (string, error) {
+		errorTask := Task(func(ctx Context) (string, error) {
 			return "should not execute", nil
 		}).Named("error-task")
 
@@ -137,15 +135,15 @@ func TestExampleConditional_SuccessfulExecution(t *testing.T) {
 
 		for _, tc := range conditions {
 			t.Run(tc.name, func(t *testing.T) {
-				condition := func(ctx orchContext.Context) (bool, error) {
+				condition := func(ctx Context) (bool, error) {
 					return tc.result, tc.err
 				}
 
-				trueTask := Task(func(ctx orchestrator.Context) (string, error) {
+				trueTask := Task(func(ctx Context) (string, error) {
 					return "true-branch", nil
 				}).Named("true-task")
 
-				falseTask := Task(func(ctx orchestrator.Context) (string, error) {
+				falseTask := Task(func(ctx Context) (string, error) {
 					return "false-branch", nil
 				}).Named("false-task")
 
@@ -192,15 +190,15 @@ func TestExampleFunctionsCoverage(t *testing.T) {
 		// ensure they're accessible and test similar logic
 
 		// Test that we can create the same structures as the examples
-		condition := func(ctx orchContext.Context) (bool, error) {
+		condition := func(ctx Context) (bool, error) {
 			return true, nil
 		}
 
-		successTask := Task(func(ctx orchestrator.Context) (string, error) {
+		successTask := Task(func(ctx Context) (string, error) {
 			return "example test", nil
 		}).Named("example-task")
 
-		errorTask := Task(func(ctx orchestrator.Context) (string, error) {
+		errorTask := Task(func(ctx Context) (string, error) {
 			return "example error", nil
 		}).Named("example-error-task")
 
@@ -226,9 +224,9 @@ func TestExampleFunctionsCoverage(t *testing.T) {
 		// Test comprehensive patterns that mirror the example files
 
 		// Pattern 1: Simple conditional
-		simpleCondition := func(ctx orchContext.Context) (bool, error) { return true, nil }
-		simpleTask := Task(func(ctx orchestrator.Context) (string, error) { return "simple", nil }).Named("simple")
-		simpleElse := Task(func(ctx orchestrator.Context) (string, error) { return "else", nil }).Named("else")
+		simpleCondition := func(ctx Context) (bool, error) { return true, nil }
+		simpleTask := Task(func(ctx Context) (string, error) { return "simple", nil }).Named("simple")
+		simpleElse := Task(func(ctx Context) (string, error) { return "else", nil }).Named("else")
 
 		simpleConditional := Conditional(simpleCondition, simpleTask, simpleElse)
 		workflow1 := Setup(simpleConditional.Named("simple-conditional"))
@@ -242,9 +240,9 @@ func TestExampleFunctionsCoverage(t *testing.T) {
 		}
 
 		// Pattern 2: Error handling conditional
-		errorCondition := func(ctx orchContext.Context) (bool, error) { return false, nil }
-		successTask := Task(func(ctx orchestrator.Context) (string, error) { return "success", nil }).Named("success")
-		handleErrorTask := Task(func(ctx orchestrator.Context) (string, error) { return "handled", nil }).Named("handled")
+		errorCondition := func(ctx Context) (bool, error) { return false, nil }
+		successTask := Task(func(ctx Context) (string, error) { return "success", nil }).Named("success")
+		handleErrorTask := Task(func(ctx Context) (string, error) { return "handled", nil }).Named("handled")
 
 		errorConditional := Conditional(errorCondition, successTask, handleErrorTask)
 		workflow2 := Setup(errorConditional.Named("error-conditional"))

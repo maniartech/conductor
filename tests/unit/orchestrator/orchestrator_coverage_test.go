@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 
 	. "github.com/maniartech/orchestrator"
@@ -16,7 +15,7 @@ import (
 func TestWorkflow_ExecuteWorkflow(t *testing.T) {
 	t.Run("execute_workflow_internal", func(t *testing.T) {
 		// Create a task that can be executed
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			return "internal execution result", nil
 		}
 
@@ -43,7 +42,7 @@ func TestWorkflow_ExecuteWorkflow(t *testing.T) {
 
 	t.Run("execute_workflow_with_error", func(t *testing.T) {
 		// Create a task that will fail
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			return "", errors.New("internal execution error")
 		}
 
@@ -69,7 +68,7 @@ func TestWorkflow_ExecuteWorkflow(t *testing.T) {
 
 	t.Run("execute_workflow_async_completion", func(t *testing.T) {
 		// Create a task with a small delay to test async behavior
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "async completion", nil
 		}
@@ -100,7 +99,7 @@ func TestWorkflow_ExecuteWorkflow(t *testing.T) {
 func TestWorkflow_ExecuteOrchestrationTree(t *testing.T) {
 	t.Run("simple_orchestration_tree", func(t *testing.T) {
 		// Create a simple task to test tree execution
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			return "tree execution result", nil
 		}
 
@@ -126,7 +125,7 @@ func TestWorkflow_ExecuteOrchestrationTree(t *testing.T) {
 
 	t.Run("orchestration_tree_with_context_timeout", func(t *testing.T) {
 		// Create a task that takes longer than the timeout
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(200 * time.Millisecond)
 			return "should timeout", nil
 		}
@@ -152,7 +151,7 @@ func TestWorkflow_ExecuteOrchestrationTree(t *testing.T) {
 
 	t.Run("orchestration_tree_cancellation", func(t *testing.T) {
 		// Create a task that can be cancelled
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "should be cancelled", nil
 		}
@@ -205,7 +204,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 
 	t.Run("await_method_context_variations", func(t *testing.T) {
 		// Test Await method with various contexts (currently 80.0%)
-		taskFunc := func(ctx orchestrator.Context) (string, error) { return "await test", nil }
+		taskFunc := func(ctx Context) (string, error) { return "await test", nil }
 
 		// First workflow with its own task instance
 		workflow1 := Setup(task.Task(taskFunc).Named("await-task-1"))
@@ -238,7 +237,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 
 	t.Run("await_with_context_edge_cases", func(t *testing.T) {
 		// Test AwaitWithContext with various scenarios (currently 71.4%)
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "context test", nil
 		}
@@ -266,7 +265,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 		// Test ExecuteBlocking edge cases (currently 66.7%)
 
 		// Test with task that returns immediately
-		quickTask := task.Task(func(ctx orchestrator.Context) (string, error) {
+		quickTask := task.Task(func(ctx Context) (string, error) {
 			return "quick", nil
 		}).Named("quick-task")
 
@@ -280,7 +279,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 		}
 
 		// Test with task that has small delay
-		delayTask := task.Task(func(ctx orchestrator.Context) (string, error) {
+		delayTask := task.Task(func(ctx Context) (string, error) {
 			time.Sleep(5 * time.Millisecond)
 			return "delayed", nil
 		}).Named("delay-task")
@@ -299,7 +298,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 		// Test AwaitWithTimeout edge cases (currently 66.7%)
 
 		// Test with very short timeout
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(50 * time.Millisecond)
 			return "timeout test", nil
 		}
@@ -320,7 +319,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 		_ = result // Don't panic
 
 		// Test with long timeout - should complete
-		workflow2 := Setup(task.Task(func(ctx orchestrator.Context) (string, error) {
+		workflow2 := Setup(task.Task(func(ctx Context) (string, error) {
 			return "quick completion", nil
 		}).Named("quick-timeout-task"))
 
@@ -340,7 +339,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 
 	t.Run("get_current_task_variations", func(t *testing.T) {
 		// Test GetCurrentTask edge cases (currently 66.7%)
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "current task test", nil
 		}
@@ -376,7 +375,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 
 	t.Run("get_progress_edge_cases", func(t *testing.T) {
 		// Test GetProgress edge cases (currently 95.0%)
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			return "progress test", nil
 		}
 
@@ -408,7 +407,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 
 	t.Run("report_progress_edge_cases", func(t *testing.T) {
 		// Test ReportProgress edge cases (currently 85.7%)
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			return "report test", nil
 		}
 
@@ -434,7 +433,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 
 	t.Run("apply_workflow_configuration_edge_cases", func(t *testing.T) {
 		// Test applyWorkflowConfiguration edge cases (currently 92.9%)
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			return "config test", nil
 		}
 
@@ -468,7 +467,7 @@ func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 func TestWorkflow_CompleteCoverageScenarios(t *testing.T) {
 	t.Run("complex_workflow_lifecycle", func(t *testing.T) {
 		// Test complete workflow lifecycle to ensure all paths are covered
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			// Simulate some processing time
 			time.Sleep(5 * time.Millisecond)
 			return "lifecycle complete", nil
@@ -525,7 +524,7 @@ func TestWorkflow_CompleteCoverageScenarios(t *testing.T) {
 
 	t.Run("workflow_with_all_callback_types", func(t *testing.T) {
 		// Test workflow with all possible callbacks to ensure coverage
-		taskFunc := func(ctx orchestrator.Context) (string, error) {
+		taskFunc := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "callback test", nil
 		}
@@ -569,7 +568,7 @@ func TestWorkflow_CompleteCoverageScenarios(t *testing.T) {
 		// Test various error scenarios to improve coverage
 
 		// Task that panics
-		panicTask := task.Task(func(ctx orchestrator.Context) (string, error) {
+		panicTask := task.Task(func(ctx Context) (string, error) {
 			panic("test panic")
 		}).Named("panic-task")
 
@@ -587,7 +586,7 @@ func TestWorkflow_CompleteCoverageScenarios(t *testing.T) {
 		}
 
 		// Task that returns error
-		errorTask := task.Task(func(ctx orchestrator.Context) (string, error) {
+		errorTask := task.Task(func(ctx Context) (string, error) {
 			return "", errors.New("deliberate error")
 		}).Named("error-task")
 

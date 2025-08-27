@@ -8,7 +8,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -60,7 +59,7 @@ func FuzzTaskName(f *testing.F) {
 			t.Skip("String too long")
 		}
 
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "fuzz-result", nil
 		}
 
@@ -128,41 +127,41 @@ func FuzzTaskFunction(f *testing.F) {
 			t.Skip("Result too long")
 		}
 
-		var taskFn func(ctx orchestrator.Context) (string, error)
+		var taskFn func(ctx Context) (string, error)
 
 		switch behavior % 8 {
 		case 0: // Normal success
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				if shouldError {
 					return "", fmt.Errorf("fuzz error: %s", result)
 				}
 				return result, nil
 			}
 		case 1: // Panic
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				panic(fmt.Sprintf("fuzz panic: %s", result))
 			}
 		case 2: // Slow execution
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				time.Sleep(10 * time.Millisecond)
 				return result, nil
 			}
 		case 3: // Empty result
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				return "", nil
 			}
 		case 4: // Large result
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				return strings.Repeat(result, 100), nil
 			}
 		case 5: // Context checking
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				// Simulate context-aware task
 				time.Sleep(time.Millisecond)
 				return result, nil
 			}
 		case 6: // Memory allocation
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				// Allocate some memory
 				data := make([]string, 100)
 				for i := range data {
@@ -171,7 +170,7 @@ func FuzzTaskFunction(f *testing.F) {
 				return result, nil
 			}
 		case 7: // Random error
-			taskFn = func(ctx orchestrator.Context) (string, error) {
+			taskFn = func(ctx Context) (string, error) {
 				if len(result)%2 == 0 {
 					return "", fmt.Errorf("random error for: %s", result)
 				}
@@ -244,7 +243,7 @@ func FuzzConfigValues(f *testing.F) {
 			Timeout: timeout,
 		}
 
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(time.Microsecond) // Small delay
 			return "config-fuzz-result", nil
 		}
@@ -299,7 +298,7 @@ func FuzzResultOperations(f *testing.F) {
 			t.Skip("String too long")
 		}
 
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return value, nil
 		}
 
@@ -375,7 +374,7 @@ func FuzzBasicConcurrentOperations(f *testing.F) {
 		for i := 0; i < numGoroutines; i++ {
 			go func(goroutineID int) {
 				for j := 0; j < numOperations; j++ {
-					taskFn := func(ctx orchestrator.Context) (string, error) {
+					taskFn := func(ctx Context) (string, error) {
 						return fmt.Sprintf("fuzz-concurrent-%d-%d", goroutineID, j), nil
 					}
 
@@ -445,7 +444,7 @@ func FuzzErrorMessages(f *testing.F) {
 			t.Skip("Error message too long")
 		}
 
-		taskFn := func(ctx orchestrator.Context) (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("%s", errorMsg)
 		}
 

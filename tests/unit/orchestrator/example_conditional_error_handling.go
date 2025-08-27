@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
-	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
 // ExampleConditional_ErrorHandling demonstrates the new error-returning condition signature
@@ -15,17 +13,17 @@ func ExampleConditional_ErrorHandling() {
 	// Example 1: Basic condition with error handling
 	fmt.Println("=== Example 1: Basic Conditional with Error Handling ===")
 
-	adminTask := Task(func(ctx orchestrator.Context) (string, error) {
+	adminTask := Task(func(ctx Context) (string, error) {
 		return "Admin dashboard loaded", nil
 	}).Named("admin-dashboard")
 
-	userTask := Task(func(ctx orchestrator.Context) (string, error) {
+	userTask := Task(func(ctx Context) (string, error) {
 		return "User profile loaded", nil
 	}).Named("user-profile")
 
 	// Conditional that can return an error during evaluation
 	roleBasedAccess := Conditional(
-		func(ctx orchContext.Context) (bool, error) {
+		func(ctx Context) (bool, error) {
 			role := ctx.Get("user_role")
 			if role == nil {
 				return false, errors.New("user_role not found in context")
@@ -61,7 +59,7 @@ func ExampleConditional_ErrorHandling() {
 
 	// Create a workflow with proper context setup
 	contextualWorkflow := Conditional(
-		func(ctx orchContext.Context) (bool, error) {
+		func(ctx Context) (bool, error) {
 			role := ctx.Get("user_role")
 			if role == nil {
 				return false, errors.New("user_role not found")
@@ -75,11 +73,11 @@ func ExampleConditional_ErrorHandling() {
 			fmt.Printf("   Evaluating role: %s\n", roleStr)
 			return roleStr == "admin", nil
 		},
-		Task(func(ctx orchestrator.Context) (string, error) {
+		Task(func(ctx Context) (string, error) {
 			fmt.Println("   Executing admin task...")
 			return "Admin operations completed", nil
 		}).Named("admin-ops"),
-		Task(func(ctx orchestrator.Context) (string, error) {
+		Task(func(ctx Context) (string, error) {
 			fmt.Println("   Executing user task...")
 			return "User operations completed", nil
 		}).Named("user-ops"),
@@ -102,7 +100,7 @@ func ExampleConditional_ErrorHandling() {
 	fmt.Println("\n=== Example 3: Complex Business Logic Condition ===")
 
 	orderProcessing := Conditional(
-		func(ctx orchContext.Context) (bool, error) {
+		func(ctx Context) (bool, error) {
 			// Simulate complex business logic with error handling
 			orderValue := ctx.Get("order_value")
 			if orderValue == nil {
@@ -137,11 +135,11 @@ func ExampleConditional_ErrorHandling() {
 
 			return isPremium && isHighValue, nil
 		},
-		Task(func(ctx orchestrator.Context) (string, error) {
+		Task(func(ctx Context) (string, error) {
 			fmt.Println("   Processing with expedited shipping...")
 			return "Order processed with expedited shipping", nil
 		}).Named("expedited-processing"),
-		Task(func(ctx orchestrator.Context) (string, error) {
+		Task(func(ctx Context) (string, error) {
 			fmt.Println("   Processing with standard shipping...")
 			return "Order processed with standard shipping", nil
 		}).Named("standard-processing"),
@@ -161,13 +159,13 @@ func ExampleConditional_ErrorHandling() {
 	fmt.Println("\n=== Example 4: Panic Handling in Conditions ===")
 
 	panicCondition := Conditional(
-		func(ctx orchContext.Context) (bool, error) {
+		func(ctx Context) (bool, error) {
 			// Simulate a panic in condition evaluation
 			fmt.Println("   About to panic in condition...")
 			panic("simulated condition panic")
 		},
-		Task(func(ctx orchestrator.Context) (string, error) { return "true branch", nil }),
-		Task(func(ctx orchestrator.Context) (string, error) { return "false branch", nil }),
+		Task(func(ctx Context) (string, error) { return "true branch", nil }),
+		Task(func(ctx Context) (string, error) { return "false branch", nil }),
 	).Named("panic-condition")
 
 	workflow4 := Setup(panicCondition)
@@ -181,7 +179,7 @@ func ExampleConditional_ErrorHandling() {
 	}
 
 	fmt.Println("\n=== Summary ===")
-	fmt.Println("✅ New condition signature func(orchContext.Context) (bool, error) provides:")
+	fmt.Println("✅ New condition signature func(Context) (bool, error) provides:")
 	fmt.Println("   - Explicit error handling for condition evaluation")
 	fmt.Println("   - Better error messages and debugging")
 	fmt.Println("   - Robust validation of context values")
@@ -206,7 +204,7 @@ func ExampleConditional_ErrorHandling() {
 	//    Panic recorded in result errors: 1
 	//
 	// === Summary ===
-	// ✅ New condition signature func(orchContext.Context) (bool, error) provides:
+	// ✅ New condition signature func(Context) (bool, error) provides:
 	//    - Explicit error handling for condition evaluation
 	//    - Better error messages and debugging
 	//    - Robust validation of context values
@@ -219,17 +217,17 @@ func ExampleConditional_SuccessfulExecution() {
 	fmt.Println("=== Successful Conditional Execution ===")
 
 	// Create tasks
-	morningTask := Task(func(ctx orchestrator.Context) (string, error) {
+	morningTask := Task(func(ctx Context) (string, error) {
 		return "Good morning! Starting the day.", nil
 	}).Named("morning-greeting")
 
-	eveningTask := Task(func(ctx orchestrator.Context) (string, error) {
+	eveningTask := Task(func(ctx Context) (string, error) {
 		return "Good evening! Wrapping up the day.", nil
 	}).Named("evening-greeting")
 
 	// Create a conditional that checks time of day
 	timeBasedGreeting := Conditional(
-		func(ctx orchContext.Context) (bool, error) {
+		func(ctx Context) (bool, error) {
 			// Simulate checking time of day
 			timeOfDay := ctx.Get("time_of_day")
 			if timeOfDay == nil {

@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 )
@@ -76,7 +75,7 @@ func TestGoroutineLeakDetection_BasicTasks(t *testing.T) {
 				atomic.AddInt64(&completedTasks, 1)
 			}()
 
-			taskFn := func(ctx orchestrator.Context) (string, error) {
+			taskFn := func(ctx Context) (string, error) {
 				time.Sleep(time.Microsecond)
 				return fmt.Sprintf("basic-task-%d", taskID), nil
 			}
@@ -152,7 +151,7 @@ func TestGoroutineLeakDetection_NestedGoroutines(t *testing.T) {
 				atomic.AddInt64(&completedTasks, 1)
 			}()
 
-			taskFn := func(ctx orchestrator.Context) ([]string, error) {
+			taskFn := func(ctx Context) ([]string, error) {
 				var nestedWg sync.WaitGroup
 				results := make([]string, goroutinesPerTask)
 
@@ -261,7 +260,7 @@ func TestGoroutineLeakDetection_LongRunningTasks(t *testing.T) {
 				case <-ctx.Done():
 					return
 				default:
-					taskFn := func(ctx orchestrator.Context) (string, error) {
+					taskFn := func(ctx Context) (string, error) {
 						// Long-running task that can be cancelled
 						select {
 						case <-ctx.Done():
@@ -353,7 +352,7 @@ func TestGoroutineLeakDetection_PanicRecovery(t *testing.T) {
 		go func(taskID int) {
 			defer wg.Done()
 
-			taskFn := func(ctx orchestrator.Context) (string, error) {
+			taskFn := func(ctx Context) (string, error) {
 				// Simulate panic in some tasks
 				if float64(taskID%10)/10.0 < panicRate {
 					panic(fmt.Sprintf("simulated panic in task %d", taskID))
@@ -454,7 +453,7 @@ func TestGoroutineLeakDetection_ChannelOperations(t *testing.T) {
 				atomic.AddInt64(&consumedMessages, 1)
 
 				// Process message using orchestrator
-				taskFn := func(ctx orchestrator.Context) (string, error) {
+				taskFn := func(ctx Context) (string, error) {
 					return fmt.Sprintf("processed-%s-by-consumer-%d", msg, consumerID), nil
 				}
 
@@ -480,7 +479,7 @@ func TestGoroutineLeakDetection_ChannelOperations(t *testing.T) {
 				msg := fmt.Sprintf("msg-%d-%d", producerID, j)
 
 				// Produce message using orchestrator
-				taskFn := func(ctx orchestrator.Context) (string, error) {
+				taskFn := func(ctx Context) (string, error) {
 					ch <- msg
 					atomic.AddInt64(&producedMessages, 1)
 					return msg, nil
@@ -569,7 +568,7 @@ func TestGoroutineLeakDetection_ContextCancellation(t *testing.T) {
 			go func(iteration, taskID int) {
 				defer wg.Done()
 
-				taskFn := func(ctx orchestrator.Context) (string, error) {
+				taskFn := func(ctx Context) (string, error) {
 					// Long-running task that can be cancelled
 					for k := 0; k < 100; k++ {
 						select {
