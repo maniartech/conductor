@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
@@ -12,11 +13,11 @@ import (
 func TestConditional_NewSignature(t *testing.T) {
 	t.Run("condition_returns_true_with_no_error", func(t *testing.T) {
 		// Create tasks
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-branch", nil
 		}).Named("true-task")
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-branch", nil
 		}).Named("false-task")
 
@@ -50,11 +51,11 @@ func TestConditional_NewSignature(t *testing.T) {
 
 	t.Run("condition_returns_false_with_no_error", func(t *testing.T) {
 		// Create tasks
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-branch", nil
 		}).Named("true-task")
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-branch", nil
 		}).Named("false-task")
 
@@ -90,11 +91,11 @@ func TestConditional_NewSignature(t *testing.T) {
 		conditionError := errors.New("condition evaluation failed")
 
 		// Create tasks
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-branch", nil
 		}).Named("true-task")
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-branch", nil
 		}).Named("false-task")
 
@@ -131,11 +132,11 @@ func TestConditional_NewSignature(t *testing.T) {
 
 	t.Run("context_based_condition_with_error_handling", func(t *testing.T) {
 		// Create tasks
-		adminTask := Task(func() (string, error) {
+		adminTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "admin-access", nil
 		}).Named("admin-task")
 
-		userTask := Task(func() (string, error) {
+		userTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "user-access", nil
 		}).Named("user-task")
 
@@ -178,11 +179,11 @@ func TestConditional_NewSignature(t *testing.T) {
 // TestConditional_PanicHandling tests that panics in conditions are properly handled
 func TestConditional_PanicHandling(t *testing.T) {
 	// Create tasks
-	trueTask := Task(func() (string, error) {
+	trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "true-branch", nil
 	}).Named("true-task")
 
-	falseTask := Task(func() (string, error) {
+	falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "false-branch", nil
 	}).Named("false-task")
 

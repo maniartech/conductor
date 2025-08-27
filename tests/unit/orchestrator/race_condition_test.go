@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
@@ -38,7 +39,7 @@ func TestRaceCondition_TaskExecution(t *testing.T) {
 			go func(iteration, goroutineID int) {
 				defer wg.Done()
 
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					// Simulate some work
 					time.Sleep(time.Microsecond)
 					return fmt.Sprintf("result-%d-%d", iteration, goroutineID), nil
@@ -89,7 +90,7 @@ func TestRaceCondition_WorkflowExecution(t *testing.T) {
 			go func(iteration, goroutineID int) {
 				defer wg.Done()
 
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					return fmt.Sprintf("workflow-result-%d-%d", iteration, goroutineID), nil
 				}
 
@@ -236,7 +237,7 @@ func TestRaceCondition_TaskStatusTransitions(t *testing.T) {
 		go func(taskID int) {
 			defer wg.Done()
 
-			taskFn := func() (string, error) {
+			taskFn := func(ctx orchestrator.Context) (string, error) {
 				// Simulate work with random duration
 				time.Sleep(time.Duration(taskID%10) * time.Microsecond)
 				return fmt.Sprintf("task-%d-result", taskID), nil
@@ -296,7 +297,7 @@ func TestRaceCondition_MemoryStability(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < numIterations; j++ {
-				taskFn := func() ([]string, error) {
+				taskFn := func(ctx orchestrator.Context) ([]string, error) {
 					// Allocate some memory
 					data := make([]string, 10)
 					for k := range data {
@@ -359,7 +360,7 @@ func TestRaceCondition_GoroutineLeaks(t *testing.T) {
 			go func(iteration, taskID int) {
 				defer wg.Done()
 
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					time.Sleep(time.Microsecond)
 					return fmt.Sprintf("leak-test-%d-%d", iteration, taskID), nil
 				}
@@ -425,7 +426,7 @@ func TestRaceCondition_ConcurrentCancellation(t *testing.T) {
 				go func(taskID int) {
 					defer taskWg.Done()
 
-					taskFn := func() (string, error) {
+					taskFn := func(ctx orchestrator.Context) (string, error) {
 						// Long-running task that can be cancelled
 						for k := 0; k < 1000; k++ {
 							select {
@@ -497,7 +498,7 @@ func TestRaceCondition_StressTest(t *testing.T) {
 				case <-ctx.Done():
 					return
 				default:
-					taskFn := func() (string, error) {
+					taskFn := func(ctx orchestrator.Context) (string, error) {
 						// Random work simulation
 						workType := operationID % 4
 						switch workType {

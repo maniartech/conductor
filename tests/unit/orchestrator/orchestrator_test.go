@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
@@ -16,7 +17,7 @@ import (
 // TestTask tests the Task constructor function
 func TestTask(t *testing.T) {
 	t.Run("string_task", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "test-result", nil
 		})
 
@@ -26,7 +27,7 @@ func TestTask(t *testing.T) {
 	})
 
 	t.Run("int_task", func(t *testing.T) {
-		task := Task(func() (int, error) {
+		task := Task(func(ctx orchestrator.Context) (int, error) {
 			return 42, nil
 		})
 
@@ -36,7 +37,7 @@ func TestTask(t *testing.T) {
 	})
 
 	t.Run("error_task", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "", errors.New("test error")
 		})
 
@@ -51,7 +52,7 @@ func TestTask(t *testing.T) {
 			Name string
 		}
 
-		task := Task(func() (User, error) {
+		task := Task(func(ctx orchestrator.Context) (User, error) {
 			return User{ID: 123, Name: "John"}, nil
 		})
 
@@ -68,11 +69,11 @@ func TestConditional(t *testing.T) {
 			return true, nil
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-branch", nil
 		})
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-branch", nil
 		})
 
@@ -88,11 +89,11 @@ func TestConditional(t *testing.T) {
 			return false, errors.New("condition error")
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-branch", nil
 		})
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-branch", nil
 		})
 
@@ -112,11 +113,11 @@ func TestConditional(t *testing.T) {
 			return value.(bool), nil
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "authenticated", nil
 		})
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "not-authenticated", nil
 		})
 
@@ -131,7 +132,7 @@ func TestConditional(t *testing.T) {
 // TestSetup tests the Setup function
 func TestSetup(t *testing.T) {
 	t.Run("setup_with_task", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "test-result", nil
 		}).Named("test-task")
 
@@ -151,11 +152,11 @@ func TestSetup(t *testing.T) {
 			return true, nil
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-result", nil
 		})
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-result", nil
 		})
 
@@ -175,7 +176,7 @@ func TestSetup(t *testing.T) {
 // TestWorkflow_BasicExecution tests basic workflow execution
 func TestWorkflow_BasicExecution(t *testing.T) {
 	t.Run("simple_task_execution", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "simple-result", nil
 		}).Named("simple-task")
 
@@ -198,7 +199,7 @@ func TestWorkflow_BasicExecution(t *testing.T) {
 
 	t.Run("task_with_error", func(t *testing.T) {
 		taskError := errors.New("task execution failed")
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "", taskError
 		}).Named("failing-task")
 
@@ -223,11 +224,11 @@ func TestWorkflow_BasicExecution(t *testing.T) {
 			return true, nil
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-executed", nil
 		}).Named("true-task")
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-executed", nil
 		}).Named("false-task")
 
@@ -255,11 +256,11 @@ func TestWorkflow_BasicExecution(t *testing.T) {
 			return false, nil
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-executed", nil
 		}).Named("true-task")
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-executed", nil
 		}).Named("false-task")
 
@@ -286,7 +287,7 @@ func TestWorkflow_BasicExecution(t *testing.T) {
 // TestWorkflow_Configuration tests workflow configuration
 func TestWorkflow_Configuration(t *testing.T) {
 	t.Run("with_config", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "config-result", nil
 		}).Named("config-task")
 
@@ -328,7 +329,7 @@ func TestWorkflow_Configuration(t *testing.T) {
 // TestWorkflow_AsyncExecution tests async execution capabilities
 func TestWorkflow_AsyncExecution(t *testing.T) {
 	t.Run("execute_and_await", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "async-result", nil
 		}).Named("async-task")
@@ -370,7 +371,7 @@ func TestWorkflow_AsyncExecution(t *testing.T) {
 	})
 
 	t.Run("execute_blocking", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "blocking-result", nil
 		}).Named("blocking-task")
 
@@ -392,7 +393,7 @@ func TestWorkflow_AsyncExecution(t *testing.T) {
 	})
 
 	t.Run("await_with_timeout", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "timeout-result", nil
 		}).Named("timeout-task")
@@ -416,7 +417,7 @@ func TestWorkflow_AsyncExecution(t *testing.T) {
 	})
 
 	t.Run("await_with_context", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "context-result", nil
 		}).Named("context-task")
@@ -440,7 +441,7 @@ func TestWorkflow_AsyncExecution(t *testing.T) {
 // TestWorkflow_StatusTracking tests status tracking functionality
 func TestWorkflow_StatusTracking(t *testing.T) {
 	t.Run("status_progression", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "status-result", nil
 		}).Named("status-task")
@@ -499,7 +500,7 @@ func TestWorkflow_StatusTracking(t *testing.T) {
 
 	t.Run("status_with_error", func(t *testing.T) {
 		taskError := errors.New("status test error")
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "", taskError
 		}).Named("error-task")
 
@@ -527,7 +528,7 @@ func TestWorkflow_StatusTracking(t *testing.T) {
 // TestWorkflow_ProgressTracking tests progress tracking functionality
 func TestWorkflow_ProgressTracking(t *testing.T) {
 	t.Run("automatic_progress", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "progress-result", nil
 		}).Named("progress-task")
 
@@ -565,7 +566,7 @@ func TestWorkflow_ProgressTracking(t *testing.T) {
 	})
 
 	t.Run("manual_progress", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "manual-result", nil
 		}).Named("manual-task")
 
@@ -590,7 +591,7 @@ func TestWorkflow_ProgressTracking(t *testing.T) {
 	})
 
 	t.Run("stage_based_progress", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "stage-result", nil
 		}).Named("stage-task")
 
@@ -617,7 +618,7 @@ func TestWorkflow_ProgressTracking(t *testing.T) {
 	})
 
 	t.Run("legacy_progress_format", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "legacy-result", nil
 		}).Named("legacy-task")
 
@@ -635,7 +636,7 @@ func TestWorkflow_ProgressTracking(t *testing.T) {
 // TestWorkflow_Callbacks tests callback functionality
 func TestWorkflow_Callbacks(t *testing.T) {
 	t.Run("progress_callback", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "callback-result", nil
 		}).Named("callback-task")
 
@@ -668,7 +669,7 @@ func TestWorkflow_Callbacks(t *testing.T) {
 	})
 
 	t.Run("status_change_callback", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "status-callback-result", nil
 		}).Named("status-callback-task")
@@ -728,7 +729,7 @@ func TestWorkflow_Callbacks(t *testing.T) {
 
 	t.Run("error_callback", func(t *testing.T) {
 		taskError := errors.New("callback test error")
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "", taskError
 		}).Named("error-callback-task")
 
@@ -764,7 +765,7 @@ func TestWorkflow_Callbacks(t *testing.T) {
 	})
 
 	t.Run("completion_callback", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "completion-result", nil
 		}).Named("completion-task")
 
@@ -819,7 +820,7 @@ func TestWorkflow_Callbacks(t *testing.T) {
 // TestWorkflow_Cancellation tests cancellation functionality
 func TestWorkflow_Cancellation(t *testing.T) {
 	t.Run("cancel_workflow", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "should-not-complete", nil
 		}).Named("long-task")
@@ -849,7 +850,7 @@ func TestWorkflow_Cancellation(t *testing.T) {
 	})
 
 	t.Run("cancel_with_reason", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "should-not-complete", nil
 		}).Named("reason-task")
@@ -888,7 +889,7 @@ func TestWorkflow_Cancellation(t *testing.T) {
 // TestWorkflow_BackwardCompatibility tests backward compatibility
 func TestWorkflow_BackwardCompatibility(t *testing.T) {
 	t.Run("await_method", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "compat-result", nil
 		}).Named("compat-task")
 
@@ -984,7 +985,7 @@ func TestStatus(t *testing.T) {
 func BenchmarkTask(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Task(func() (string, error) {
+		Task(func(ctx orchestrator.Context) (string, error) {
 			return "benchmark-result", nil
 		})
 	}
@@ -995,7 +996,7 @@ func BenchmarkWorkflow_Execute(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Create new task instance for each iteration to avoid reuse issues
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "benchmark-result", nil
 		}).Named(fmt.Sprintf("benchmark-task-%d", i))
 
@@ -1016,11 +1017,11 @@ func BenchmarkConditional_Execute(b *testing.B) {
 			return true, nil
 		}
 
-		trueTask := Task(func() (string, error) {
+		trueTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "true-result", nil
 		}).Named(fmt.Sprintf("true-task-%d", i))
 
-		falseTask := Task(func() (string, error) {
+		falseTask := Task(func(ctx orchestrator.Context) (string, error) {
 			return "false-result", nil
 		}).Named(fmt.Sprintf("false-task-%d", i))
 

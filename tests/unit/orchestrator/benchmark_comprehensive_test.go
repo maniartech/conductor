@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
@@ -18,7 +19,7 @@ import (
 func BenchmarkTask_ZeroAllocation(b *testing.B) {
 	b.ReportAllocs()
 
-	taskFn := func() (string, error) {
+	taskFn := func(ctx orchestrator.Context) (string, error) {
 		return "result", nil
 	}
 
@@ -38,13 +39,13 @@ func BenchmarkTask_ZeroAllocation(b *testing.B) {
 func BenchmarkTask_GenericTypes(b *testing.B) {
 	benchmarks := []struct {
 		name string
-		fn   func() (interface{}, error)
+		fn   func(ctx orchestrator.Context) (interface{}, error)
 	}{
-		{"String", func() (interface{}, error) { return "test", nil }},
-		{"Int", func() (interface{}, error) { return 42, nil }},
-		{"Slice", func() (interface{}, error) { return []int{1, 2, 3}, nil }},
-		{"Map", func() (interface{}, error) { return map[string]int{"key": 1}, nil }},
-		{"Struct", func() (interface{}, error) { return struct{ Name string }{"test"}, nil }},
+		{"String", func(ctx orchestrator.Context) (interface{}, error) { return "test", nil }},
+		{"Int", func(ctx orchestrator.Context) (interface{}, error) { return 42, nil }},
+		{"Slice", func(ctx orchestrator.Context) (interface{}, error) { return []int{1, 2, 3}, nil }},
+		{"Map", func(ctx orchestrator.Context) (interface{}, error) { return map[string]int{"key": 1}, nil }},
+		{"Struct", func(ctx orchestrator.Context) (interface{}, error) { return struct{ Name string }{"test"}, nil }},
 	}
 
 	ctx := context.Background()
@@ -119,7 +120,7 @@ func BenchmarkWorkflow_Execution(b *testing.B) {
 	b.Run("SingleTask", func(b *testing.B) {
 		b.ReportAllocs()
 
-		taskFn := func() (string, error) {
+		taskFn := func(ctx orchestrator.Context) (string, error) {
 			return "result", nil
 		}
 
@@ -139,7 +140,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			_ = task.Task(func() (string, error) {
+			_ = task.Task(func(ctx orchestrator.Context) (string, error) {
 				return "result", nil
 			}).Named(fmt.Sprintf("task-%d", i))
 		}
@@ -147,7 +148,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 
 	b.Run("WorkflowSetup", func(b *testing.B) {
 		b.ReportAllocs()
-		t := task.Task(func() (string, error) {
+		t := task.Task(func(ctx orchestrator.Context) (string, error) {
 			return "result", nil
 		}).Named("test-task")
 

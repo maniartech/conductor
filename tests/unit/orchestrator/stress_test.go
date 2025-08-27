@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -43,7 +44,7 @@ func TestStress_HighVolumeExecution(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < tasksPerGoroutine; j++ {
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					// Simulate varying workloads
 					workType := j % 4
 					switch workType {
@@ -140,7 +141,7 @@ func TestStress_MemoryPressure(t *testing.T) {
 		go func(iteration int) {
 			defer wg.Done()
 
-			taskFn := func() ([]byte, error) {
+			taskFn := func(ctx orchestrator.Context) ([]byte, error) {
 				// Allocate memory
 				data := make([]byte, allocationSize)
 				for j := range data {
@@ -234,7 +235,7 @@ func TestStress_GoroutineLeakDetection(t *testing.T) {
 			go func(iteration, taskID int) {
 				defer wg.Done()
 
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					// Simulate work
 					time.Sleep(time.Microsecond)
 					return fmt.Sprintf("leak-test-%d-%d", iteration, taskID), nil
@@ -323,7 +324,7 @@ func TestStress_ConcurrentCancellation(t *testing.T) {
 			go func(iteration, taskID int) {
 				defer wg.Done()
 
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					// Long-running task that can be cancelled
 					for k := 0; k < 1000; k++ {
 						select {
@@ -412,7 +413,7 @@ func TestStress_ResourceExhaustion(t *testing.T) {
 			for j := 0; j < tasksPerGoroutine; j++ {
 				// Use atomic operations to avoid race conditions
 				localJ := j // Capture loop variable
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					// Variable work that might exceed timeout
 					workDuration := time.Duration(localJ%10) * 20 * time.Millisecond
 					time.Sleep(workDuration)
@@ -495,7 +496,7 @@ func TestStress_LongRunning(t *testing.T) {
 				case <-ctx.Done():
 					return
 				default:
-					taskFn := func() (string, error) {
+					taskFn := func(ctx orchestrator.Context) (string, error) {
 						// Simulate various workloads
 						workType := operationID % 5
 						switch workType {

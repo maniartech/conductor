@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -43,38 +44,38 @@ func FuzzTaskExecution(f *testing.F) {
 			t.Skip("Invalid behavior value")
 		}
 
-		var taskFn func() (string, error)
+		var taskFn func(ctx orchestrator.Context) (string, error)
 
 		switch behavior % 8 {
 		case 0: // Normal success/error
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				if shouldError {
 					return "", fmt.Errorf("fuzz error: %s", result)
 				}
 				return result, nil
 			}
 		case 1: // Panic
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				panic(fmt.Sprintf("fuzz panic: %s", result))
 			}
 		case 2: // Slow execution
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				time.Sleep(time.Duration(timeoutMs/10) * time.Millisecond)
 				return result, nil
 			}
 		case 3: // Empty result
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				return "", nil
 			}
 		case 4: // Large result
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				if len(result) > 1000 {
 					return result[:1000], nil // Truncate to avoid memory issues
 				}
 				return strings.Repeat(result, 10), nil
 			}
 		case 5: // Memory allocation
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				data := make([]string, 100)
 				for i := range data {
 					data[i] = result
@@ -82,14 +83,14 @@ func FuzzTaskExecution(f *testing.F) {
 				return result, nil
 			}
 		case 6: // Random error based on input
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				if len(result)%2 == 0 {
 					return "", fmt.Errorf("random error for: %s", result)
 				}
 				return result, nil
 			}
 		case 7: // Context checking
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				time.Sleep(time.Millisecond)
 				return result, nil
 			}
@@ -148,7 +149,7 @@ func FuzzConfigurationValues(f *testing.F) {
 		// Note: retries and maxConcurrency might not be implemented yet
 		// but we test the configuration structure
 
-		taskFn := func() (string, error) {
+		taskFn := func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(time.Millisecond)
 			return "config-fuzz-result", nil
 		}
@@ -202,7 +203,7 @@ func FuzzComplexDataTypes(f *testing.F) {
 			t.Skip("Invalid data type string")
 		}
 
-		var taskFn func() (interface{}, error)
+		var taskFn func(ctx orchestrator.Context) (interface{}, error)
 
 		v := variant % 8 // normalize to avoid accidental negative modulo paths
 		if v < 0 {
@@ -210,23 +211,23 @@ func FuzzComplexDataTypes(f *testing.F) {
 		}
 		switch v {
 		case 0: // String
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				return fmt.Sprintf("fuzz-string-%s-%d", dataType, variant), nil
 			}
 		case 1: // Integer
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				return int(variant), nil
 			}
 		case 2: // Float
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				return float64(variant) * 3.14, nil
 			}
 		case 3: // Boolean
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				return variant%2 == 0, nil
 			}
 		case 4: // Slice
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				size := int((variant%10 + 10) % 10)
 				if size == 0 {
 					size = 1
@@ -238,7 +239,7 @@ func FuzzComplexDataTypes(f *testing.F) {
 				return slice, nil
 			}
 		case 5: // Map
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				m := make(map[string]interface{})
 				m["type"] = dataType
 				m["variant"] = variant
@@ -246,7 +247,7 @@ func FuzzComplexDataTypes(f *testing.F) {
 				return m, nil
 			}
 		case 6: // Struct
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				type FuzzStruct struct {
 					Type    string
 					Variant int64
@@ -259,7 +260,7 @@ func FuzzComplexDataTypes(f *testing.F) {
 				}, nil
 			}
 		case 7: // Interface with nil
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				if variant%3 == 0 {
 					return nil, nil
 				}
@@ -310,35 +311,35 @@ func FuzzErrorScenarios(f *testing.F) {
 			t.Skip("Invalid error message")
 		}
 
-		var taskFn func() (string, error)
+		var taskFn func(ctx orchestrator.Context) (string, error)
 
 		switch errorType % 6 {
 		case 0: // Simple error
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				return "", fmt.Errorf("%s", errorMsg)
 			}
 		case 1: // Wrapped error
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				baseErr := fmt.Errorf("base error: %s", errorMsg)
 				return "", fmt.Errorf("wrapped: %w", baseErr)
 			}
 		case 2: // Panic with error message
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				panic(errorMsg)
 			}
 		case 3: // Error with success result (should not happen)
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				return "success", fmt.Errorf("%s", errorMsg)
 			}
 		case 4: // Conditional error
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				if len(errorMsg)%2 == 0 {
 					return "", fmt.Errorf("conditional: %s", errorMsg)
 				}
 				return "success", nil
 			}
 		case 5: // Timeout simulation
-			taskFn = func() (string, error) {
+			taskFn = func(ctx orchestrator.Context) (string, error) {
 				time.Sleep(100 * time.Millisecond)
 				return "", fmt.Errorf("timeout: %s", errorMsg)
 			}
@@ -400,7 +401,7 @@ func FuzzConcurrentOperations(f *testing.F) {
 		for i := int64(0); i < numGoroutines; i++ {
 			go func(goroutineID int64) {
 				for j := int64(0); j < numOperations; j++ {
-					taskFn := func() (string, error) {
+					taskFn := func(ctx orchestrator.Context) (string, error) {
 						// Random behavior
 						behavior := (goroutineID + j) % 4
 						switch behavior {
@@ -487,7 +488,7 @@ func FuzzMemoryOperations(f *testing.F) {
 			t.Skip("Invalid memory parameters")
 		}
 
-		taskFn := func() ([][]byte, error) {
+		taskFn := func(ctx orchestrator.Context) ([][]byte, error) {
 			allocations := make([][]byte, numAllocs)
 
 			for i := int64(0); i < numAllocs; i++ {
@@ -558,11 +559,11 @@ func FuzzUnsafeOperations(f *testing.F) {
 			t.Skip("Invalid operation string")
 		}
 
-		var taskFn func() (interface{}, error)
+		var taskFn func(ctx orchestrator.Context) (interface{}, error)
 
 		switch variant % 4 {
 		case 0: // Pointer operations
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				data := fmt.Sprintf("unsafe-data-%s-%d", operation, variant)
 				ptr := unsafe.Pointer(&data)
 
@@ -571,7 +572,7 @@ func FuzzUnsafeOperations(f *testing.F) {
 				return *strPtr, nil
 			}
 		case 1: // Reflection operations
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				data := map[string]interface{}{
 					"operation": operation,
 					"variant":   variant,
@@ -586,7 +587,7 @@ func FuzzUnsafeOperations(f *testing.F) {
 				return data, nil
 			}
 		case 2: // Type assertions
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				var data interface{} = fmt.Sprintf("assertion-%s-%d", operation, variant)
 
 				// Type assertion
@@ -597,7 +598,7 @@ func FuzzUnsafeOperations(f *testing.F) {
 				return nil, fmt.Errorf("type assertion failed")
 			}
 		case 3: // Interface conversions
-			taskFn = func() (interface{}, error) {
+			taskFn = func(ctx orchestrator.Context) (interface{}, error) {
 				type Stringer interface {
 					String() string
 				}

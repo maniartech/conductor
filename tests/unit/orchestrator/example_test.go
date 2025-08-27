@@ -61,7 +61,7 @@ func submitReport() error {
 // Example_simpleTask demonstrates basic task execution
 func Example_simpleTask() {
 	result, err := orchestrator.Setup(
-		orchestrator.Task(func() (string, error) {
+		orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
 			return "Hello, World!", nil
 		}).Named("greeting"),
 	).Await()
@@ -81,7 +81,7 @@ func Example_simpleTask() {
 // Example_taskWithConfiguration demonstrates task configuration
 func Example_taskWithConfiguration() {
 	result, err := orchestrator.Setup(
-		orchestrator.Task(func() (int, error) {
+		orchestrator.Task(func(ctx orchestrator.Context) (int, error) {
 			time.Sleep(10 * time.Millisecond)
 			return 42, nil
 		}).Named("answer").
@@ -105,7 +105,7 @@ func Example_taskWithConfiguration() {
 // Example_statusMonitoring demonstrates real-time status monitoring
 func Example_statusMonitoring() {
 	workflow := orchestrator.Setup(
-		orchestrator.Task(func() (string, error) {
+		orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(50 * time.Millisecond)
 			return "completed", nil
 		}).Named("slow-task"),
@@ -149,7 +149,7 @@ func Example_complexOrchestration() {
 			orchestrator.Concurrent(
 				// Main resource processing pipeline
 				orchestrator.Sequential(
-					orchestrator.Task(func() error { return fetchResource(resourceId) }).Named("fetch-resource"),
+					orchestrator.Task(func(ctx orchestrator.Context) error { return fetchResource(resourceId) }).Named("fetch-resource"),
 					orchestrator.Task(processResource).Named("process-resource"),
 					orchestrator.Task(submitResource).Named("submit-resource"),
 				).Named("resource-pipeline"),

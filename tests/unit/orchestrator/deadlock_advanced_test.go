@@ -9,48 +9,58 @@ import (
 
 // TestAdvancedDeadlockScenarios tests more complex scenarios that might cause deadlocks
 func TestAdvancedDeadlockScenarios(t *testing.T) {
-	t.Run("sequential_placeholder_panic", func(t *testing.T) {
-		// This should panic since Sequential is not implemented
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("✅ Sequential correctly panics: %v", r)
-			} else {
-				t.Error("❌ Expected Sequential to panic")
-			}
-		}()
-
-		task1 := Task(func() (string, error) {
+	t.Run("sequential_exec_no_deadlock", func(t *testing.T) {
+		// Sequential is implemented; ensure no panic/deadlock and runs to completion
+		task1 := Task(func(ctx Context) (string, error) {
 			return "task1", nil
 		}).Named("task1")
 
-		task2 := Task(func() (string, error) {
+		task2 := Task(func(ctx Context) (string, error) {
 			return "task2", nil
 		}).Named("task2")
 
-		// This should panic
-		Sequential(task1, task2)
+		wf := Setup(Sequential(task1, task2))
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			if _, err := wf.ExecuteBlocking(); err != nil {
+				t.Errorf("Sequential execution error: %v", err)
+			}
+		}()
+
+		select {
+		case <-done:
+			// ok
+		case <-time.After(2 * time.Second):
+			t.Fatal("❌ DEADLOCK DETECTED: Sequential execution timed out")
+		}
 	})
 
-	t.Run("concurrent_placeholder_panic", func(t *testing.T) {
-		// This should panic since Concurrent is not implemented
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("✅ Concurrent correctly panics: %v", r)
-			} else {
-				t.Error("❌ Expected Concurrent to panic")
-			}
-		}()
-
-		task1 := Task(func() (string, error) {
+	t.Run("concurrent_exec_no_deadlock", func(t *testing.T) {
+		// Concurrent is implemented; ensure no panic/deadlock and runs to completion
+		task1 := Task(func(ctx Context) (string, error) {
 			return "task1", nil
 		}).Named("task1")
 
-		task2 := Task(func() (string, error) {
+		task2 := Task(func(ctx Context) (string, error) {
 			return "task2", nil
 		}).Named("task2")
 
-		// This should panic
-		Concurrent(task1, task2)
+		wf := Setup(Concurrent(task1, task2))
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			if _, err := wf.ExecuteBlocking(); err != nil {
+				t.Errorf("Concurrent execution error: %v", err)
+			}
+		}()
+
+		select {
+		case <-done:
+			// ok
+		case <-time.After(2 * time.Second):
+			t.Fatal("❌ DEADLOCK DETECTED: Concurrent execution timed out")
+		}
 	})
 
 	t.Run("multiple_workflows_concurrent", func(t *testing.T) {
@@ -65,7 +75,7 @@ func TestAdvancedDeadlockScenarios(t *testing.T) {
 
 			for i := 0; i < numWorkflows; i++ {
 				go func(id int) {
-					task := Task(func() (string, error) {
+					task := Task(func(ctx Context) (string, error) {
 						time.Sleep(10 * time.Millisecond)
 						return "result", nil
 					}).Named("concurrent-task")
@@ -109,7 +119,7 @@ func TestAdvancedDeadlockScenarios(t *testing.T) {
 	})
 
 	t.Run("callback_heavy_load", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx Context) (string, error) {
 			return "heavy-load-result", nil
 		}).Named("heavy-load-task")
 
@@ -158,7 +168,7 @@ func TestAdvancedDeadlockScenarios(t *testing.T) {
 			defer close(done)
 
 			for i := 0; i < 1000; i++ {
-				task := Task(func() (string, error) {
+				task := Task(func(ctx Context) (string, error) {
 					return "rapid-result", nil
 				}).Named("rapid-task")
 

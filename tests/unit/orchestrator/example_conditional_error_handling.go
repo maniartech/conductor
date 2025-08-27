@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
@@ -14,11 +15,11 @@ func ExampleConditional_ErrorHandling() {
 	// Example 1: Basic condition with error handling
 	fmt.Println("=== Example 1: Basic Conditional with Error Handling ===")
 
-	adminTask := Task(func() (string, error) {
+	adminTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "Admin dashboard loaded", nil
 	}).Named("admin-dashboard")
 
-	userTask := Task(func() (string, error) {
+	userTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "User profile loaded", nil
 	}).Named("user-profile")
 
@@ -74,11 +75,11 @@ func ExampleConditional_ErrorHandling() {
 			fmt.Printf("   Evaluating role: %s\n", roleStr)
 			return roleStr == "admin", nil
 		},
-		Task(func() (string, error) {
+		Task(func(ctx orchestrator.Context) (string, error) {
 			fmt.Println("   Executing admin task...")
 			return "Admin operations completed", nil
 		}).Named("admin-ops"),
-		Task(func() (string, error) {
+		Task(func(ctx orchestrator.Context) (string, error) {
 			fmt.Println("   Executing user task...")
 			return "User operations completed", nil
 		}).Named("user-ops"),
@@ -136,11 +137,11 @@ func ExampleConditional_ErrorHandling() {
 
 			return isPremium && isHighValue, nil
 		},
-		Task(func() (string, error) {
+		Task(func(ctx orchestrator.Context) (string, error) {
 			fmt.Println("   Processing with expedited shipping...")
 			return "Order processed with expedited shipping", nil
 		}).Named("expedited-processing"),
-		Task(func() (string, error) {
+		Task(func(ctx orchestrator.Context) (string, error) {
 			fmt.Println("   Processing with standard shipping...")
 			return "Order processed with standard shipping", nil
 		}).Named("standard-processing"),
@@ -165,8 +166,8 @@ func ExampleConditional_ErrorHandling() {
 			fmt.Println("   About to panic in condition...")
 			panic("simulated condition panic")
 		},
-		Task(func() (string, error) { return "true branch", nil }),
-		Task(func() (string, error) { return "false branch", nil }),
+		Task(func(ctx orchestrator.Context) (string, error) { return "true branch", nil }),
+		Task(func(ctx orchestrator.Context) (string, error) { return "false branch", nil }),
 	).Named("panic-condition")
 
 	workflow4 := Setup(panicCondition)
@@ -218,11 +219,11 @@ func ExampleConditional_SuccessfulExecution() {
 	fmt.Println("=== Successful Conditional Execution ===")
 
 	// Create tasks
-	morningTask := Task(func() (string, error) {
+	morningTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "Good morning! Starting the day.", nil
 	}).Named("morning-greeting")
 
-	eveningTask := Task(func() (string, error) {
+	eveningTask := Task(func(ctx orchestrator.Context) (string, error) {
 		return "Good evening! Wrapping up the day.", nil
 	}).Named("evening-greeting")
 

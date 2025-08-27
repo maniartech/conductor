@@ -15,59 +15,39 @@ import (
 
 // TestSequentialConcurrentPlaceholders tests the placeholder functions
 func TestSequentialConcurrentPlaceholders(t *testing.T) {
-	t.Run("Sequential_Placeholder", func(t *testing.T) {
-		// Test Sequential placeholder panic
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected Sequential to panic")
-			} else {
-				expectedMsg := "Sequential orchestration not yet implemented - will be completed in task 4.1"
-				if r != expectedMsg {
-					t.Errorf("Expected panic message %q, got %q", expectedMsg, r)
-				}
-			}
-		}()
-
-		taskFn := func() (string, error) {
+	t.Run("Sequential_execs", func(t *testing.T) {
+		taskFn := func(ctx Context) (string, error) {
 			return "result", nil
 		}
 
 		t1 := task.Task(taskFn).Named("task1")
 		t2 := task.Task(taskFn).Named("task2")
 
-		// This should panic
-		Sequential(t1, t2)
+		wf := Setup(Sequential(t1, t2))
+		if _, err := wf.ExecuteBlocking(); err != nil {
+			t.Fatalf("Sequential should execute, got error: %v", err)
+		}
 	})
 
-	t.Run("Concurrent_Placeholder", func(t *testing.T) {
-		// Test Concurrent placeholder panic
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected Concurrent to panic")
-			} else {
-				expectedMsg := "Concurrent orchestration not yet implemented - will be completed in task 5.1"
-				if r != expectedMsg {
-					t.Errorf("Expected panic message %q, got %q", expectedMsg, r)
-				}
-			}
-		}()
-
-		taskFn := func() (string, error) {
+	t.Run("Concurrent_execs", func(t *testing.T) {
+		taskFn := func(ctx Context) (string, error) {
 			return "result", nil
 		}
 
 		t1 := task.Task(taskFn).Named("task1")
 		t2 := task.Task(taskFn).Named("task2")
 
-		// This should panic
-		Concurrent(t1, t2)
+		wf := Setup(Concurrent(t1, t2))
+		if _, err := wf.ExecuteBlocking(); err != nil {
+			t.Fatalf("Concurrent should execute, got error: %v", err)
+		}
 	})
 }
 
 // TestWorkflowProgressModes tests all progress mode paths
 func TestWorkflowProgressModes(t *testing.T) {
 	t.Run("ProgressModeAuto", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "auto-progress", nil
 		}
 
@@ -82,7 +62,7 @@ func TestWorkflowProgressModes(t *testing.T) {
 	})
 
 	t.Run("ProgressModeManual_WithCustomProgress", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "manual-progress", nil
 		}
 
@@ -103,7 +83,7 @@ func TestWorkflowProgressModes(t *testing.T) {
 	})
 
 	t.Run("ProgressModeHybrid_FallbackToAuto", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "hybrid-fallback", nil
 		}
 
@@ -121,7 +101,7 @@ func TestWorkflowProgressModes(t *testing.T) {
 // TestWorkflowCallbackPaths tests callback-related paths
 func TestWorkflowCallbackPaths(t *testing.T) {
 	t.Run("OnProgress_Callback", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "progress-callback", nil
 		}
 
@@ -141,7 +121,7 @@ func TestWorkflowCallbackPaths(t *testing.T) {
 	})
 
 	t.Run("OnStatusChange_Callback", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "status-callback", nil
 		}
@@ -168,7 +148,7 @@ func TestWorkflowCallbackPaths(t *testing.T) {
 	})
 
 	t.Run("OnError_Callback", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("error callback test")
 		}
 
@@ -200,7 +180,7 @@ func TestWorkflowCallbackPaths(t *testing.T) {
 	})
 
 	t.Run("OnComplete_Callback", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "completion-callback", nil
 		}
 
@@ -237,7 +217,7 @@ func TestWorkflowCallbackPaths(t *testing.T) {
 // TestWorkflowCancellationPaths tests cancellation paths
 func TestWorkflowCancellationPaths(t *testing.T) {
 	t.Run("Cancel_Basic", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "cancelled-task", nil
 		}
@@ -260,7 +240,7 @@ func TestWorkflowCancellationPaths(t *testing.T) {
 	})
 
 	t.Run("CancelWithReason", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "cancelled-with-reason", nil
 		}
@@ -286,7 +266,7 @@ func TestWorkflowCancellationPaths(t *testing.T) {
 // TestWorkflowGetMethods tests getter methods
 func TestWorkflowGetMethods(t *testing.T) {
 	t.Run("GetName", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "name-test", nil
 		}
 
@@ -299,7 +279,7 @@ func TestWorkflowGetMethods(t *testing.T) {
 	})
 
 	t.Run("GetConfig", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "config-test", nil
 		}
 
@@ -316,7 +296,7 @@ func TestWorkflowGetMethods(t *testing.T) {
 	})
 
 	t.Run("GetCurrentTask", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "current-task-test", nil
 		}
@@ -338,7 +318,7 @@ func TestWorkflowGetMethods(t *testing.T) {
 	})
 
 	t.Run("GetPartialResults", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "partial-results-test", nil
 		}
 
@@ -361,7 +341,7 @@ func TestWorkflowGetMethods(t *testing.T) {
 	})
 
 	t.Run("GetProgressLegacy", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "legacy-progress", nil
 		}
 
@@ -384,7 +364,7 @@ func TestWorkflowGetMethods(t *testing.T) {
 // TestWorkflowStageOperations tests stage-related operations
 func TestWorkflowStageOperations(t *testing.T) {
 	t.Run("SetStage_WithProgressUpdate", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "stage-test", nil
 		}
 
@@ -401,7 +381,7 @@ func TestWorkflowStageOperations(t *testing.T) {
 	})
 
 	t.Run("SetStage_ManualMode", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "manual-stage-test", nil
 		}
 
@@ -422,7 +402,7 @@ func TestWorkflowStageOperations(t *testing.T) {
 // TestWorkflowAsyncExecution tests async execution paths
 func TestWorkflowAsyncExecution(t *testing.T) {
 	t.Run("executeAsync_Success", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "async-success", nil
 		}
 
@@ -445,7 +425,7 @@ func TestWorkflowAsyncExecution(t *testing.T) {
 	})
 
 	t.Run("executeAsync_WithError", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "", fmt.Errorf("async execution error")
 		}
 
@@ -471,7 +451,7 @@ func TestWorkflowAsyncExecution(t *testing.T) {
 // TestWorkflowContextPaths tests context-related paths
 func TestWorkflowContextPaths(t *testing.T) {
 	t.Run("AwaitWithContext_ContextDone", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(100 * time.Millisecond) // Long enough to be cancelled
 			return "context-done-test", nil
 		}
@@ -501,7 +481,7 @@ func TestWorkflowContextPaths(t *testing.T) {
 	})
 
 	t.Run("AwaitWithTimeout_Timeout", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			time.Sleep(100 * time.Millisecond) // Longer than timeout
 			return "timeout-test", nil
 		}
@@ -532,7 +512,7 @@ func TestWorkflowContextPaths(t *testing.T) {
 // TestWorkflowInternalMethods tests internal method paths
 func TestWorkflowInternalMethods(t *testing.T) {
 	t.Run("initializeProgressTracking", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "init-progress", nil
 		}
 
@@ -583,7 +563,7 @@ func TestWorkflowEdgeCases(t *testing.T) {
 	})
 
 	t.Run("Workflow_EmptyName", func(t *testing.T) {
-		taskFn := func() (string, error) {
+		taskFn := func(ctx Context) (string, error) {
 			return "empty-name-test", nil
 		}
 

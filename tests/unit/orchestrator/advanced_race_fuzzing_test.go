@@ -11,6 +11,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -37,7 +38,7 @@ func TestAdvancedRaceConditions_ConcurrentWorkflowExecution(t *testing.T) {
 				go func(taskID int) {
 					defer taskWg.Done()
 
-					taskFn := func() (string, error) {
+					taskFn := func(ctx orchestrator.Context) (string, error) {
 						// Simulate work with random duration
 						time.Sleep(time.Duration(rand.Intn(10)) * time.Microsecond)
 						return fmt.Sprintf("workflow-%d-task-%d", workflowID, taskID), nil
@@ -90,7 +91,7 @@ func TestAdvancedRaceConditions_StatusTransitions(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < numOperations; j++ {
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					return fmt.Sprintf("status-test-%d-%d", goroutineID, j), nil
 				}
 
@@ -264,7 +265,7 @@ func TestAdvancedRaceConditions_GoroutineLeakDetection(t *testing.T) {
 					atomic.AddInt64(&completedTasks, 1)
 				}()
 
-				taskFn := func() (string, error) {
+				taskFn := func(ctx orchestrator.Context) (string, error) {
 					// Simulate work
 					time.Sleep(time.Microsecond)
 					return fmt.Sprintf("leak-test-%d-%d", iteration, taskID), nil
@@ -353,7 +354,7 @@ func TestAdvancedRaceConditions_ChaosEngineering(t *testing.T) {
 					// snapshot operation id to avoid data race with concurrent goroutines
 					opID := operationID
 
-					taskFn := func() (string, error) {
+					taskFn := func(ctx orchestrator.Context) (string, error) {
 						switch ct {
 						case 0, 1, 2, 3: // Normal operation (40%)
 							time.Sleep(time.Duration(rand.Intn(1000)) * time.Microsecond)
@@ -468,7 +469,7 @@ func TestAdvancedRaceConditions_PropertyBasedTesting(t *testing.T) {
 					defer taskWg.Done()
 
 					// Property: All tasks should complete successfully or fail gracefully
-					taskFn := func() (interface{}, error) {
+					taskFn := func(ctx orchestrator.Context) (interface{}, error) {
 						// Random behavior
 						behavior := rand.Intn(4)
 						switch behavior {

@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator"
 	. "github.com/maniartech/orchestrator"
 )
 
 // TestDeadlockReproduction attempts to reproduce the deadlock
 func TestDeadlockReproduction(t *testing.T) {
 	t.Run("simple_task_execution", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "test-result", nil
 		}).Named("test-task")
 
@@ -42,7 +43,7 @@ func TestDeadlockReproduction(t *testing.T) {
 	})
 
 	t.Run("task_with_callbacks", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			return "callback-result", nil
 		}).Named("callback-task")
 
@@ -82,7 +83,7 @@ func TestDeadlockReproduction(t *testing.T) {
 	})
 
 	t.Run("async_execution", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(10 * time.Millisecond)
 			return "async-result", nil
 		}).Named("async-task")
@@ -118,7 +119,7 @@ func TestDeadlockReproduction(t *testing.T) {
 	})
 
 	t.Run("context_cancellation", func(t *testing.T) {
-		task := Task(func() (string, error) {
+		task := Task(func(ctx orchestrator.Context) (string, error) {
 			time.Sleep(100 * time.Millisecond)
 			return "should-not-complete", nil
 		}).Named("cancel-task")
