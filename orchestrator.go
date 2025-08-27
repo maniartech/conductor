@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/orchestration"
+	"github.com/maniartech/orchestrator/pkg/builders/concurrent"
 	"github.com/maniartech/orchestrator/pkg/builders/conditional"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
@@ -87,9 +88,7 @@ func Sequential(orchestrations ...orchestration.Orchestration) orchestration.Orc
 //	    orchestrator.Task(taskC).Named("task-c"),
 //	).Named("concurrent-workflow")
 func Concurrent(orchestrations ...orchestration.Orchestration) orchestration.Orchestration {
-	// TODO: Implement ConcurrentBuilder in task 5.1
-	// For now, return a placeholder that will be implemented in the next task
-	panic("Concurrent orchestration not yet implemented - will be completed in task 5.1")
+	return concurrent.Concurrent(orchestrations...)
 }
 
 // Conditional creates a conditional orchestration that evaluates a condition function
