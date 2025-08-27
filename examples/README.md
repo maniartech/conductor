@@ -33,70 +33,70 @@ orchestrator.Setup(
 ```
 
 ### 2. **API Health Check System** (`health-monitoring/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: DevOps/SRE - Service monitoring and alerting  
 **Features**: Error handling, timeouts, service monitoring  
 **Real-world**: Netflix, Uber service mesh monitoring  
 **Learn**: Error strategies, timeout handling, health check patterns
 
 ### 3. **E-commerce Order Processing** (`order-processing/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: E-commerce - Order fulfillment pipeline  
 **Features**: Sequential workflows, error boundaries, retries  
 **Real-world**: Amazon/Shopify order processing  
 **Learn**: Sequential orchestration, critical path processing, retry mechanisms
 
 ### 4. **Social Media Content Moderation** (`content-moderation/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: Social Media - Content safety and compliance  
 **Features**: Mixed sequential + concurrent, conditional flows  
 **Real-world**: Facebook/Twitter content moderation  
 **Learn**: Hybrid orchestration, conditional execution, content processing pipelines
 
 ### 5. **Financial Transaction Processing** (`financial-transactions/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: FinTech - Payment processing and fraud detection  
 **Features**: Conditional orchestration, error recovery, audit trails  
 **Real-world**: Stripe/PayPal transaction processing  
 **Learn**: Risk-based workflows, compliance patterns, financial data handling
 
 ### 6. **Video Streaming Pipeline** (`video-processing/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: Media/Entertainment - Video transcoding and CDN distribution  
 **Features**: Progress tracking, resource management, parallel processing  
 **Real-world**: YouTube/Netflix video processing  
 **Learn**: Progress monitoring, resource-intensive tasks, media processing
 
 ### 7. **IoT Data Processing Platform** (`iot-data-processing/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: IoT/Manufacturing - Sensor data aggregation and analysis  
 **Features**: Resource pooling, batch processing, real-time analytics  
 **Real-world**: GE Predix, AWS IoT Core  
 **Learn**: High-volume data processing, sensor analytics, real-time systems
 
 ### 8. **CI/CD Deployment Pipeline** (`cicd-pipeline/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: DevOps - Continuous integration and deployment  
 **Features**: Complex orchestration, environment management, rollback strategies  
 **Real-world**: GitHub Actions, GitLab CI, Jenkins  
 **Learn**: Deployment automation, testing pipelines, rollback mechanisms
 
 ### 9. **Real-time Fraud Detection** (`fraud-detection/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: Banking/Insurance - Real-time transaction monitoring  
 **Features**: Event-driven processing, machine learning integration, alerting  
 **Real-world**: Mastercard/Visa fraud detection  
 **Learn**: Real-time processing, ML integration, alerting systems
 
 ### 10. **Supply Chain Management** (`supply-chain/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: Logistics/Manufacturing - Inventory and supply optimization  
 **Features**: Complex dependencies, external API integration, optimization algorithms  
 **Real-world**: Amazon supply chain, Walmart inventory  
 **Learn**: Complex workflows, external integrations, optimization patterns
 
 ### 11. **Healthcare Patient Data Pipeline** (`healthcare-pipeline/`)
-**Status**: 🚧 **Coming Soon**  
+**Status**: ✅ **Available**  
 **Industry**: Healthcare - Patient data processing and clinical decision support  
 **Features**: HIPAA compliance, data validation, clinical workflows, emergency protocols  
 **Real-world**: Epic Systems, Cerner healthcare data processing  
@@ -200,4 +200,4 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 
 ---
 
-**Note**: Examples marked as "Coming Soon" are planned for future releases. The Hello World example is fully functional and demonstrates the current capabilities of the orchestrator library.
+**Note**: All examples are now available and fully functional, demonstrating the comprehensive capabilities of the orchestrator library across various industry scenarios.
