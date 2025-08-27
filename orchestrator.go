@@ -28,12 +28,16 @@ import (
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/builders/concurrent"
 	"github.com/maniartech/orchestrator/pkg/builders/conditional"
+	"github.com/maniartech/orchestrator/pkg/builders/sequential"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 )
+
+// Context is an alias for the orchestrator context type for convenience
+type Context = orchContext.Context
 
 // Task creates a new task orchestration with the provided function.
 // The function must return a value of type T and an error.
@@ -71,9 +75,7 @@ func Task[T any](fn func() (T, error)) orchestration.Orchestration {
 //	    orchestrator.Task(step3).Named("step-3"),
 //	).Named("sequential-workflow")
 func Sequential(orchestrations ...orchestration.Orchestration) orchestration.Orchestration {
-	// TODO: Implement SequentialBuilder in task 4.1
-	// For now, return a placeholder that will be implemented in the next task
-	panic("Sequential orchestration not yet implemented - will be completed in task 4.1")
+	return sequential.Sequential(orchestrations...)
 }
 
 // Concurrent creates a concurrent orchestration that executes the provided orchestrations
