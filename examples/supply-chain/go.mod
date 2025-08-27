@@ -1,4 +1,4 @@
-module hello-example
+module supply-chain
 
 go 1.24.0
 

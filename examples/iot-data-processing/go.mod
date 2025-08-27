@@ -1,4 +1,4 @@
-module hello-example
+module iot-data-processing
 
 go 1.24.0
 
