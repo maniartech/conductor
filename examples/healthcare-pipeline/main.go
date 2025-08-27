@@ -50,50 +50,37 @@ func main() {
 	// Create healthcare processing workflow
 	workflow := orchestrator.Setup(
 		orchestrator.Sequential(
+			// Store patient data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("patient", patient)
+				return "Patient data stored in context", nil
+			}).Named("setup"),
+
 			// Data validation and intake
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return validatePatientData(patient)
-			}).Named("validation"),
+			orchestrator.Task(validatePatientData).Named("validation"),
 
 			// Parallel processing based on priority
 			orchestrator.Conditional(
 				func(ctx orchestrator.Context) (bool, error) {
-					return patient.Priority == "CRITICAL" || patient.Priority == "HIGH", nil
+					patientData := ctx.Get("patient").(PatientRecord)
+					return patientData.Priority == "CRITICAL" || patientData.Priority == "HIGH", nil
 				},
 				// High priority path
 				orchestrator.Concurrent(
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return performUrgentScreening(patient)
-					}).Named("urgent-screening"),
-
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return notifyMedicalTeam(patient)
-					}).Named("team-notification"),
-
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return checkInsurance(patient)
-					}).Named("insurance-check"),
+					orchestrator.Task(performUrgentScreening).Named("urgent-screening"),
+					orchestrator.Task(notifyMedicalTeam).Named("team-notification"),
+					orchestrator.Task(checkInsurance).Named("insurance-check"),
 				).Named("high-priority-processing"),
 				// Standard priority path
 				orchestrator.Sequential(
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return performStandardScreening(patient)
-					}).Named("standard-screening"),
-
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return scheduleAppointment(patient)
-					}).Named("appointment-scheduling"),
+					orchestrator.Task(performStandardScreening).Named("standard-screening"),
+					orchestrator.Task(scheduleAppointment).Named("appointment-scheduling"),
 				).Named("standard-processing"),
 			).Named("priority-routing"),
 
 			// Final processing steps
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return updateMedicalRecord(patient)
-			}).Named("record-update"),
-
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return generateReport(patient)
-			}).Named("report-generation"),
+			orchestrator.Task(updateMedicalRecord).Named("record-update"),
+			orchestrator.Task(generateReport).Named("report-generation"),
 		).Named("healthcare-pipeline"),
 	)
 
@@ -109,7 +96,8 @@ func main() {
 }
 
 // Healthcare processing implementations
-func validatePatientData(patient PatientRecord) (ProcessingResult, error) {
+func validatePatientData(ctx orchestrator.Context) (ProcessingResult, error) {
+	patient := ctx.Get("patient").(PatientRecord)
 	start := time.Now()
 
 	// Simulate data validation
@@ -135,7 +123,7 @@ func validatePatientData(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func performUrgentScreening(patient PatientRecord) (ProcessingResult, error) {
+func performUrgentScreening(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate urgent medical screening
@@ -150,7 +138,7 @@ func performUrgentScreening(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func notifyMedicalTeam(patient PatientRecord) (ProcessingResult, error) {
+func notifyMedicalTeam(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate team notification
@@ -165,7 +153,7 @@ func notifyMedicalTeam(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func checkInsurance(patient PatientRecord) (ProcessingResult, error) {
+func checkInsurance(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate insurance verification
@@ -180,7 +168,7 @@ func checkInsurance(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func performStandardScreening(patient PatientRecord) (ProcessingResult, error) {
+func performStandardScreening(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate standard screening
@@ -195,7 +183,7 @@ func performStandardScreening(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func scheduleAppointment(patient PatientRecord) (ProcessingResult, error) {
+func scheduleAppointment(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate appointment scheduling
@@ -212,8 +200,9 @@ func scheduleAppointment(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func updateMedicalRecord(patient PatientRecord) (ProcessingResult, error) {
+func updateMedicalRecord(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
+	patient := ctx.Get("patient").(PatientRecord)
 
 	// Simulate medical record update
 	time.Sleep(time.Duration(rand.IntN(200)+100) * time.Millisecond)
@@ -227,8 +216,9 @@ func updateMedicalRecord(patient PatientRecord) (ProcessingResult, error) {
 	}, nil
 }
 
-func generateReport(patient PatientRecord) (ProcessingResult, error) {
+func generateReport(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
+	patient := ctx.Get("patient").(PatientRecord)
 
 	// Simulate report generation
 	time.Sleep(time.Duration(rand.IntN(300)+150) * time.Millisecond)

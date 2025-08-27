@@ -50,24 +50,21 @@ func main() {
 
 	// Create fraud detection workflow
 	workflow := orchestrator.Setup(
-		orchestrator.Concurrent(
+		orchestrator.Sequential(
+			// Store fraud check data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("fraudCheck", fraudCheck)
+				return "Fraud check data stored in context", nil
+			}).Named("setup"),
+
 			// Parallel fraud checks
-			orchestrator.Task(func() (CheckResult, error) {
-				return performVelocityCheck(fraudCheck)
-			}).Named("velocity-check"),
-
-			orchestrator.Task(func() (CheckResult, error) {
-				return performLocationCheck(fraudCheck)
-			}).Named("location-check"),
-
-			orchestrator.Task(func() (CheckResult, error) {
-				return performDeviceCheck(fraudCheck)
-			}).Named("device-check"),
-
-			orchestrator.Task(func() (CheckResult, error) {
-				return performBehaviorCheck(fraudCheck)
-			}).Named("behavior-check"),
-		).Named("fraud-checks"),
+			orchestrator.Concurrent(
+				orchestrator.Task(performVelocityCheck).Named("velocity-check"),
+				orchestrator.Task(performLocationCheck).Named("location-check"),
+				orchestrator.Task(performDeviceCheck).Named("device-check"),
+				orchestrator.Task(performBehaviorCheck).Named("behavior-check"),
+			).Named("fraud-checks"),
+		).Named("fraud-detection-pipeline"),
 	)
 
 	// Execute workflow
@@ -82,7 +79,8 @@ func main() {
 }
 
 // Fraud check implementations
-func performVelocityCheck(check FraudCheck) (CheckResult, error) {
+func performVelocityCheck(ctx orchestrator.Context) (CheckResult, error) {
+	check := ctx.Get("fraudCheck").(FraudCheck)
 	start := time.Now()
 
 	// Simulate velocity analysis
@@ -111,7 +109,8 @@ func performVelocityCheck(check FraudCheck) (CheckResult, error) {
 	}, nil
 }
 
-func performLocationCheck(check FraudCheck) (CheckResult, error) {
+func performLocationCheck(ctx orchestrator.Context) (CheckResult, error) {
+	check := ctx.Get("fraudCheck").(FraudCheck)
 	start := time.Now()
 
 	// Simulate location analysis
@@ -141,7 +140,8 @@ func performLocationCheck(check FraudCheck) (CheckResult, error) {
 	}, nil
 }
 
-func performDeviceCheck(check FraudCheck) (CheckResult, error) {
+func performDeviceCheck(ctx orchestrator.Context) (CheckResult, error) {
+	check := ctx.Get("fraudCheck").(FraudCheck)
 	start := time.Now()
 
 	// Simulate device fingerprinting
@@ -167,7 +167,8 @@ func performDeviceCheck(check FraudCheck) (CheckResult, error) {
 	}, nil
 }
 
-func performBehaviorCheck(check FraudCheck) (CheckResult, error) {
+func performBehaviorCheck(ctx orchestrator.Context) (CheckResult, error) {
+	check := ctx.Get("fraudCheck").(FraudCheck)
 	start := time.Now()
 
 	// Simulate behavioral analysis

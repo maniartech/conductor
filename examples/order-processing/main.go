@@ -59,24 +59,18 @@ func main() {
 	// Execute order processing pipeline sequentially
 	result, err := orchestrator.Setup(
 		orchestrator.Sequential(
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return validateOrderData(order)
-			}).Named("validation"),
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return checkInventoryAvailability(order)
-			}).Named("inventory-check"),
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return processPayment(order)
-			}).Named("payment"),
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return reserveInventory(order)
-			}).Named("reservation"),
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return createShippingLabel(order)
-			}).Named("shipping"),
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return sendConfirmationEmail(order)
-			}).Named("confirmation"),
+			// Store order data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("order", order)
+				return "Order data stored in context", nil
+			}).Named("setup"),
+
+			orchestrator.Task(validateOrderData).Named("validation"),
+			orchestrator.Task(checkInventoryAvailability).Named("inventory-check"),
+			orchestrator.Task(processPayment).Named("payment"),
+			orchestrator.Task(reserveInventory).Named("reservation"),
+			orchestrator.Task(createShippingLabel).Named("shipping"),
+			orchestrator.Task(sendConfirmationEmail).Named("confirmation"),
 		).Named("order-pipeline"),
 	).With(orchestrator.Config{
 		ErrorStrategy: orchestrator.FailFast, // Stop on any failure
@@ -99,7 +93,7 @@ func main() {
 
 // Order processing pipeline functions
 
-func validateOrderData(order Order) (ProcessingResult, error) {
+func validateOrderData(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 	fmt.Println("   📋 Validating order data...")
 
@@ -127,7 +121,7 @@ func validateOrderData(order Order) (ProcessingResult, error) {
 	}, nil
 }
 
-func checkInventoryAvailability(order Order) (ProcessingResult, error) {
+func checkInventoryAvailability(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 	fmt.Println("   📦 Checking inventory availability...")
 
@@ -155,7 +149,8 @@ func checkInventoryAvailability(order Order) (ProcessingResult, error) {
 	}, nil
 }
 
-func processPayment(order Order) (ProcessingResult, error) {
+func processPayment(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(Order)
 	start := time.Now()
 	fmt.Printf("   💳 Processing payment of $%.2f...\n", order.TotalAmount)
 
@@ -182,7 +177,7 @@ func processPayment(order Order) (ProcessingResult, error) {
 		Duration:  time.Since(start),
 	}, nil
 }
-func reserveInventory(order Order) (ProcessingResult, error) {
+func reserveInventory(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 	fmt.Println("   🔒 Reserving inventory...")
 
@@ -199,7 +194,7 @@ func reserveInventory(order Order) (ProcessingResult, error) {
 	}, nil
 }
 
-func createShippingLabel(order Order) (ProcessingResult, error) {
+func createShippingLabel(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 	fmt.Println("   📮 Creating shipping label...")
 
@@ -216,7 +211,7 @@ func createShippingLabel(order Order) (ProcessingResult, error) {
 	}, nil
 }
 
-func sendConfirmationEmail(order Order) (ProcessingResult, error) {
+func sendConfirmationEmail(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 	fmt.Println("   📧 Sending confirmation email...")
 

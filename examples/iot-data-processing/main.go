@@ -55,38 +55,31 @@ func main() {
 	// Create IoT data processing workflow
 	workflow := orchestrator.Setup(
 		orchestrator.Sequential(
+			// Store IoT data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("iotData", iotData)
+				return "IoT data stored in context", nil
+			}).Named("setup"),
+
 			// Data validation and preprocessing
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return validateIoTData(iotData)
-			}).Named("validation"),
+			orchestrator.Task(validateIoTData).Named("validation"),
 
 			// Parallel processing pipeline
 			orchestrator.Concurrent(
 				// Data transformation and enrichment
 				orchestrator.Sequential(
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return transformData(iotData)
-					}).Named("data-transformation"),
-
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return enrichWithMetadata(iotData)
-					}).Named("metadata-enrichment"),
+					orchestrator.Task(transformData).Named("data-transformation"),
+					orchestrator.Task(enrichWithMetadata).Named("metadata-enrichment"),
 				).Named("data-processing"),
 
 				// Real-time analytics
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return performRealTimeAnalytics(iotData)
-				}).Named("real-time-analytics"),
+				orchestrator.Task(performRealTimeAnalytics).Named("real-time-analytics"),
 
 				// Anomaly detection
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return detectAnomalies(iotData)
-				}).Named("anomaly-detection"),
+				orchestrator.Task(detectAnomalies).Named("anomaly-detection"),
 
 				// Device health monitoring
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return monitorDeviceHealth(iotData)
-				}).Named("device-health"),
+				orchestrator.Task(monitorDeviceHealth).Named("device-health"),
 			).Named("parallel-processing"),
 
 			// Conditional alerting based on anomalies
@@ -104,24 +97,15 @@ func main() {
 				},
 				// Alert path
 				orchestrator.Concurrent(
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return sendAlert(iotData)
-					}).Named("alert-notification"),
-
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return logIncident(iotData)
-					}).Named("incident-logging"),
+					orchestrator.Task(sendAlert).Named("alert-notification"),
+					orchestrator.Task(logIncident).Named("incident-logging"),
 				).Named("alert-processing"),
 				// Normal path
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return routineLogging(iotData)
-				}).Named("routine-logging"),
+				orchestrator.Task(routineLogging).Named("routine-logging"),
 			).Named("conditional-alerting"),
 
 			// Data storage
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return storeProcessedData(iotData)
-			}).Named("data-storage"),
+			orchestrator.Task(storeProcessedData).Named("data-storage"),
 		).Named("iot-processing-pipeline"),
 	)
 
@@ -137,7 +121,8 @@ func main() {
 }
 
 // IoT processing implementations
-func validateIoTData(data IoTData) (ProcessingResult, error) {
+func validateIoTData(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate data validation
@@ -166,7 +151,8 @@ func validateIoTData(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func transformData(data IoTData) (ProcessingResult, error) {
+func transformData(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate data transformation
@@ -195,7 +181,7 @@ func transformData(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func enrichWithMetadata(data IoTData) (ProcessingResult, error) {
+func enrichWithMetadata(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate metadata enrichment
@@ -218,7 +204,7 @@ func enrichWithMetadata(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func performRealTimeAnalytics(data IoTData) (ProcessingResult, error) {
+func performRealTimeAnalytics(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate real-time analytics
@@ -240,7 +226,8 @@ func performRealTimeAnalytics(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func detectAnomalies(data IoTData) (ProcessingResult, error) {
+func detectAnomalies(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate anomaly detection
@@ -279,7 +266,8 @@ func detectAnomalies(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func monitorDeviceHealth(data IoTData) (ProcessingResult, error) {
+func monitorDeviceHealth(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate device health monitoring
@@ -312,7 +300,8 @@ func monitorDeviceHealth(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func sendAlert(data IoTData) (ProcessingResult, error) {
+func sendAlert(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate alert sending
@@ -327,7 +316,8 @@ func sendAlert(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func logIncident(data IoTData) (ProcessingResult, error) {
+func logIncident(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate incident logging
@@ -342,7 +332,7 @@ func logIncident(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func routineLogging(data IoTData) (ProcessingResult, error) {
+func routineLogging(ctx orchestrator.Context) (ProcessingResult, error) {
 	start := time.Now()
 
 	// Simulate routine logging
@@ -356,7 +346,8 @@ func routineLogging(data IoTData) (ProcessingResult, error) {
 	}, nil
 }
 
-func storeProcessedData(data IoTData) (ProcessingResult, error) {
+func storeProcessedData(ctx orchestrator.Context) (ProcessingResult, error) {
+	data := ctx.Get("iotData").(IoTData)
 	start := time.Now()
 
 	// Simulate data storage

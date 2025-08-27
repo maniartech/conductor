@@ -51,31 +51,25 @@ func main() {
 	// Mixed sequential + concurrent moderation pipeline
 	result, err := orchestrator.Setup(
 		orchestrator.Sequential(
+			// Store content data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("content", content)
+				return "Content data stored in context", nil
+			}).Named("setup"),
+
 			// First extract metadata
-			orchestrator.Task(func() (ModerationResult, error) {
-				return extractContentMetadata(content)
-			}).Named("metadata"),
+			orchestrator.Task(extractContentMetadata).Named("metadata"),
 
 			// Then run parallel moderation checks
 			orchestrator.Concurrent(
-				orchestrator.Task(func() (ModerationResult, error) {
-					return scanForExplicitContent(content)
-				}).Named("explicit-scan"),
-				orchestrator.Task(func() (ModerationResult, error) {
-					return detectHateSpeech(content)
-				}).Named("hate-speech"),
-				orchestrator.Task(func() (ModerationResult, error) {
-					return checkCopyrightViolation(content)
-				}).Named("copyright"),
-				orchestrator.Task(func() (ModerationResult, error) {
-					return analyzeSpamIndicators(content)
-				}).Named("spam-detection"),
+				orchestrator.Task(scanForExplicitContent).Named("explicit-scan"),
+				orchestrator.Task(detectHateSpeech).Named("hate-speech"),
+				orchestrator.Task(checkCopyrightViolation).Named("copyright"),
+				orchestrator.Task(analyzeSpamIndicators).Named("spam-detection"),
 			).Named("parallel-moderation"),
 
 			// Finally make approval decision
-			orchestrator.Task(func() (ModerationResult, error) {
-				return makeApprovalDecision(content)
-			}).Named("approval-decision"),
+			orchestrator.Task(makeApprovalDecision).Named("approval-decision"),
 		).Named("moderation-pipeline"),
 	).With(orchestrator.Config{
 		ErrorStrategy: orchestrator.CollectAll, // Continue even if some checks fail
@@ -94,7 +88,7 @@ func main() {
 
 // Moderation functions
 
-func extractContentMetadata(content Content) (ModerationResult, error) {
+func extractContentMetadata(ctx orchestrator.Context) (ModerationResult, error) {
 	fmt.Println("   📊 Extracting content metadata...")
 	time.Sleep(50 * time.Millisecond)
 
@@ -108,7 +102,7 @@ func extractContentMetadata(content Content) (ModerationResult, error) {
 	}, nil
 }
 
-func scanForExplicitContent(content Content) (ModerationResult, error) {
+func scanForExplicitContent(ctx orchestrator.Context) (ModerationResult, error) {
 	fmt.Println("   🔍 Scanning for explicit content...")
 	time.Sleep(120 * time.Millisecond)
 
@@ -136,7 +130,8 @@ func scanForExplicitContent(content Content) (ModerationResult, error) {
 	}, nil
 }
 
-func detectHateSpeech(content Content) (ModerationResult, error) {
+func detectHateSpeech(ctx orchestrator.Context) (ModerationResult, error) {
+	content := ctx.Get("content").(Content)
 	fmt.Println("   🗣️  Detecting hate speech...")
 	time.Sleep(100 * time.Millisecond)
 
@@ -172,7 +167,7 @@ func detectHateSpeech(content Content) (ModerationResult, error) {
 	}, nil
 }
 
-func checkCopyrightViolation(content Content) (ModerationResult, error) {
+func checkCopyrightViolation(ctx orchestrator.Context) (ModerationResult, error) {
 	fmt.Println("   ©️  Checking copyright violations...")
 	time.Sleep(80 * time.Millisecond)
 
@@ -199,7 +194,8 @@ func checkCopyrightViolation(content Content) (ModerationResult, error) {
 		Timestamp: time.Now(),
 	}, nil
 }
-func analyzeSpamIndicators(content Content) (ModerationResult, error) {
+func analyzeSpamIndicators(ctx orchestrator.Context) (ModerationResult, error) {
+	content := ctx.Get("content").(Content)
 	fmt.Println("   🚫 Analyzing spam indicators...")
 	time.Sleep(90 * time.Millisecond)
 
@@ -235,7 +231,7 @@ func analyzeSpamIndicators(content Content) (ModerationResult, error) {
 	}, nil
 }
 
-func makeApprovalDecision(content Content) (ModerationResult, error) {
+func makeApprovalDecision(ctx orchestrator.Context) (ModerationResult, error) {
 	fmt.Println("   ⚖️  Making approval decision...")
 	time.Sleep(30 * time.Millisecond)
 

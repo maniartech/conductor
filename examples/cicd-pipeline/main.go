@@ -48,52 +48,41 @@ func main() {
 	// Complex CI/CD pipeline with conditional deployment
 	result, err := orchestrator.Setup(
 		orchestrator.Sequential(
+			// Store build data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("build", build)
+				return "Build data stored in context", nil
+			}).Named("setup"),
+
 			// Parallel quality checks
 			orchestrator.Concurrent(
-				orchestrator.Task(func() (StepResult, error) {
-					return runUnitTests(build)
-				}).Named("unit-tests"),
-				orchestrator.Task(func() (StepResult, error) {
-					return runLintingChecks(build)
-				}).Named("linting"),
-				orchestrator.Task(func() (StepResult, error) {
-					return performSecurityScan(build)
-				}).Named("security-scan"),
+				orchestrator.Task(runUnitTests).Named("unit-tests"),
+				orchestrator.Task(runLintingChecks).Named("linting"),
+				orchestrator.Task(performSecurityScan).Named("security-scan"),
 			).Named("quality-checks"),
 
 			// Build artifacts
-			orchestrator.Task(func() (StepResult, error) {
-				return buildDockerImage(build)
-			}).Named("build"),
+			orchestrator.Task(buildDockerImage).Named("build"),
 
 			// Deployment pipeline
 			orchestrator.Sequential(
-				orchestrator.Task(func() (StepResult, error) {
-					return deployToStaging(build)
-				}).Named("staging-deploy"),
-				orchestrator.Task(func() (StepResult, error) {
-					return runIntegrationTests(build)
-				}).Named("integration-tests"),
+				orchestrator.Task(deployToStaging).Named("staging-deploy"),
+				orchestrator.Task(runIntegrationTests).Named("integration-tests"),
 
 				// Conditional production deployment
 				orchestrator.Conditional(
 					func(ctx orchestrator.Context) (bool, error) {
 						// Check if tests passed and it's main branch
-						return build.Branch == "main" && rand.Float32() > 0.1, nil // 90% success rate
+						buildData := ctx.Get("build").(BuildInfo)
+						return buildData.Branch == "main" && rand.Float32() > 0.1, nil // 90% success rate
 					},
 					// Production deployment
 					orchestrator.Sequential(
-						orchestrator.Task(func() (StepResult, error) {
-							return deployToProduction(build)
-						}).Named("prod-deploy"),
-						orchestrator.Task(func() (StepResult, error) {
-							return runSmokeTests(build)
-						}).Named("smoke-tests"),
+						orchestrator.Task(deployToProduction).Named("prod-deploy"),
+						orchestrator.Task(runSmokeTests).Named("smoke-tests"),
 					).Named("production-deployment"),
 					// Rollback scenario
-					orchestrator.Task(func() (StepResult, error) {
-						return rollbackDeployment(build)
-					}).Named("rollback"),
+					orchestrator.Task(rollbackDeployment).Named("rollback"),
 				).Named("deployment-decision"),
 			).Named("deployment-pipeline"),
 		).Named("cicd-pipeline"),
@@ -116,7 +105,8 @@ func main() {
 
 // CI/CD pipeline functions
 
-func runUnitTests(build BuildInfo) (StepResult, error) {
+func runUnitTests(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   🧪 Running unit tests...")
 
@@ -142,7 +132,8 @@ func runUnitTests(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func runLintingChecks(build BuildInfo) (StepResult, error) {
+func runLintingChecks(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   📝 Running linting checks...")
 
@@ -157,7 +148,8 @@ func runLintingChecks(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func performSecurityScan(build BuildInfo) (StepResult, error) {
+func performSecurityScan(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   🔒 Performing security scan...")
 
@@ -182,7 +174,8 @@ func performSecurityScan(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func buildDockerImage(build BuildInfo) (StepResult, error) {
+func buildDockerImage(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   🐳 Building Docker image...")
 
@@ -200,7 +193,8 @@ func buildDockerImage(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func deployToStaging(build BuildInfo) (StepResult, error) {
+func deployToStaging(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   🚀 Deploying to staging environment...")
 
@@ -215,7 +209,8 @@ func deployToStaging(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func runIntegrationTests(build BuildInfo) (StepResult, error) {
+func runIntegrationTests(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   🔗 Running integration tests...")
 
@@ -240,7 +235,8 @@ func runIntegrationTests(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func deployToProduction(build BuildInfo) (StepResult, error) {
+func deployToProduction(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   🌟 Deploying to production...")
 
@@ -255,7 +251,8 @@ func deployToProduction(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func runSmokeTests(build BuildInfo) (StepResult, error) {
+func runSmokeTests(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   💨 Running smoke tests...")
 
@@ -270,7 +267,8 @@ func runSmokeTests(build BuildInfo) (StepResult, error) {
 	}, nil
 }
 
-func rollbackDeployment(build BuildInfo) (StepResult, error) {
+func rollbackDeployment(ctx orchestrator.Context) (StepResult, error) {
+	build := ctx.Get("build").(BuildInfo)
 	start := time.Now()
 	fmt.Println("   ⏪ Rolling back deployment...")
 

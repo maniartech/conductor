@@ -54,24 +54,20 @@ func main() {
 	// Create supply chain workflow
 	workflow := orchestrator.Setup(
 		orchestrator.Sequential(
+			// Store order data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("order", order)
+				return "Order data stored in context", nil
+			}).Named("setup"),
+
 			// Order validation and planning
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return validateOrder(order)
-			}).Named("order-validation"),
+			orchestrator.Task(validateOrder).Named("order-validation"),
 
 			// Parallel inventory and supplier checks
 			orchestrator.Concurrent(
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return checkInventory(order)
-				}).Named("inventory-check"),
-
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return verifySupplier(order)
-				}).Named("supplier-verification"),
-
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return calculateShipping(order)
-				}).Named("shipping-calculation"),
+				orchestrator.Task(checkInventory).Named("inventory-check"),
+				orchestrator.Task(verifySupplier).Named("supplier-verification"),
+				orchestrator.Task(calculateShipping).Named("shipping-calculation"),
 			).Named("parallel-checks"),
 
 			// Conditional procurement based on inventory
@@ -89,43 +85,23 @@ func main() {
 				},
 				// Procurement path
 				orchestrator.Sequential(
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return initiateProcurement(order)
-					}).Named("procurement-initiation"),
-
-					orchestrator.Task(func() (ProcessingResult, error) {
-						return trackProcurement(order)
-					}).Named("procurement-tracking"),
+					orchestrator.Task(initiateProcurement).Named("procurement-initiation"),
+					orchestrator.Task(trackProcurement).Named("procurement-tracking"),
 				).Named("procurement-process"),
 				// Direct fulfillment path
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return prepareDirectFulfillment(order)
-				}).Named("direct-fulfillment"),
+				orchestrator.Task(prepareDirectFulfillment).Named("direct-fulfillment"),
 			).Named("conditional-procurement"),
 
 			// Fulfillment and logistics
 			orchestrator.Concurrent(
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return scheduleProduction(order)
-				}).Named("production-scheduling"),
-
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return arrangeLogistics(order)
-				}).Named("logistics-arrangement"),
-
-				orchestrator.Task(func() (ProcessingResult, error) {
-					return prepareDocumentation(order)
-				}).Named("documentation-prep"),
+				orchestrator.Task(scheduleProduction).Named("production-scheduling"),
+				orchestrator.Task(arrangeLogistics).Named("logistics-arrangement"),
+				orchestrator.Task(prepareDocumentation).Named("documentation-prep"),
 			).Named("fulfillment-logistics"),
 
 			// Final steps
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return updateOrderStatus(order)
-			}).Named("status-update"),
-
-			orchestrator.Task(func() (ProcessingResult, error) {
-				return notifyStakeholders(order)
-			}).Named("stakeholder-notification"),
+			orchestrator.Task(updateOrderStatus).Named("status-update"),
+			orchestrator.Task(notifyStakeholders).Named("stakeholder-notification"),
 		).Named("supply-chain-workflow"),
 	)
 
@@ -141,7 +117,8 @@ func main() {
 }
 
 // Supply chain processing implementations
-func validateOrder(order SupplyChainOrder) (ProcessingResult, error) {
+func validateOrder(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate order validation
@@ -170,7 +147,8 @@ func validateOrder(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func checkInventory(order SupplyChainOrder) (ProcessingResult, error) {
+func checkInventory(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate inventory check
@@ -198,7 +176,8 @@ func checkInventory(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func verifySupplier(order SupplyChainOrder) (ProcessingResult, error) {
+func verifySupplier(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate supplier verification
@@ -219,7 +198,8 @@ func verifySupplier(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func calculateShipping(order SupplyChainOrder) (ProcessingResult, error) {
+func calculateShipping(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate shipping calculation
@@ -241,7 +221,8 @@ func calculateShipping(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func initiateProcurement(order SupplyChainOrder) (ProcessingResult, error) {
+func initiateProcurement(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate procurement initiation
@@ -261,7 +242,8 @@ func initiateProcurement(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func trackProcurement(order SupplyChainOrder) (ProcessingResult, error) {
+func trackProcurement(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate procurement tracking
@@ -279,7 +261,8 @@ func trackProcurement(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func prepareDirectFulfillment(order SupplyChainOrder) (ProcessingResult, error) {
+func prepareDirectFulfillment(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate direct fulfillment preparation
@@ -297,7 +280,8 @@ func prepareDirectFulfillment(order SupplyChainOrder) (ProcessingResult, error) 
 	}, nil
 }
 
-func scheduleProduction(order SupplyChainOrder) (ProcessingResult, error) {
+func scheduleProduction(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate production scheduling
@@ -318,7 +302,8 @@ func scheduleProduction(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func arrangeLogistics(order SupplyChainOrder) (ProcessingResult, error) {
+func arrangeLogistics(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate logistics arrangement
@@ -337,7 +322,8 @@ func arrangeLogistics(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func prepareDocumentation(order SupplyChainOrder) (ProcessingResult, error) {
+func prepareDocumentation(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate documentation preparation
@@ -355,7 +341,8 @@ func prepareDocumentation(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func updateOrderStatus(order SupplyChainOrder) (ProcessingResult, error) {
+func updateOrderStatus(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate status update
@@ -373,7 +360,8 @@ func updateOrderStatus(order SupplyChainOrder) (ProcessingResult, error) {
 	}, nil
 }
 
-func notifyStakeholders(order SupplyChainOrder) (ProcessingResult, error) {
+func notifyStakeholders(ctx orchestrator.Context) (ProcessingResult, error) {
+	order := ctx.Get("order").(SupplyChainOrder)
 	start := time.Now()
 
 	// Simulate stakeholder notification

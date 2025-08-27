@@ -51,45 +51,36 @@ func main() {
 	// Conditional processing based on transaction amount
 	result, err := orchestrator.Setup(
 		orchestrator.Sequential(
-			orchestrator.Task(func() (ValidationResult, error) {
-				return validateTransactionData(transaction)
-			}).Named("validation"),
+			// Store transaction data in context
+			orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
+				ctx.Set("transaction", transaction)
+				return "Transaction data stored in context", nil
+			}).Named("setup"),
+
+			orchestrator.Task(validateTransactionData).Named("validation"),
 
 			// Conditional flow based on transaction amount
 			orchestrator.Conditional(
 				func(ctx orchestrator.Context) (bool, error) {
+					txn := ctx.Get("transaction").(Transaction)
 					// High-value transaction threshold
-					return transaction.Amount > 10000, nil
+					return txn.Amount > 10000, nil
 				},
 				// High-value transaction flow
 				orchestrator.Sequential(
-					orchestrator.Task(func() (ValidationResult, error) {
-						return performEnhancedKYC(transaction)
-					}).Named("enhanced-kyc"),
-					orchestrator.Task(func() (ValidationResult, error) {
-						return requireManualApproval(transaction)
-					}).Named("manual-approval"),
+					orchestrator.Task(performEnhancedKYC).Named("enhanced-kyc"),
+					orchestrator.Task(requireManualApproval).Named("manual-approval"),
 				).Named("high-value-flow"),
 				// Standard transaction flow
 				orchestrator.Concurrent(
-					orchestrator.Task(func() (ValidationResult, error) {
-						return performFraudCheck(transaction)
-					}).Named("fraud-check"),
-					orchestrator.Task(func() (ValidationResult, error) {
-						return validateMerchant(transaction)
-					}).Named("merchant-validation"),
-					orchestrator.Task(func() (ValidationResult, error) {
-						return checkRiskScore(transaction)
-					}).Named("risk-assessment"),
+					orchestrator.Task(performFraudCheck).Named("fraud-check"),
+					orchestrator.Task(validateMerchant).Named("merchant-validation"),
+					orchestrator.Task(checkRiskScore).Named("risk-assessment"),
 				).Named("standard-checks"),
 			).Named("risk-assessment"),
 
-			orchestrator.Task(func() (ValidationResult, error) {
-				return processPayment(transaction)
-			}).Named("payment-processing"),
-			orchestrator.Task(func() (ValidationResult, error) {
-				return updateLedger(transaction)
-			}).Named("ledger-update"),
+			orchestrator.Task(processPayment).Named("payment-processing"),
+			orchestrator.Task(updateLedger).Named("ledger-update"),
 		).Named("transaction-pipeline"),
 	).With(orchestrator.Config{
 		ErrorStrategy: orchestrator.FailFast,
@@ -110,10 +101,10 @@ func main() {
 
 // Transaction processing functions
 
-func validateTransactionData(txn Transaction) (ValidationResult, error) {
+func validateTransactionData(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   📋 Validating transaction data...")
 	time.Sleep(100 * time.Millisecond)
-
+	txn := ctx.Get("transaction").(Transaction)
 	if txn.Amount <= 0 {
 		return ValidationResult{
 			Step:    "validation",
@@ -130,7 +121,7 @@ func validateTransactionData(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func performEnhancedKYC(txn Transaction) (ValidationResult, error) {
+func performEnhancedKYC(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   🔍 Performing enhanced KYC checks...")
 	time.Sleep(300 * time.Millisecond)
 
@@ -151,7 +142,7 @@ func performEnhancedKYC(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func requireManualApproval(txn Transaction) (ValidationResult, error) {
+func requireManualApproval(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   👤 Requiring manual approval for high-value transaction...")
 	time.Sleep(200 * time.Millisecond)
 
@@ -164,7 +155,7 @@ func requireManualApproval(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func performFraudCheck(txn Transaction) (ValidationResult, error) {
+func performFraudCheck(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   🛡️  Performing fraud check...")
 	time.Sleep(150 * time.Millisecond)
 
@@ -185,7 +176,7 @@ func performFraudCheck(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func validateMerchant(txn Transaction) (ValidationResult, error) {
+func validateMerchant(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   🏪 Validating merchant...")
 	time.Sleep(100 * time.Millisecond)
 
@@ -197,7 +188,7 @@ func validateMerchant(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func checkRiskScore(txn Transaction) (ValidationResult, error) {
+func checkRiskScore(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   📊 Checking risk score...")
 	time.Sleep(120 * time.Millisecond)
 
@@ -222,7 +213,8 @@ func checkRiskScore(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func processPayment(txn Transaction) (ValidationResult, error) {
+func processPayment(ctx orchestrator.Context) (ValidationResult, error) {
+	txn := ctx.Get("transaction").(Transaction)
 	fmt.Printf("   💰 Processing payment of $%.2f...\n", txn.Amount)
 	time.Sleep(250 * time.Millisecond)
 
@@ -234,7 +226,7 @@ func processPayment(txn Transaction) (ValidationResult, error) {
 	}, nil
 }
 
-func updateLedger(txn Transaction) (ValidationResult, error) {
+func updateLedger(ctx orchestrator.Context) (ValidationResult, error) {
 	fmt.Println("   📚 Updating ledger...")
 	time.Sleep(80 * time.Millisecond)
 
