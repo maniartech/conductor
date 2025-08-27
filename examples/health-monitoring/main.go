@@ -62,23 +62,23 @@ func main() {
 }
 
 // Service health check functions
-func checkUserServiceHealth() (ServiceHealth, error) {
+func checkUserServiceHealth(ctx orchestrator.Context) (ServiceHealth, error) {
 	return performHealthCheck("user-service", "http://user-service:8080/health")
 }
 
-func checkPaymentServiceHealth() (ServiceHealth, error) {
+func checkPaymentServiceHealth(ctx orchestrator.Context) (ServiceHealth, error) {
 	return performHealthCheck("payment-service", "http://payment-service:8081/health")
 }
 
-func checkInventoryServiceHealth() (ServiceHealth, error) {
+func checkInventoryServiceHealth(ctx orchestrator.Context) (ServiceHealth, error) {
 	return performHealthCheck("inventory-service", "http://inventory-service:8082/health")
 }
 
-func checkNotificationServiceHealth() (ServiceHealth, error) {
+func checkNotificationServiceHealth(ctx orchestrator.Context) (ServiceHealth, error) {
 	return performHealthCheck("notification-service", "http://notification-service:8083/health")
 }
 
-func checkAnalyticsServiceHealth() (ServiceHealth, error) {
+func checkAnalyticsServiceHealth(ctx orchestrator.Context) (ServiceHealth, error) {
 	return performHealthCheck("analytics-service", "http://analytics-service:8084/health")
 }
 

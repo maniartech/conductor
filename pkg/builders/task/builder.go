@@ -59,6 +59,7 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 	"github.com/maniartech/orchestrator/pkg/types"
@@ -76,30 +77,37 @@ import (
 //	With(config.Config{Timeout: 5*time.Second})
 type TaskBuilder[T any] struct {
 	*orchestration.BaseOrchestrationBuilder
-	fn func() (T, error)
+	fn func(orchContext.Context) (T, error) // Single function signature with context
 }
 
 // Task creates a new TaskBuilder with the provided function.
-// The function must return a value of type T and an error.
+// The function receives the orchestrator context and must return a value of type T and an error.
 // This is the primary constructor for creating individual tasks.
+//
+// The context provides thread-safe access to:
+//   - Shared data via ctx.Set/Get
+//   - Orchestration configuration via ctx.Config()
+//   - Lifecycle management via ctx.Cancel(), ctx.Done()
+//   - Timeout management via ctx.WithTimeout(), ctx.IsExpired()
 //
 // Example:
 //
 //	// String task
-//	stringTask := Task(func() (string, error) {
+//	stringTask := Task(func(ctx orchestrator.Context) (string, error) {
 //	    return "result", nil
 //	})
 //
-//	// Integer task
-//	intTask := Task(func() (int, error) {
-//	    return 42, nil
+//	// Integer task with context usage
+//	intTask := Task(func(ctx orchestrator.Context) (int, error) {
+//	    userID := ctx.Get("user_id").(int)
+//	    return userID * 2, nil
 //	})
 //
 //	// Custom type task
-//	userTask := Task(func() (User, error) {
+//	userTask := Task(func(ctx orchestrator.Context) (User, error) {
 //	    return User{ID: 123, Name: "John"}, nil
 //	})
-func Task[T any](fn func() (T, error)) *TaskBuilder[T] {
+func Task[T any](fn func(orchContext.Context) (T, error)) *TaskBuilder[T] {
 	if fn == nil {
 		panic("task function cannot be nil")
 	}
@@ -204,7 +212,7 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 	result := result.NewResult()
 
 	// Execute with comprehensive error handling
-	taskResult, taskError := tb.safeExecute(execCtx)
+	taskResult, taskError := tb.safeExecute(execCtx, finalConfig)
 	duration := time.Since(startTime)
 
 	// Complete execution (handled by base)
@@ -264,7 +272,17 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 //   - Channels are closed to prevent leaks
 //   - Context cancellation is respected
 //   - Memory allocations are minimized
-func (tb *TaskBuilder[T]) safeExecute(ctx context.Context) (T, error) {
+func (tb *TaskBuilder[T]) safeExecute(ctx context.Context, config config.Config) (T, error) {
+	// Use shared orchestrator context if available, otherwise create a new one
+	var orchCtx orchContext.Context
+	if config.OrchestrationContext != nil {
+		// Use the shared orchestrator context for data sharing between tasks
+		orchCtx = config.OrchestrationContext.(orchContext.Context)
+	} else {
+		// Create a new orchestrator context from config
+		orchCtx = orchContext.NewContext(config)
+	}
+
 	// Channel for task completion
 	done := make(chan struct{})
 	var taskResult T
@@ -296,8 +314,8 @@ func (tb *TaskBuilder[T]) safeExecute(ctx context.Context) (T, error) {
 		default:
 		}
 
-		// Execute the actual task function
-		taskResult, taskError = tb.fn()
+		// Execute the actual task function with orchestrator context
+		taskResult, taskError = tb.fn(orchCtx)
 	}()
 
 	// Wait for completion or cancellation

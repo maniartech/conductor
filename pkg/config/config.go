@@ -43,6 +43,10 @@ type Config struct {
 
 	// Context provides cancellation and deadline control
 	Context context.Context
+
+	// OrchestrationContext holds the shared orchestrator context for data sharing between tasks
+	// This is stored as interface{} to avoid circular dependencies
+	OrchestrationContext interface{}
 }
 
 // DefaultConfig returns a config with sensible defaults.
@@ -109,6 +113,9 @@ func (c Config) Inherit(parent Config) Config {
 	}
 	if c.Context != nil {
 		result.Context = c.Context
+	}
+	if c.OrchestrationContext != nil {
+		result.OrchestrationContext = c.OrchestrationContext
 	}
 
 	return result

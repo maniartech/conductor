@@ -72,6 +72,7 @@ import (
 
 	"github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/config"
+	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
 	"github.com/maniartech/orchestrator/pkg/result"
 	"github.com/maniartech/orchestrator/pkg/types"
@@ -277,6 +278,12 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 	// Apply error boundary if specified
 	if sb.errorBoundary != nil {
 		finalConfig.ErrorStrategy = *sb.errorBoundary
+	}
+
+	// Create shared orchestrator context for data sharing between tasks
+	if finalConfig.OrchestrationContext == nil {
+		orchCtx := orchContext.NewContext(finalConfig)
+		finalConfig.OrchestrationContext = orchCtx
 	}
 
 	// Create result container

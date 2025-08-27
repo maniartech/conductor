@@ -26,7 +26,20 @@ type ProcessingResult struct {
 	Message   string        `json:"message"`
 }
 
-// Video processing functions using closures for clean function references
+// PROPOSAL: We need TaskWithContext that receives orchestrator.Context
+// This would enable:
+// 1. Thread-safe data sharing via ctx.Set/Get
+// 2. Orchestration control from within tasks
+// 3. Access to orchestration state and configuration
+//
+// Ideal API would be:
+// orchestrator.TaskWithContext(func(ctx orchestrator.Context) (ProcessingResult, error) {
+//     video := ctx.Get("video").(VideoFile)  // Access shared data
+//     // ... task logic
+//     return result, nil
+// })
+//
+// Current limitation: Tasks use closures and can't access orchestrator context
 
 func main() {
 	fmt.Println("🎬 Video Streaming Pipeline - Content Processing")
@@ -46,30 +59,33 @@ func main() {
 
 	start := time.Now()
 
-	// Create closures that capture the video data - thread-safe and clean
-	uploadVideoFn := func() (ProcessingResult, error) { return uploadVideoToStorage(video) }
-	transcodeHDFn := func() (ProcessingResult, error) { return transcodeToHD(video) }
-	transcodeSDFn := func() (ProcessingResult, error) { return transcodeToSD(video) }
-	transcodeMobileFn := func() (ProcessingResult, error) { return transcodeToMobile(video) }
-	generateThumbnailsFn := func() (ProcessingResult, error) { return generateThumbnails(video) }
-	extractAudioFn := func() (ProcessingResult, error) { return extractAudioTrack(video) }
-	distributeCDNFn := func() (ProcessingResult, error) { return distributeToGlobalCDN(video) }
-
-	// Create workflow with progress tracking
+	// DEMONSTRATION: Both closure-based and context-aware approaches
 	workflow := orchestrator.Setup(
 		orchestrator.Sequential(
-			orchestrator.Task(uploadVideoFn).Named("upload"),
+			// Context-aware task that stores video data for other tasks
+			orchestrator.Task(func(ctx orchestrator.Context) (ProcessingResult, error) {
+				ctx.Set("video", video) // Store video in orchestrator context
+				return ProcessingResult{
+					Step:    "context-setup",
+					Success: true,
+					Message: "Video data stored in orchestrator context",
+				}, nil
+			}).Named("setup"),
 
-			// Parallel transcoding for different formats
+			// Context-aware upload task
+			orchestrator.Task(uploadVideoToStorage).Named("upload"),
+
+			// Parallel transcoding - clean one-liner approach
 			orchestrator.Concurrent(
-				orchestrator.Task(transcodeHDFn).Named("hd-transcode"),
-				orchestrator.Task(transcodeSDFn).Named("sd-transcode"),
-				orchestrator.Task(transcodeMobileFn).Named("mobile-transcode"),
-				orchestrator.Task(generateThumbnailsFn).Named("thumbnails"),
-				orchestrator.Task(extractAudioFn).Named("audio-extraction"),
+				orchestrator.Task(transcodeToHD).Named("hd-transcode"),
+				orchestrator.Task(transcodeToSD).Named("sd-transcode"),
+				orchestrator.Task(transcodeToMobile).Named("mobile-transcode"),
+				orchestrator.Task(generateThumbnails).Named("thumbnails"),
+				orchestrator.Task(extractAudioTrack).Named("audio-extraction"),
 			).Named("parallel-processing"),
 
-			orchestrator.Task(distributeCDNFn).Named("cdn-distribution"),
+			// Context-aware CDN distribution
+			orchestrator.Task(distributeToGlobalCDN).Named("cdn-distribution"),
 		).Named("video-pipeline"),
 	).OnProgress(func(progress orchestrator.Progress) {
 		// Real-time progress updates
@@ -91,9 +107,26 @@ func main() {
 	displayProcessingResults(result, video)
 }
 
-// Video processing functions
+// Helper function to get video from context
+func getVideoFromContext(ctx orchestrator.Context) (VideoFile, error) {
+	videoData := ctx.Get("video")
+	if videoData == nil {
+		return VideoFile{}, fmt.Errorf("video data not found in context")
+	}
+	video, ok := videoData.(VideoFile)
+	if !ok {
+		return VideoFile{}, fmt.Errorf("invalid video data type in context")
+	}
+	return video, nil
+}
 
-func uploadVideoToStorage(video VideoFile) (ProcessingResult, error) {
+// Context-aware video processing functions
+
+func uploadVideoToStorage(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   ☁️  Uploading video to cloud storage...")
 
@@ -111,7 +144,11 @@ func uploadVideoToStorage(video VideoFile) (ProcessingResult, error) {
 	}, nil
 }
 
-func transcodeToHD(video VideoFile) (ProcessingResult, error) {
+func transcodeToHD(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   🎥 Transcoding to HD (1080p)...")
 
@@ -129,7 +166,11 @@ func transcodeToHD(video VideoFile) (ProcessingResult, error) {
 	}, nil
 }
 
-func transcodeToSD(video VideoFile) (ProcessingResult, error) {
+func transcodeToSD(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   📺 Transcoding to SD (720p)...")
 
@@ -147,7 +188,11 @@ func transcodeToSD(video VideoFile) (ProcessingResult, error) {
 	}, nil
 }
 
-func transcodeToMobile(video VideoFile) (ProcessingResult, error) {
+func transcodeToMobile(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   📱 Transcoding to mobile (480p)...")
 
@@ -165,7 +210,11 @@ func transcodeToMobile(video VideoFile) (ProcessingResult, error) {
 	}, nil
 }
 
-func generateThumbnails(video VideoFile) (ProcessingResult, error) {
+func generateThumbnails(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   🖼️  Generating thumbnails...")
 
@@ -182,7 +231,11 @@ func generateThumbnails(video VideoFile) (ProcessingResult, error) {
 	}, nil
 }
 
-func extractAudioTrack(video VideoFile) (ProcessingResult, error) {
+func extractAudioTrack(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   🎵 Extracting audio track...")
 
@@ -200,7 +253,11 @@ func extractAudioTrack(video VideoFile) (ProcessingResult, error) {
 	}, nil
 }
 
-func distributeToGlobalCDN(video VideoFile) (ProcessingResult, error) {
+func distributeToGlobalCDN(ctx orchestrator.Context) (ProcessingResult, error) {
+	video, err := getVideoFromContext(ctx)
+	if err != nil {
+		return ProcessingResult{}, err
+	}
 	start := time.Now()
 	fmt.Println("   🌍 Distributing to global CDN...")
 

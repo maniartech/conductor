@@ -43,7 +43,7 @@ func main() {
 }
 
 // fetchUserData simulates fetching user data from an API
-func fetchUserData() (string, error) {
+func fetchUserData(ctx orchestrator.Context) (string, error) {
 	fmt.Println("    Starting user data fetch...")
 	time.Sleep(200 * time.Millisecond) // Simulate API call
 	fmt.Println("    User data fetched")
@@ -51,7 +51,7 @@ func fetchUserData() (string, error) {
 }
 
 // processAnalytics simulates processing analytics data
-func processAnalytics() (string, error) {
+func processAnalytics(ctx orchestrator.Context) (string, error) {
 	fmt.Println("    Starting analytics processing...")
 	time.Sleep(150 * time.Millisecond) // Simulate processing
 	fmt.Println("    Analytics processed")
@@ -59,7 +59,7 @@ func processAnalytics() (string, error) {
 }
 
 // sendNotifications simulates sending notifications
-func sendNotifications() (string, error) {
+func sendNotifications(ctx orchestrator.Context) (string, error) {
 	fmt.Println("    Starting notification send...")
 	time.Sleep(100 * time.Millisecond) // Simulate notification
 	fmt.Println("    Notifications sent")
