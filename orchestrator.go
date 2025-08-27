@@ -40,26 +40,33 @@ import (
 type Context = orchContext.Context
 
 // Task creates a new task orchestration with the provided function.
-// The function must return a value of type T and an error.
+// The function receives the orchestrator context and must return a value of type T and an error.
 // This is the primary building block for creating individual tasks.
+//
+// The context provides thread-safe access to:
+//   - Shared data via ctx.Set/Get
+//   - Orchestration configuration via ctx.Config()
+//   - Lifecycle management via ctx.Cancel(), ctx.Done()
+//   - Timeout management via ctx.WithTimeout(), ctx.IsExpired()
 //
 // Example:
 //
 //	// String task
-//	stringTask := orchestrator.Task(func() (string, error) {
+//	stringTask := orchestrator.Task(func(ctx orchestrator.Context) (string, error) {
 //	    return "result", nil
 //	})
 //
-//	// Integer task with error
-//	intTask := orchestrator.Task(func() (int, error) {
-//	    return 42, someError
+//	// Integer task with context usage
+//	intTask := orchestrator.Task(func(ctx orchestrator.Context) (int, error) {
+//	    userID := ctx.Get("user_id").(int)
+//	    return userID * 2, nil
 //	})
 //
 //	// Custom type task
-//	userTask := orchestrator.Task(func() (User, error) {
+//	userTask := orchestrator.Task(func(ctx orchestrator.Context) (User, error) {
 //	    return User{ID: 123, Name: "John"}, nil
 //	})
-func Task[T any](fn func() (T, error)) orchestration.Orchestration {
+func Task[T any](fn func(Context) (T, error)) orchestration.Orchestration {
 	return task.Task(fn)
 }
 
