@@ -96,3 +96,44 @@ func (w *Workflow) AwaitWithTimeout(timeout time.Duration) (*result.Result, erro
 	}
 }
 ```
+
+## 4. Path to Production-Grade Reliability
+
+While the enhancements above improve the core API, building "military-grade" production systems requires addressing two critical areas: fault tolerance and data consistency. The following sections outline proposals for integrating these capabilities directly into the orchestrator.
+
+### 4.1. Proposed: Transaction Rollback Support (Saga Pattern)
+
+**Problem:** The current execution model is purely forward-moving. If a task fails, there is no automatic mechanism to undo or compensate for the actions of previously completed tasks. This can leave the system in an inconsistent state.
+
+**Proposed Solution:** Implement the **Saga pattern** by introducing compensation logic.
+
+*   **`WithCompensation(compensationFunc)`:** A new builder method would allow a task to be associated with a corresponding rollback function.
+    ```go
+    orchestrator.Task(createOrder).
+        WithCompensation(cancelOrder)
+    ```
+*   **Automatic Rollback:** If a sequential workflow fails, the orchestrator would automatically iterate in reverse over the successfully completed tasks and execute their compensation functions, passing the original task's output as input.
+
+**Does this provide a complete Saga pattern?**
+This proposal lays the foundation for a complete Saga implementation. A full implementation would also need to handle state management for the rollback process, ensure compensations are idempotent, and manage failures during the compensation itself. While not "complete" out-of-the-box, it is the correct architectural step.
+
+### 4.2. Proposed: Declarative Retry Mechanism
+
+**Problem:** Tasks can fail due to transient issues like network timeouts or temporary service unavailability. Currently, retry logic must be implemented manually inside each task, which is repetitive and error-prone.
+
+**Proposed Solution:** Introduce a declarative retry policy.
+
+*   **`WithRetries(policy)`:** A new builder method would allow tasks to be configured with a retry policy, including backoff strategies.
+    ```go
+    orchestrator.Task(fetchFromAPI).
+        WithRetries(config.RetryPolicy{
+            MaxAttempts: 5,
+            Backoff:     config.ExponentialBackoff(1*time.Second),
+            Jitter:      config.FullJitter,
+        })
+    ```
+*   **Automatic Retries:** The orchestrator would wrap the task execution and automatically retry it according to the policy if it fails.
+
+### Conclusion: Building "Military-Grade" Systems
+
+Implementing both the **Saga pattern for rollbacks** and a **declarative retry mechanism** are essential steps toward building highly reliable, fault-tolerant, and resilient systems. While "military-grade" is a high bar, these features are foundational pillars that move the orchestrator from a simple workflow runner to a robust tool capable of managing complex, long-running, and mission-critical processes in a production environment. They provide the guarantees needed to maintain data consistency and recover from failure gracefully.
