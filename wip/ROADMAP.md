@@ -1,8 +1,7 @@
 # Orchestrator Roadmap
 
 ## Phase 1: Core Implementation (Current)
-- Simple `interface{}` based result storage
-- Clean API with hierarchical configuration
+- **Unified, Hierarchical Configuration Model:** A fluent, builder-based API where all configuration is applied directly to orchestrations and inherited by their children.
 - Zero-allocation orchestration execution
 - Military-grade error handling and recovery
 - Comprehensive test coverage
@@ -16,12 +15,16 @@
 - **Conditional:** Execute different orchestrations based on runtime conditions
 
 **Advanced Orchestrations:**
+- **Fallback:** Tries a chain of orchestrations in order until one succeeds.
 - **Parallel:** Data parallelism - execute same orchestration on multiple data items
 - **Loop:** Execute orchestration repeatedly with different conditions (While, For)
 - **Race:** Execute multiple orchestrations, return first successful result
 - **Timeout:** Execute orchestration with automatic timeout and fallback
 - **Retry:** Execute orchestration with configurable retry policies
 - **Switch:** Multi-way branching based on value matching (like switch statement)
+
+**Defining Criticality: Optional Tasks**
+A task can be marked with `.Optional()`. If an optional task fails, its error is logged but not propagated. This allows a parent orchestrator (like `Sequential` or `Concurrent`) to continue execution, preventing failures in non-essential tasks from halting critical workflows.
 
 **Enhanced Conditional with Control Flow Actions:**
 ```go
@@ -32,7 +35,7 @@ Conditional(
     ifFalse: Task(standardFlow).Named("standard"),
 ).Named("admin-check")
 
-// Conditional with Terminate action  
+// Conditional with Terminate action
 Conditional(
     condition: func(ctx context.Context) bool { return !order.IsValid() },
     ifTrue: Terminate("Invalid order cannot be processed"),
@@ -53,8 +56,9 @@ Conditional(
 
 **Implementation Status:**
 - Sequential orchestration: ✅ Complete
-- Concurrent orchestration: 🔄 In Progress  
+- Concurrent orchestration: 🔄 In Progress
 - Conditional orchestration: 📋 Planned
+- Fallback orchestration: 📋 Planned
 - GoTo/Terminate actions: 📋 Planned
 - Parallel orchestration: 📋 Planned
 - Loop orchestration: 📋 Planned
@@ -75,7 +79,7 @@ highAvailabilityService := Retry(
             orchestration: Task(primaryService).Named("primary"),
             fallback: Task(primaryFallback).Named("primary-fallback"),
         ).Named("primary-with-timeout"),
-        
+
         Timeout(
             duration: 3*time.Second,
             orchestration: Task(secondaryService).Named("secondary"),
@@ -97,8 +101,8 @@ dataProcessingPipeline := Sequential(
         Task(ingestFromAPI).Named("api-ingestion"),
         Task(ingestFromFiles).Named("file-ingestion"),
     ).Named("data-ingestion").
-    ErrorBoundary(errors.CollectAll),
-    
+    WithErrorStrategy(errors.CollectAll),
+
     // Stage 2: Data validation and transformation
     Parallel(
         data: ingestedRecords,
@@ -109,7 +113,7 @@ dataProcessingPipeline := Sequential(
         ).Named("record-processing"),
         concurrency: 50,
     ).Named("data-processing"),
-    
+
     // Stage 3: Data output (with retry for reliability)
     Retry(
         orchestration: Concurrent(
@@ -128,7 +132,7 @@ dataProcessingPipeline := Sequential(
 // Complex user workflow with conditional paths and error handling
 userJourney := Sequential(
     Task(loadUserContext).Named("load-context"),
-    
+
     // Route based on user state
     Switch(
         value: func(ctx context.Context) string { return user.State },
@@ -138,13 +142,13 @@ userJourney := Sequential(
                 Task(collectPreferences).Named("preferences"),
                 Task(setupProfile).Named("profile-setup"),
             ).Named("new-user-flow"),
-            
+
             "returning": Conditional(
                 condition: func(ctx context.Context) bool { return user.HasPendingActions() },
                 ifTrue: Task(showPendingActions).Named("pending-actions"),
                 ifFalse: Task(showDashboard).Named("dashboard"),
             ).Named("returning-user-flow"),
-            
+
             "premium": Concurrent(
                 Task(loadPremiumFeatures).Named("premium-features"),
                 Task(showPersonalizedContent).Named("personalized-content"),
@@ -153,9 +157,9 @@ userJourney := Sequential(
         },
         default: Task(showBasicInterface).Named("basic-interface"),
     ).Named("user-state-routing"),
-    
-    // Common finalization
-    Task(logUserActivity).Named("activity-logging"),
+
+    // Common finalization, marked as optional
+    Task(logUserActivity).Named("activity-logging").Optional(),
 ).Named("user-journey-orchestration")
 ```
 
@@ -187,7 +191,7 @@ func (r *Result) GetTyped[T any](name string) (T, bool)
 
 **Benefits:**
 - 90% of use cases: Zero allocation
-- 10% of use cases: Minimal allocation  
+- 10% of use cases: Minimal allocation
 - Unlimited type support
 - Backward compatible API
 
@@ -221,7 +225,7 @@ userDataGathering := Concurrent(
     Task(fetchUserHistory).Named("history"),
     Task(fetchUserRecommendations).Named("recommendations"),
 ).Named("gather-user-data").
-ErrorBoundary(errors.CollectAll) // Continue even if some tasks fail
+WithErrorStrategy(errors.CollectAll) // Continue even if some tasks fail
 
 // Enterprise use case: Microservice coordination
 orderValidation := Concurrent(
@@ -230,7 +234,7 @@ orderValidation := Concurrent(
     Task(verifyShipping).Named("shipping-verification"),
     Task(applyDiscounts).Named("discount-calculation"),
 ).Named("order-validation").
-ErrorBoundary(errors.FailFast) // Any failure stops the order
+WithErrorStrategy(errors.FailFast) // Any failure stops the order
 ```
 
 ### Parallel Orchestration (Data Parallelism)
@@ -272,7 +276,7 @@ paginatedProcessing := For(
 // Use Sequential directly for processing collections:
 Sequential(
     Task(processItem1).Named("item-1"),
-    Task(processItem2).Named("item-2"), 
+    Task(processItem2).Named("item-2"),
     Task(processItem3).Named("item-3"),
 ).Named("process-items")
 ```
@@ -349,13 +353,13 @@ requestProcessor := Switch(
             Task(processPayment).Named("process"),
             Task(sendReceipt).Named("receipt"),
         ).Named("payment-flow"),
-        
+
         "refund": Sequential(
             Task(validateRefund).Named("validate"),
             Task(processRefund).Named("process"),
             Task(notifyCustomer).Named("notify"),
         ).Named("refund-flow"),
-        
+
         "inquiry": Task(handleInquiry).Named("inquiry-handler"),
     },
     default: Task(handleUnknownRequest).Named("unknown-handler"),
@@ -367,34 +371,34 @@ requestProcessor := Switch(
 // Real-world e-commerce order processing with all orchestration types
 ecommerceOrder := Sequential(
     Task(authenticateUser).Named("authentication"),
-    
+
     // Conditional routing based on user type
     Conditional(
         condition: func(ctx context.Context) bool { return user.IsVIP() },
         ifTrue: GoTo("vip-processing"),
         ifFalse: nil, // Continue normal flow
     ).Named("vip-check"),
-    
+
     // Standard order validation (concurrent for speed)
     Concurrent(
         Task(validateOrder).Named("order-validation"),
         Task(checkInventory).Named("inventory-check"),
         Task(calculateShipping).Named("shipping-calc"),
     ).Named("order-validation").
-    ErrorBoundary(errors.FailFast),
-    
+    WithErrorStrategy(errors.FailFast),
+
     // Terminate if validation fails
     Conditional(
         condition: func(ctx context.Context) bool { return hasValidationErrors() },
         ifTrue: Terminate("Order validation failed"),
         ifFalse: nil,
     ).Named("validation-gate"),
-    
+
     GoTo("process-payment"),
-    
+
     // VIP processing path
     Task(vipFastTrack).Named("vip-processing"),
-    
+
     // Payment processing with retry
     Retry(
         orchestration: Task(processPayment).Named("payment"),
@@ -405,14 +409,14 @@ ecommerceOrder := Sequential(
             Multiplier:   2.0,
         },
     ).Named("process-payment"),
-    
+
     // Parallel fulfillment tasks
     Concurrent(
         Task(updateInventory).Named("inventory-update"),
         Task(generateShippingLabel).Named("shipping-label"),
         Task(sendConfirmationEmail).Named("confirmation-email"),
     ).Named("fulfillment"),
-    
+
     Task(completeOrder).Named("completion"),
 ).Named("ecommerce-order-processing")
 ```
@@ -453,16 +457,16 @@ ecommerceOrder := Sequential(
 enterpriseWorkflow := Sequential(
     // Critical authentication - must succeed
     Task(authenticate).Named("auth").
-    ErrorBoundary(errors.FailFast),
-    
+    WithErrorStrategy(errors.FailFast),
+
     // Data gathering - collect all possible data
     Concurrent(
         Task(fetchProfile).Named("profile"),
         Task(fetchPreferences).Named("preferences"),
         Task(fetchHistory).Named("history"),
     ).Named("data-gathering").
-    ErrorBoundary(errors.CollectAll), // Continue with partial data
-    
+    WithErrorStrategy(errors.CollectAll), // Continue with partial data
+
     // Payment processing - retry transient failures
     Retry(
         orchestration: Task(processPayment).Named("payment"),
@@ -471,71 +475,37 @@ enterpriseWorkflow := Sequential(
             return isTransientError(err) // Only retry specific errors
         },
     ).Named("reliable-payment"),
-    
+
     // Notification - best effort, don't fail workflow
-    Task(sendNotification).Named("notification").
-    ErrorBoundary(errors.Ignore), // Log but don't propagate errors
+    Task(sendNotification).Named("notification").Optional(),
 ).Named("enterprise-workflow")
 ```
 
-## Phase 3: Enterprise Features (Future)
-
-### Distributed Orchestration
-- Cross-service orchestration coordination
-- Distributed state management
-- Network partition handling
-- Service discovery integration
+## Phase 3: Enterprise & Military-Grade Features (Future)
 
 ### Persistent Workflow State
 - Workflow checkpointing and recovery
 - Long-running workflow support
-- State persistence backends (Redis, Database)
-- Workflow migration and versioning
+- State persistence backends (Redis, Database) via a `StateProvider` interface.
+- Workflow migration and versioning.
 
 ### Advanced Resilience Patterns
-- Circuit breaker integration
-- Bulkhead isolation patterns
-- Adaptive timeout strategies
-- Chaos engineering support
+- **Saga Pattern:** `WithCompensation` for defining rollback logic.
+- **Strategy for Compensation Failures:** A multi-layered defense for rollback failures: Retry -> Fallback Compensation -> Alert + DLQ for manual intervention.
+- **Circuit Breaker Integration:** `WithCircuitBreaker` to prevent repeated calls to a failing service.
+- **Bulkhead Pattern:** Resource isolation via configurable goroutine pools to prevent cascading failures.
+- Adaptive timeout strategies.
+- Chaos engineering support.
 
-### Enterprise Integration
-- Monitoring system integration (Prometheus, Grafana)
-- Distributed tracing (OpenTelemetry, Jaeger)
-- Audit logging and compliance
-- Multi-tenant workflow isolation
+### Security
+- **Secret Management:** A pluggable `SecretProvider` (e.g., Vault) to securely inject credentials at runtime without exposing them in state or logs.
 
-## Dynamic Task Creation at Runtime
-
-**Goal:** Allow tasks and orchestrations to be dynamically created and modified at runtime.
-
-**Features:**
-- Runtime task registration and discovery
-- Dynamic workflow composition based on configuration
-- Hot-swappable task implementations
-- Plugin-based task loading system
-
-**Use Cases:**
-- A/B testing different workflow implementations
-- Feature flag-driven orchestration changes
-- Multi-tenant workflows with tenant-specific customizations
-- Runtime optimization based on performance metrics
-
-**Implementation Approach:**
-```go
-// Dynamic task registry
-registry := NewTaskRegistry()
-registry.Register("process-payment", paymentProcessorV1)
-
-// Runtime task swapping
-registry.Replace("process-payment", paymentProcessorV2)
-
-// Dynamic workflow creation
-workflow := Sequential(
-    registry.GetTask("validate-order"),
-    registry.GetTask("process-payment"), 
-    registry.GetTask("fulfill-order"),
-).Named("dynamic-order-processing")
-```
+### Enterprise Integration & Dynamic Control
+- Monitoring system integration (Prometheus, Grafana).
+- Distributed tracing (OpenTelemetry, Jaeger).
+- Audit logging and compliance.
+- **Versioning and Hot-Reloading:** Register and run multiple versions of a workflow concurrently to allow for zero-downtime deployments.
+- Dynamic task registration and discovery.
 
 ## Quality Assurance & Testing
 
