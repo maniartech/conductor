@@ -137,3 +137,82 @@ This proposal lays the foundation for a complete Saga implementation. A full imp
 ### Conclusion: Building "Military-Grade" Systems
 
 Implementing both the **Saga pattern for rollbacks** and a **declarative retry mechanism** are essential steps toward building highly reliable, fault-tolerant, and resilient systems. While "military-grade" is a high bar, these features are foundational pillars that move the orchestrator from a simple workflow runner to a robust tool capable of managing complex, long-running, and mission-critical processes in a production environment. They provide the guarantees needed to maintain data consistency and recover from failure gracefully.
+
+## 5. Achieving True Military-Grade Robustness: Advanced Features
+
+While Saga and Retries are foundational, achieving "military-grade" robustness requires addressing several other critical dimensions. The key to incorporating them is to maintain the ergonomic API by making these advanced features **opt-in and composable**, using the same builder pattern.
+
+### 5.1. Persistence and State Recovery
+
+**Problem:** The orchestrator is currently in-memory. If the application crashes, the state of all running workflows is lost. A robust system must be able to resume workflows from where they left off.
+
+**Proposed Solution:** Introduce a `StateProvider` interface that the orchestrator can use to persist and recover workflow state.
+*   **API Proposal:**
+    ```go
+    // Define a simple interface for state management
+    type StateProvider interface {
+        Save(ctx context.Context, workflowID string, state []byte) error
+        Load(ctx context.Context, workflowID string) ([]byte, error)
+    }
+
+    // Integrate it via a new builder method
+    workflow.WithStateProvider(NewRedisProvider("redis://..."))
+    ```
+*   **How it works:** The orchestrator would automatically save the state of the workflow before executing each new task. Upon restart, a workflow instance with the same ID would first load its state and resume from where it left off.
+
+### 5.2. Enhanced Observability
+
+**Problem:** For mission-critical systems, you need deep insight into performance, errors, and workflow status. Basic logging is not enough.
+
+**Proposed Solution:** Integrate with standard observability libraries (like OpenTelemetry).
+*   **API Proposal:**
+    ```go
+    workflow.WithLogger(slog.Default())
+    workflow.WithMetrics(otel.Meter("my-app/conductor"))
+    ```
+*   **How it works:** The orchestrator would emit detailed, structured logs for every significant event and record metrics like task duration, success/failure counts, and retry attempts.
+
+### 5.3. Idempotency for Tasks
+
+**Problem:** If a workflow resumes after a crash or a task is retried, how do you prevent an action from running twice (e.g., charging a credit card twice)?
+
+**Proposed Solution:** Provide a declarative way to ensure task idempotency.
+*   **API Proposal:**
+    ```go
+    orchestrator.Task(chargeCard).
+        WithIdempotencyKey("charge-{{.transactionID}}")
+    ```
+*   **Why not use `Named()`?** `Named("my-task")` provides a **static identifier for the task definition**, while an idempotency key provides a **dynamic, unique identifier for a specific execution of that task**. Using the static name would incorrectly prevent all subsequent executions of that task for different data.
+*   **How it works:** Before executing the task, the orchestrator uses the `StateProvider` to check if a task with that idempotency key has already completed successfully. If so, it skips execution and returns the saved result.
+
+### 5.4. Dead-Letter Queue (DLQ) for Terminal Failures
+
+**Problem:** What happens when a task fails permanently, even after all retries? The failure needs to be recorded for manual intervention.
+
+**Proposed Solution:** Allow configuration of a DLQ handler.
+*   **API Proposal:**
+    ```go
+    orchestrator.Task(processVideo).
+        WithRetries(...).
+        WithDLQ(NewKafkaDLQ("failed-tasks-topic"))
+    ```
+*   **How it works:** If a task fails all its retries, the orchestrator serializes the task's input and final error and sends it to the configured DLQ.
+
+### Putting It All Together: The Ergonomic API
+
+This approach allows a developer to start simple and progressively add layers of resilience as needed, without changing their core business logic.
+
+**Simple Start:**
+`orchestrator.Setup(myTask).Run(ctx)`
+
+**Military-Grade:**
+```go
+orchestrator.Setup(myTask.
+    WithRetries(policy).
+    WithIdempotencyKey("...").
+    WithCompensation(undoTask)).
+WithStateProvider(redis).
+WithLogger(slog).
+WithMetrics(otel).
+Run(ctx)
+```
