@@ -97,122 +97,92 @@ func (w *Workflow) AwaitWithTimeout(timeout time.Duration) (*result.Result, erro
 }
 ```
 
-## 4. Path to Production-Grade Reliability
+## 4. The Ultimate Ergonomic API: A Unified Configuration Model
 
-While the enhancements above improve the core API, building "military-grade" production systems requires addressing two critical areas: fault tolerance and data consistency. The following sections outline proposals for integrating these capabilities directly into the orchestrator.
+The most significant architectural enhancement is the move to a **unified, hierarchical configuration model**. Instead of separate config objects, all configuration is now applied directly to orchestrations using a fluent builder pattern. This creates a single, intuitive, and powerful way to define behavior.
 
-### 4.1. Proposed: Transaction Rollback Support (Saga Pattern)
+### 4.1. Hierarchical and Scoped Configuration
 
-**Problem:** The current execution model is purely forward-moving. If a task fails, there is no automatic mechanism to undo or compensate for the actions of previously completed tasks. This can leave the system in an inconsistent state.
+Configuration is applied directly to any orchestration (`Task`, `Sequential`, `Concurrent`, etc.) and is **hierarchically inherited** by its children. This allows for both global and fine-grained control.
 
-**Proposed Solution:** Implement the **Saga pattern** by introducing compensation logic.
+*   **Orchestration-Scoped (Inherited):** These settings apply to the orchestration they are attached to and all of its children.
+    *   `WithRetries(policy)`
+    *   `WithLogger(logger)`
+    *   `WithMetrics(meter)`
+    *   `WithErrorStrategy(strategy)`
+    *   `WithStateProvider(provider)`
+    *   `WithID(id)`
 
-*   **`WithCompensation(compensationFunc)`:** A new builder method would allow a task to be associated with a corresponding rollback function.
-    ```go
-    orchestrator.Task(createOrder).
-        WithCompensation(cancelOrder)
-    ```
-*   **Automatic Rollback:** If a sequential workflow fails, the orchestrator would automatically iterate in reverse over the successfully completed tasks and execute their compensation functions, passing the original task's output as input.
+*   **Task-Specific (Not Inherited):** These settings only make sense on an individual `Task`.
+    *   `Named(name)`
+    *   `WithCompensation(compensationFunc)`
+    *   `WithIdempotencyKey(keyTemplate)`
+    *   `WithDLQ(dlqHandler)`
 
-**Does this provide a complete Saga pattern?**
-This proposal lays the foundation for a complete Saga implementation. A full implementation would also need to handle state management for the rollback process, ensure compensations are idempotent, and manage failures during the compensation itself. While not "complete" out-of-the-box, it is the correct architectural step.
+### 4.2. Advanced Flow Control: The `Fallback` Orchestrator
 
-### 4.2. Proposed: Declarative Retry Mechanism
+To handle situations where a task might fail permanently, a `Fallback` orchestrator provides a chain of alternative execution paths.
 
-**Problem:** Tasks can fail due to transient issues like network timeouts or temporary service unavailability. Currently, retry logic must be implemented manually inside each task, which is repetitive and error-prone.
-
-**Proposed Solution:** Introduce a declarative retry policy.
-
-*   **`WithRetries(policy)`:** A new builder method would allow tasks to be configured with a retry policy, including backoff strategies.
-    ```go
-    orchestrator.Task(fetchFromAPI).
-        WithRetries(config.RetryPolicy{
-            MaxAttempts: 5,
-            Backoff:     config.ExponentialBackoff(1*time.Second),
-            Jitter:      config.FullJitter,
-        })
-    ```
-*   **Automatic Retries:** The orchestrator would wrap the task execution and automatically retry it according to the policy if it fails.
-
-### Conclusion: Building "Military-Grade" Systems
-
-Implementing both the **Saga pattern for rollbacks** and a **declarative retry mechanism** are essential steps toward building highly reliable, fault-tolerant, and resilient systems. While "military-grade" is a high bar, these features are foundational pillars that move the orchestrator from a simple workflow runner to a robust tool capable of managing complex, long-running, and mission-critical processes in a production environment. They provide the guarantees needed to maintain data consistency and recover from failure gracefully.
-
-## 5. Achieving True Military-Grade Robustness: Advanced Features
-
-While Saga and Retries are foundational, achieving "military-grade" robustness requires addressing several other critical dimensions. The key to incorporating them is to maintain the ergonomic API by making these advanced features **opt-in and composable**, using the same builder pattern.
-
-### 5.1. Persistence and State Recovery
-
-**Problem:** The orchestrator is currently in-memory. If the application crashes, the state of all running workflows is lost. A robust system must be able to resume workflows from where they left off.
-
-**Proposed Solution:** Introduce a `StateProvider` interface that the orchestrator can use to persist and recover workflow state.
 *   **API Proposal:**
     ```go
-    // Define a simple interface for state management
-    type StateProvider interface {
-        Save(ctx context.Context, workflowID string, state []byte) error
-        Load(ctx context.Context, workflowID string) ([]byte, error)
-    }
-
-    // Integrate it via a new builder method
-    workflow.WithStateProvider(NewRedisProvider("redis://..."))
+    orchestrator.Fallback(
+        orchestrator.Task(tryFastPaymentProvider),      // Attempt 1
+        orchestrator.Task(tryReliablePaymentProvider),  // Attempt 2 (if 1 fails)
+        orchestrator.Task(notifyAdminAndQueueJob),      // Attempt 3 (if 2 fails)
+    )
     ```
-*   **How it works:** The orchestrator would automatically save the state of the workflow before executing each new task. Upon restart, a workflow instance with the same ID would first load its state and resume from where it left off.
+*   **How it works:** The `Fallback` orchestrator executes the first task. If it succeeds, the orchestrator returns its result. If it fails (after any retries), it proceeds to the next orchestration in the chain. This continues until one succeeds or all have failed.
 
-### 5.2. Enhanced Observability
+## 5. Military-Grade Reliability Patterns
 
-**Problem:** For mission-critical systems, you need deep insight into performance, errors, and workflow status. Basic logging is not enough.
+The unified API makes implementing robust reliability patterns clean and declarative.
 
-**Proposed Solution:** Integrate with standard observability libraries (like OpenTelemetry).
-*   **API Proposal:**
-    ```go
-    workflow.WithLogger(slog.Default())
-    workflow.WithMetrics(otel.Meter("my-app/conductor"))
-    ```
-*   **How it works:** The orchestrator would emit detailed, structured logs for every significant event and record metrics like task duration, success/failure counts, and retry attempts.
+### 5.1. Saga Pattern and Compensation Failures
 
-### 5.3. Idempotency for Tasks
+*   **`WithCompensation(compensationFunc)`:** Enables the Saga pattern for rollbacks.
+*   **Strategy for Compensation Failures:** A truly robust system must plan for failures during a rollback. The strategy is a multi-layered defense:
+    1.  **Retry:** The compensation task itself should have a retry policy.
+    2.  **Fallback:** If the primary compensation fails, a fallback compensation can be attempted (e.g., issue store credit instead of a refund).
+    3.  **Alert and DLQ:** If all automated compensations fail, the workflow must enter a `ROLLBACK_FAILED` state, trigger a high-priority alert for manual intervention, and send the failure context to a Dead-Letter Queue.
 
-**Problem:** If a workflow resumes after a crash or a task is retried, how do you prevent an action from running twice (e.g., charging a credit card twice)?
+### 5.2. Idempotency
 
-**Proposed Solution:** Provide a declarative way to ensure task idempotency.
-*   **API Proposal:**
-    ```go
-    orchestrator.Task(chargeCard).
-        WithIdempotencyKey("charge-{{.transactionID}}")
-    ```
-*   **Why not use `Named()`?** `Named("my-task")` provides a **static identifier for the task definition**, while an idempotency key provides a **dynamic, unique identifier for a specific execution of that task**. Using the static name would incorrectly prevent all subsequent executions of that task for different data.
-*   **How it works:** Before executing the task, the orchestrator uses the `StateProvider` to check if a task with that idempotency key has already completed successfully. If so, it skips execution and returns the saved result.
+*   **`WithIdempotencyKey(keyTemplate)`:** Ensures a task with a specific input is only executed once, even across retries or workflow restarts. This requires a `WithStateProvider` to be configured on a parent orchestration.
 
-### 5.4. Dead-Letter Queue (DLQ) for Terminal Failures
+### 5.3. Persistence and State Recovery
 
-**Problem:** What happens when a task fails permanently, even after all retries? The failure needs to be recorded for manual intervention.
+*   **`WithStateProvider(provider)`:** When applied to the root orchestration, this enables the entire workflow to be persistent. The orchestrator will automatically save state between steps and can resume from the point of failure after a crash.
 
-**Proposed Solution:** Allow configuration of a DLQ handler.
-*   **API Proposal:**
-    ```go
-    orchestrator.Task(processVideo).
-        WithRetries(...).
-        WithDLQ(NewKafkaDLQ("failed-tasks-topic"))
-    ```
-*   **How it works:** If a task fails all its retries, the orchestrator serializes the task's input and final error and sends it to the configured DLQ.
+## 6. Putting It All Together: The Final API
 
-### Putting It All Together: The Ergonomic API
+This design leads to an incredibly expressive and powerful API where the entire workflow, including all its complex reliability logic, is defined in a single, readable block.
 
-This approach allows a developer to start simple and progressively add layers of resilience as needed, without changing their core business logic.
-
-**Simple Start:**
-`orchestrator.Setup(myTask).Run(ctx)`
-
-**Military-Grade:**
 ```go
-orchestrator.Setup(myTask.
-    WithRetries(policy).
-    WithIdempotencyKey("...").
-    WithCompensation(undoTask)).
-WithStateProvider(redis).
-WithLogger(slog).
-WithMetrics(otel).
-Run(ctx)
+// Define the entire workflow and its configuration in one go.
+workflow := orchestrator.Setup(
+    orchestrator.Sequential(
+        orchestrator.Task(createOrder).
+            Named("CreateOrder").
+            WithCompensation(cancelOrder),
+
+        // This task has its own specific retry and idempotency logic.
+        orchestrator.Task(chargeCard).
+            Named("ChargeCard").
+            WithRetries(paymentGatewayPolicy).
+            WithIdempotencyKey("charge-{{.orderID}}").
+            WithCompensation(refundCharge),
+
+        orchestrator.Task(sendEmail).
+            Named("SendConfirmationEmail").
+            WithRetries(emailServicePolicy)
+
+    // Global settings for the whole workflow are applied to the root orchestration.
+    // These are inherited by all children.
+    ).WithID("workflow-instance-123").
+      WithLogger(mainLogger).
+      WithStateProvider(redisProvider)
+)
+
+// Run it
+result, err := workflow.Run(context.Background())
 ```
