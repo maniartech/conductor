@@ -153,6 +153,33 @@ The unified API makes implementing robust reliability patterns clean and declara
 
 *   **`WithStateProvider(provider)`:** When applied to the root orchestration, this enables the entire workflow to be persistent. The orchestrator will automatically save state between steps and can resume from the point of failure after a crash.
 
+### 5.4. Defining Criticality: Optional Tasks
+
+**Problem:** In a batch orchestration (such as `Sequential`, `Concurrent` etc), not all tasks are equally important. A failure in a non-essential "fire-and-forget" task (like logging) should not fail a critical business transaction (like saving to a database).
+
+**Proposed Solution:** Introduce an `.Optional()` modifier for tasks.
+
+*   **How it works:** If a task marked as `Optional` fails, its error is recorded for observability but is **not** propagated up to its parent orchestrator. The parent considers the task "complete" from a flow-control perspective, allowing the overall workflow to succeed.
+
+*   **Example (`Sequential`):**
+    ```go
+    orchestrator.Sequential(
+        orchestrator.Task(saveToDatabase),      // Critical
+        orchestrator.Task(sendNotification).Optional(), // Non-critical
+        orchestrator.Task(updateAnalytics),     // Critical
+    ).WithErrorStrategy(errors.FailFast)
+    ```
+    If `sendNotification` fails, the workflow **continues** to `updateAnalytics`.
+
+*   **Example (`Concurrent`):**
+    ```go
+    orchestrator.Concurrent(
+        orchestrator.Task(updateCache),       // Critical
+        orchestrator.Task(logActivity).Optional(), // Non-critical
+    )
+    ```
+    The `Concurrent` block succeeds if `updateCache` succeeds, regardless of whether `logActivity` fails.
+
 ## 6. Putting It All Together: The Final API
 
 This design leads to an incredibly expressive and powerful API where the entire workflow, including all its complex reliability logic, is defined in a single, readable block.
