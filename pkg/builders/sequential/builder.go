@@ -67,7 +67,6 @@ package sequential
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/maniartech/orchestrator/internal/orchestration"
@@ -91,11 +90,8 @@ import (
 //	).Named("data-pipeline").
 //	With(config.Config{Timeout: 30*time.Second})
 type SequentialBuilder struct {
+	*orchestration.BaseOrchestrationBuilder
 	orchestrations []types.Orchestration
-	name           string
-	config         *config.Config
-	errorBoundary  *errors.ErrorStrategy
-	status         atomic.Uint32                   // Atomic status management
 	namer          *types.HierarchicalNamer        // Hierarchical naming system
 	parentContext  *types.NamingContext            // Parent naming context for nested orchestrations
 	pathResolver   *orchestration.PathResolverBase // Path-based orchestration resolution
@@ -143,7 +139,8 @@ func Sequential(orchestrations ...types.Orchestration) *SequentialBuilder {
 	}
 
 	sb := &SequentialBuilder{
-		orchestrations: orchestrations,
+		BaseOrchestrationBuilder: orchestration.NewBaseOrchestrationBuilder("sequential"),
+		orchestrations:           orchestrations,
 	}
 
 	// Initialize hierarchical naming system
@@ -170,14 +167,14 @@ func Sequential(orchestrations ...types.Orchestration) *SequentialBuilder {
 // This method sets up the naming context and hierarchical namer.
 func (sb *SequentialBuilder) initializeNaming() {
 	// Initialize with default naming (will be updated if Named() is called)
-	sb.namer = types.NewHierarchicalNamer(sb.parentContext, sb.name, "sequential", 0)
+	sb.namer = types.NewHierarchicalNamer(sb.parentContext, sb.GetName(), "sequential", 0)
 }
 
 // SetParentContext sets the parent naming context for nested orchestrations.
 // This method is used internally when this sequential is used as a child orchestration.
 func (sb *SequentialBuilder) SetParentContext(parentContext *types.NamingContext, index int) {
 	sb.parentContext = parentContext
-	sb.namer = types.NewHierarchicalNamer(parentContext, sb.name, "sequential", index)
+	sb.namer = types.NewHierarchicalNamer(parentContext, sb.GetName(), "sequential", index)
 }
 
 // Named sets a name for the sequential orchestration for observability and debugging.
@@ -188,15 +185,15 @@ func (sb *SequentialBuilder) SetParentContext(parentContext *types.NamingContext
 //
 //	seq := Sequential(tasks...).Named("user-processing-pipeline")
 func (sb *SequentialBuilder) Named(name string) types.Orchestration {
-	sb.name = name
+	sb.SetName(name)
 	// Refresh the naming system with the new name
 	sb.initializeNaming()
 	return sb
 }
 
-// GetName returns the sequential orchestration name for debugging and observability.
+// GetType returns the sequential orchestration type for debugging and observability.
 func (sb *SequentialBuilder) GetType() string {
-	return "sequential"
+	return sb.BaseOrchestrationBuilder.GetType()
 }
 
 // With applies configuration to the sequential orchestration.
@@ -212,7 +209,7 @@ func (sb *SequentialBuilder) GetType() string {
 //	        ErrorStrategy: errors.CollectAll,
 //	    })
 func (sb *SequentialBuilder) With(config config.Config) types.Orchestration {
-	sb.config = &config
+	sb.SetConfig(config)
 	return sb
 }
 
@@ -228,7 +225,7 @@ func (sb *SequentialBuilder) With(config config.Config) types.Orchestration {
 //
 //	seq := Sequential(tasks...).ErrorBoundary(errors.CollectAll)
 func (sb *SequentialBuilder) ErrorBoundary(strategy errors.ErrorStrategy) types.Orchestration {
-	sb.errorBoundary = &strategy
+	sb.SetErrorBoundary(strategy)
 	return sb
 }
 
@@ -263,7 +260,7 @@ func (sb *SequentialBuilder) ErrorBoundary(strategy errors.ErrorStrategy) types.
 //	processedData := result.Get("process-user")
 func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
 	// Ensure sequential can only be executed once
-	if !sb.compareAndSwapStatus(orchestration.NotStarted, orchestration.Running) {
+	if !sb.compareAndSwapStatus(types.NotStarted, types.Running) {
 		return nil, fmt.Errorf("sequential orchestration already executed or in progress, current status: %v", sb.GetStatus())
 	}
 
@@ -271,13 +268,13 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 
 	// Apply configuration inheritance
 	finalConfig := config
-	if sb.config != nil {
-		finalConfig = sb.config.Inherit(config)
+	if sb.GetConfig() != nil {
+		finalConfig = sb.GetConfig().Inherit(config)
 	}
 
 	// Apply error boundary if specified
-	if sb.errorBoundary != nil {
-		finalConfig.ErrorStrategy = *sb.errorBoundary
+	if sb.GetErrorBoundary() != nil {
+		finalConfig.ErrorStrategy = *sb.GetErrorBoundary()
 	}
 
 	// Create shared orchestrator context for data sharing between tasks
@@ -336,12 +333,12 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 
 	// Create rich error context
 	errorContext := errors.CreateErrorContext(
-		sb.name,
+		sb.GetName(),
 		sb.getOperationID(),
 		"sequential",
 		len(sb.orchestrations),
 		config.ErrorStrategy,
-		sb.errorBoundary,
+		sb.GetErrorBoundary(),
 	)
 
 	// Set up panic recovery within error boundary
@@ -438,12 +435,12 @@ func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config confi
 
 	// Create rich error context
 	errorContext := errors.CreateErrorContext(
-		sb.name,
+		sb.GetName(),
 		sb.getOperationID(),
 		"sequential",
 		len(sb.orchestrations),
 		config.ErrorStrategy,
-		sb.errorBoundary,
+		sb.GetErrorBoundary(),
 	)
 
 	// Set up panic recovery within error boundary
@@ -571,28 +568,25 @@ func (sb *SequentialBuilder) getChildOperationID(orch orchestration.Orchestratio
 // getOperationID generates a unique operation ID for traceability.
 // Uses the sequential name if available, otherwise generates a default ID.
 func (sb *SequentialBuilder) getOperationID() string {
-	if sb.name != "" {
-		return fmt.Sprintf("sequential-%s", sb.name)
-	}
-	return fmt.Sprintf("sequential-%p", sb)
+	return sb.GetOperationID(sb)
 }
 
 // GetName returns the sequential orchestration name for debugging and observability.
 // Returns empty string if no name was set.
 func (sb *SequentialBuilder) GetName() string {
-	return sb.name
+	return sb.BaseOrchestrationBuilder.GetName()
 }
 
 // GetConfig returns the sequential orchestration's configuration.
 // Returns nil if no configuration was set.
 func (sb *SequentialBuilder) GetConfig() *config.Config {
-	return sb.config
+	return sb.BaseOrchestrationBuilder.GetConfig()
 }
 
 // GetStatus returns the current sequential orchestration status using atomic operations.
 // This method is thread-safe and can be called concurrently.
 func (sb *SequentialBuilder) GetStatus() types.Status {
-	return types.Status(sb.status.Load())
+	return sb.BaseOrchestrationBuilder.GetStatus()
 }
 
 // GetChildAt returns the child orchestration at the specified index.
@@ -724,14 +718,14 @@ func (sb *SequentialBuilder) GetChildNames() []string {
 // setStatus atomically sets the sequential orchestration status.
 // This is an internal method used during sequential execution.
 func (sb *SequentialBuilder) setStatus(status types.Status) {
-	sb.status.Store(uint32(status))
+	sb.SetStatus(status)
 }
 
 // compareAndSwapStatus atomically compares and swaps the sequential orchestration status.
 // Returns true if the swap was successful, false otherwise.
 // This ensures thread-safe status transitions.
-func (sb *SequentialBuilder) compareAndSwapStatus(old, new orchestration.Status) bool {
-	return sb.status.CompareAndSwap(uint32(old), uint32(new))
+func (sb *SequentialBuilder) compareAndSwapStatus(old, new types.Status) bool {
+	return sb.CompareAndSwapStatus(old, new)
 }
 
 // =============================================================================
