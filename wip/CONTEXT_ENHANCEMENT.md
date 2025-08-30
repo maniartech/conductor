@@ -94,19 +94,16 @@ func UserIDFrom(ctx context.Context) (int64, bool) {
 ## Example: graceful shutdown vs cancel
 
 ```go
-// Somewhere in your orchestrator owner
-ctx, cancel := NewContext(cfg)
-defer cancel()
-
-// Initiate graceful shutdown from a signal handler
-go func() { <-sigCh; owner.InitiateShutdown() }()
-
-// In workers: prefer shutdown for winding down
-select {
-case <-ctx.Shutdown():
-	return nil // finish quickly
-case <-ctx.Done():
-	return ctx.Err() // immediate abort
+// Owner receives a std context and adapts it once
+func worker(parent context.Context, controller Controller) error {
+	c := FromStd(parent)
+	// Prefer Shutdown() for graceful wind-down; Done() for immediate abort
+	select {
+	case <-c.Shutdown():
+		return nil // finish quickly
+	case <-c.Done():
+		return c.Err() // immediate abort
+	}
 }
 ```
 
@@ -138,7 +135,7 @@ Guardrails
 - Concurrency: when multiple goroutines touch the same keys, prefer write-once or use higher-level synchronization to avoid read‑modify‑write races.
 - Lifecycle: clean up ephemeral keys or keep them scoped to a child context via CreateChild to limit visibility.
 
-Example: typed helper over Set/Get
+Example: typed helper over Set/Get (single context)
 
 ```go
 const keyAuthResult = "pay.authorize.result"
@@ -148,22 +145,23 @@ type AuthResult struct {
 	Approved bool
 }
 
-func SetAuthResult(ctx context.Context, c orchestration.Context, r AuthResult) {
+// Note: c is your orchestration Context (not std context.Context)
+func SetAuthResult(c Context, r AuthResult) {
 	// store small struct; callers own larger payloads elsewhere
 	c.Set(keyAuthResult, r)
 }
 
-func GetAuthResult(c orchestration.Context) (AuthResult, bool) {
+func GetAuthResult(c Context) (AuthResult, bool) {
 	v := c.Get(keyAuthResult)
 	r, ok := v.(AuthResult)
 	return r, ok
 }
 ```
 
-Example: namespacing with path
+Example: namespacing with path (single context)
 
 ```go
-func ns(c orchestration.Context, local string) string {
+func ns(c Context, local string) string {
 	p := c.GetPath()
 	if p == "" { return local }
 	return strings.TrimPrefix(p, "/") + "." + local
