@@ -642,10 +642,10 @@ func TestStatusMethods(t *testing.T) {
 		if !status.Failed.IsTerminal() {
 			t.Error("Failed should be terminal")
 		}
-		if !status.NotStarted.IsTerminal() {
+		if status.NotStarted.IsTerminal() {
 			t.Error("NotStarted should not be terminal")
 		}
-		if !status.Running.IsTerminal() {
+		if status.Running.IsTerminal() {
 			t.Error("Running should not be terminal")
 		}
 	})

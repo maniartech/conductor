@@ -967,15 +967,15 @@ func TestStatus(t *testing.T) {
 			t.Error("Expected Running to be active")
 		}
 
-		if !status.Completed.IsActive() {
+		if status.Completed.IsActive() {
 			t.Error("Expected Completed not to be active")
 		}
 
-		if !status.Cancelled.IsActive() {
+		if status.Cancelled.IsActive() {
 			t.Error("Expected Cancelled not to be active")
 		}
 
-		if !status.Failed.IsActive() {
+		if status.Failed.IsActive() {
 			t.Error("Expected Failed not to be active")
 		}
 	})
