@@ -10,6 +10,7 @@ import (
 	"time"
 
 	. "github.com/maniartech/orchestrator"
+	"github.com/maniartech/orchestrator/internal/status"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
 )
 
@@ -346,11 +347,11 @@ func TestWorkflow_AsyncExecution(t *testing.T) {
 
 		// Check status (might complete very quickly)
 		// The workflow should either be running or have completed successfully
-		status := workflow.GetStatus()
-		if status != Running && status != Completed {
+		statusCode := workflow.GetStatus()
+		if statusCode != status.Running && statusCode != status.Completed {
 			// If it's still NotStarted, there might be an issue with Execute()
 			// Let's just verify it eventually completes
-			t.Logf("Workflow status after Execute(): %v", status)
+			t.Logf("Workflow status after Execute(): %v", statusCode)
 		}
 
 		// Wait for completion
@@ -448,7 +449,7 @@ func TestWorkflow_StatusTracking(t *testing.T) {
 		workflow := Setup(task)
 
 		// Initial status
-		if workflow.GetStatus() != NotStarted {
+		if workflow.GetStatus() != status.NotStarted {
 			t.Errorf("Expected NotStarted status, got %v", workflow.GetStatus())
 		}
 
@@ -483,7 +484,7 @@ func TestWorkflow_StatusTracking(t *testing.T) {
 			t.Error("Expected workflow to be completed")
 		}
 
-		if workflow.GetStatus() != Completed {
+		if workflow.GetStatus() != status.Completed {
 			t.Errorf("Expected Completed status, got %v", workflow.GetStatus())
 		}
 
@@ -510,7 +511,7 @@ func TestWorkflow_StatusTracking(t *testing.T) {
 			t.Fatal("Expected error from failing task")
 		}
 
-		if workflow.GetStatus() != Failed {
+		if workflow.GetStatus() != status.Failed {
 			t.Errorf("Expected Failed status, got %v", workflow.GetStatus())
 		}
 
@@ -704,11 +705,11 @@ func TestWorkflow_Callbacks(t *testing.T) {
 		// Should have Running and Completed
 		hasRunning := false
 		hasCompleted := false
-		for _, status := range statusChangesCopy {
-			if status == Running {
+		for _, statusCode := range statusChangesCopy {
+			if statusCode == status.Running {
 				hasRunning = true
 			}
-			if status == Completed {
+			if statusCode == status.Completed {
 				hasCompleted = true
 			}
 		}
@@ -839,7 +840,7 @@ func TestWorkflow_Cancellation(t *testing.T) {
 
 		result, err := workflow.Await()
 
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Errorf("Expected status Cancelled, got: %v", workflow.GetStatus())
 		}
 
@@ -869,7 +870,7 @@ func TestWorkflow_Cancellation(t *testing.T) {
 
 		result, err := workflow.Await()
 
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Errorf("Expected status Cancelled, got: %v", workflow.GetStatus())
 		}
 
@@ -914,67 +915,67 @@ func TestWorkflow_BackwardCompatibility(t *testing.T) {
 // TestStatus tests Status type methods
 func TestStatus(t *testing.T) {
 	t.Run("status_string", func(t *testing.T) {
-		if NotStarted.String() != "NotStarted" {
-			t.Errorf("Expected 'NotStarted', got '%s'", NotStarted.String())
+		if status.NotStarted.String() != "NotStarted" {
+			t.Errorf("Expected 'NotStarted', got '%s'", status.NotStarted.String())
 		}
 
-		if Running.String() != "Running" {
-			t.Errorf("Expected 'Running', got '%s'", Running.String())
+		if status.Running.String() != "Running" {
+			t.Errorf("Expected 'Running', got '%s'", status.Running.String())
 		}
 
-		if Completed.String() != "Completed" {
-			t.Errorf("Expected 'Completed', got '%s'", Completed.String())
+		if status.Completed.String() != "Completed" {
+			t.Errorf("Expected 'Completed', got '%s'", status.Completed.String())
 		}
 
-		if Cancelled.String() != "Cancelled" {
-			t.Errorf("Expected 'Cancelled', got '%s'", Cancelled.String())
+		if status.Cancelled.String() != "Cancelled" {
+			t.Errorf("Expected 'Cancelled', got '%s'", status.Cancelled.String())
 		}
 
-		if Failed.String() != "Failed" {
-			t.Errorf("Expected 'Failed', got '%s'", Failed.String())
+		if status.Failed.String() != "Failed" {
+			t.Errorf("Expected 'Failed', got '%s'", status.Failed.String())
 		}
 	})
 
 	t.Run("is_terminal", func(t *testing.T) {
-		if NotStarted.IsTerminal() {
+		if status.NotStarted.IsTerminal() {
 			t.Error("Expected NotStarted not to be terminal")
 		}
 
-		if Running.IsTerminal() {
+		if status.Running.IsTerminal() {
 			t.Error("Expected Running not to be terminal")
 		}
 
-		if !Completed.IsTerminal() {
+		if !status.Completed.IsTerminal() {
 			t.Error("Expected Completed to be terminal")
 		}
 
-		if !Cancelled.IsTerminal() {
+		if !status.Cancelled.IsTerminal() {
 			t.Error("Expected Cancelled to be terminal")
 		}
 
-		if !Failed.IsTerminal() {
+		if !status.Failed.IsTerminal() {
 			t.Error("Expected Failed to be terminal")
 		}
 	})
 
 	t.Run("is_active", func(t *testing.T) {
-		if NotStarted.IsActive() {
+		if status.NotStarted.IsActive() {
 			t.Error("Expected NotStarted not to be active")
 		}
 
-		if !Running.IsActive() {
+		if !status.Running.IsActive() {
 			t.Error("Expected Running to be active")
 		}
 
-		if Completed.IsActive() {
+		if !status.Completed.IsActive() {
 			t.Error("Expected Completed not to be active")
 		}
 
-		if Cancelled.IsActive() {
+		if !status.Cancelled.IsActive() {
 			t.Error("Expected Cancelled not to be active")
 		}
 
-		if Failed.IsActive() {
+		if !status.Failed.IsActive() {
 			t.Error("Expected Failed not to be active")
 		}
 	})

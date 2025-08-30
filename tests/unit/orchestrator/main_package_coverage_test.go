@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 
@@ -148,7 +149,7 @@ func TestExampleFunctions(t *testing.T) {
 
 		// Test status progression
 		initialStatus := workflow.GetStatus()
-		if initialStatus != NotStarted {
+		if initialStatus != status.NotStarted {
 			t.Errorf("Expected NotStarted, got %v", initialStatus)
 		}
 
@@ -614,7 +615,7 @@ func TestResourceTrackerPaths(t *testing.T) {
 func TestStatusMethods(t *testing.T) {
 	t.Run("Status_String", func(t *testing.T) {
 		// Test all status string representations
-		statuses := []Status{NotStarted, Running, Completed, Cancelled, Failed}
+		statuses := []status.Status{status.NotStarted, status.Running, status.Completed, status.Cancelled, status.Failed}
 		expected := []string{"NotStarted", "Running", "Completed", "Cancelled", "Failed"}
 
 		for i, status := range statuses {
@@ -632,38 +633,38 @@ func TestStatusMethods(t *testing.T) {
 
 	t.Run("Status_IsTerminal", func(t *testing.T) {
 		// Test terminal status detection
-		if !Completed.IsTerminal() {
+		if !status.Completed.IsTerminal() {
 			t.Error("Completed should be terminal")
 		}
-		if !Cancelled.IsTerminal() {
+		if !status.Cancelled.IsTerminal() {
 			t.Error("Cancelled should be terminal")
 		}
-		if !Failed.IsTerminal() {
+		if !status.Failed.IsTerminal() {
 			t.Error("Failed should be terminal")
 		}
-		if NotStarted.IsTerminal() {
+		if !status.NotStarted.IsTerminal() {
 			t.Error("NotStarted should not be terminal")
 		}
-		if Running.IsTerminal() {
+		if !status.Running.IsTerminal() {
 			t.Error("Running should not be terminal")
 		}
 	})
 
 	t.Run("Status_IsActive", func(t *testing.T) {
 		// Test active status detection
-		if !Running.IsActive() {
+		if !status.Running.IsActive() {
 			t.Error("Running should be active")
 		}
-		if NotStarted.IsActive() {
+		if status.NotStarted.IsActive() {
 			t.Error("NotStarted should not be active")
 		}
-		if Completed.IsActive() {
+		if status.Completed.IsActive() {
 			t.Error("Completed should not be active")
 		}
-		if Cancelled.IsActive() {
+		if status.Cancelled.IsActive() {
 			t.Error("Cancelled should not be active")
 		}
-		if Failed.IsActive() {
+		if status.Failed.IsActive() {
 			t.Error("Failed should not be active")
 		}
 	})

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 	orchErrors "github.com/maniartech/orchestrator/pkg/errors"
@@ -290,7 +291,7 @@ func TestWorkflow_AsyncExecutionInternal(t *testing.T) {
 			t.Fatal("Expected error from failing task")
 		}
 
-		if workflow.GetStatus() != Failed {
+		if workflow.GetStatus() != status.Failed {
 			t.Errorf("Expected status Failed, got %v", workflow.GetStatus())
 		}
 
@@ -422,7 +423,7 @@ func TestWorkflow_StatusManagement(t *testing.T) {
 		workflow := Setup(task)
 
 		// Initial status
-		if workflow.GetStatus() != NotStarted {
+		if workflow.GetStatus() != status.NotStarted {
 			t.Errorf("Expected NotStarted status, got %v", workflow.GetStatus())
 		}
 
@@ -439,7 +440,7 @@ func TestWorkflow_StatusManagement(t *testing.T) {
 		}
 
 		// Should be completed
-		if workflow.GetStatus() != Completed {
+		if workflow.GetStatus() != status.Completed {
 			t.Errorf("Expected Completed status, got %v", workflow.GetStatus())
 		}
 
@@ -484,11 +485,11 @@ func TestWorkflow_StatusManagement(t *testing.T) {
 		// Should have Running and Completed
 		hasRunning := false
 		hasCompleted := false
-		for _, status := range statusChanges {
-			if status == Running {
+		for _, statuscode := range statusChanges {
+			if statuscode == status.Running {
 				hasRunning = true
 			}
-			if status == Completed {
+			if statuscode == status.Completed {
 				hasCompleted = true
 			}
 		}

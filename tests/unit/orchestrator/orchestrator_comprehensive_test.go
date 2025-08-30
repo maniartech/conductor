@@ -10,6 +10,7 @@ import (
 	"time"
 
 	. "github.com/maniartech/orchestrator"
+	"github.com/maniartech/orchestrator/internal/status"
 )
 
 // TestSequential_Placeholder tests the Sequential function placeholder
@@ -356,7 +357,7 @@ func TestWorkflow_CancellationAdvanced(t *testing.T) {
 		// Cancel before execution
 		workflow.Cancel()
 
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Errorf("Expected status Cancelled, got %v", workflow.GetStatus())
 		}
 
@@ -390,7 +391,7 @@ func TestWorkflow_CancellationAdvanced(t *testing.T) {
 
 		result, _ := workflow.Await()
 
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Errorf("Expected status Cancelled, got %v", workflow.GetStatus())
 		}
 

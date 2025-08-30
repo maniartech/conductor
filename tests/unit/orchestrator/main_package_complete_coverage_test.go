@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 	"github.com/maniartech/orchestrator/pkg/config"
 
@@ -234,7 +235,7 @@ func TestWorkflowCancellationPaths(t *testing.T) {
 		workflow.Cancel()
 
 		// Check status
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Error("Workflow should be cancelled")
 		}
 	})
@@ -257,7 +258,7 @@ func TestWorkflowCancellationPaths(t *testing.T) {
 		workflow.CancelWithReason("test cancellation reason")
 
 		// Check status
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Error("Workflow should be cancelled")
 		}
 	})

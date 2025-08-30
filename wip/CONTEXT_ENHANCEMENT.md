@@ -2,7 +2,7 @@
 
 This document reviews the enhanced orchestration Context and aligns it with Go's context best practices. It highlights what's already solid, where it diverges from idioms, and provides concrete recommendations with examples, plus Do's and Don'ts for everyday use.
 
-Note on examples: They assume your enhanced Context implements context.Context. If not, use c.Std() when passing into third-party APIs or deriving timeouts with context.WithTimeout/WithDeadline.
+Note on examples: They assume your enhanced Context implements context.Context. If not, use c.Std() when passing into third-party APIs or deriving timeouts with context.WithTimeout/WithDeadline. When this doc says "read-only Context", it refers only to lifecycle control (no public Cancel/CancelWithReason on the consumer-facing API). The orchestration KV store via Get/Set remains intentionally mutable to share small state across steps and child orchestrations.
 
 ## What's good in the current design
 
@@ -30,8 +30,7 @@ Note on examples: They assume your enhanced Context implements context.Context. 
 
 1. Split reader vs controller roles
 
-- Constructors should return (Context, CancelFunc) and only the owner holds the cancel func.
-- Alternatively, define two interfaces: Context (read-only API) and Controller (Cancel(), InitiateShutdown()). Public APIs accept Context only.
+- Prefer two interfaces: Context (consumer-facing) and Controller (owner-only). Context is lifecycle read-only (no Cancel/CancelWithReason) but still exposes mutable KV via Get/Set for orchestration state. Controller provides Cancel/CancelWithReason. Public APIs accept Context only; constructors return Context or (Context, Controller) for owners.
 
 1. Prefer std deadline mechanics, simplify timers
 
@@ -46,7 +45,7 @@ Note on examples: They assume your enhanced Context implements context.Context. 
 
 1. Add cancel causes and reasoned cancellation
 
-- Use context.WithCancelCause internally and expose CancelWithReason(err error).
+- Use context.WithCancelCause internally and expose CancelWithReason(err error) on an owner-only Controller (not on the consumer-facing Context).
 - Document that Err() reflects the cause via context.Cause(ctx).
 
 1. Clarify shutdown vs cancel semantics
@@ -120,6 +119,40 @@ func worker(parent context.Context) error {
 ---
 
 By adopting these adjustments, the enhanced Context stays ergonomic for orchestration while remaining idiomatic and interoperable with the broader Go ecosystem.
+
+### Compatibility checklist for pkg/context
+
+To make `pkg/context` fully compatible with the standard `context.Context`:
+
+- Add methods to the `Context` interface in `pkg/context/context.go` so it satisfies `context.Context`:
+    - `Deadline() (time.Time, bool)` and `Value(key any) any` (alongside existing `Done()` and `Err()`).
+- Implement these on `contextImpl` by delegating to the embedded std context:
+    - `func (c *contextImpl) Deadline() (time.Time, bool) { return c.ctx.Deadline() }`
+    - `func (c *contextImpl) Value(key any) any { return c.ctx.Value(key) }`
+- Keep the orchestration KV store (`Get/Set`) separate from `Value` semantics; `Value` forwards to std ctx only.
+- Continue accepting std contexts at boundaries and normalize once via `FromStd(ctx)` inside `Run`.
+
+With-cause feature (Go 1.20+)
+
+- Use `context.WithCancelCause` when creating root and child contexts so owners can set a precise cancellation cause.
+- Expose `CancelWithReason(err error)` on the owner-only Controller; keep consumer-facing Context read-only (no Cancel on read path).
+- Return causes via `Err()` by delegating to `context.Cause(c.ctx)`.
+- Keep per-step timeouts as deadlines (context.WithDeadline/WithTimeout) and do not create a parallel timer if std deadline is in effect.
+
+Example snippet (owner-only Controller)
+
+```go
+// Root creation (inside NewContext)
+ctx, ctrl := context.NewContextWithController(cfg)
+
+// Owner cancels with business cause
+ctrl.CancelWithReason(ErrBusinessAbort)
+
+// Observers read the precise cause
+if err := ctx.Err(); err != nil { /* handle err */ }
+```
+
+Result: any `Context` can be passed directly to third‑party APIs that require `context.Context`, and your internal KV/store semantics remain unchanged and explicit.
 
 ## Using mutable orchestration state safely (by design)
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	. "github.com/maniartech/orchestrator"
+	"github.com/maniartech/orchestrator/internal/status"
 )
 
 // TestEnhancedWorkflowAPI tests the new async execution and progress tracking features
@@ -249,11 +250,11 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		// Should have Running and Completed
 		hasRunning := false
 		hasCompleted := false
-		for _, status := range statusChangesCopy {
-			if status == Running {
+		for _, statusCode := range statusChangesCopy {
+			if statusCode == status.Running {
 				hasRunning = true
 			}
-			if status == Completed {
+			if statusCode == status.Completed {
 				hasCompleted = true
 			}
 		}
@@ -363,7 +364,7 @@ func TestEnhancedWorkflowAPI(t *testing.T) {
 		result, err := workflow.Await()
 
 		// Should be cancelled
-		if workflow.GetStatus() != Cancelled {
+		if workflow.GetStatus() != status.Cancelled {
 			t.Errorf("Expected status Cancelled, got: %v", workflow.GetStatus())
 		}
 

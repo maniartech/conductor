@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maniartech/orchestrator/internal/status"
 	"github.com/maniartech/orchestrator/pkg/builders/task"
 
 	. "github.com/maniartech/orchestrator"
@@ -185,7 +186,7 @@ func TestWorkflow_ExecuteOrchestrationTree(t *testing.T) {
 func TestWorkflow_PartialCoverageImprovements(t *testing.T) {
 	t.Run("string_method_edge_cases", func(t *testing.T) {
 		// Test different status values for String() method (currently 85.7%)
-		statuses := []Status{NotStarted, Running, Completed, Failed, Cancelled}
+		statuses := []status.Status{status.NotStarted, status.Running, status.Completed, status.Failed, status.Cancelled}
 
 		for _, status := range statuses {
 			str := status.String()
