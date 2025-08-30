@@ -1,75 +1,60 @@
 # Context Enhancements
 
-This document reviews the enhanced orchestration Context and aligns it with Go's context best practices. It highlights what’s already solid, where it diverges from idioms, and provides concrete recommendations with examples, plus Do’s and Don’ts for everyday use.
+This document reviews the enhanced orchestration Context and aligns it with Go's context best practices. It highlights what's already solid, where it diverges from idioms, and provides concrete recommendations with examples, plus Do's and Don'ts for everyday use.
 
-## What’s good in the current design
+## What's good in the current design
 
 - Uses the standard library for cancellation and deadlines (context.WithCancel/WithDeadline), and exposes Done() and Err().
-- Child derivation (CreateChild) correctly chains to the parent’s context so cancellation propagates.
+- Child derivation (CreateChild) correctly chains to the parent's context so cancellation propagates.
 - Thread-safe storage and timer handling with mutexes/atomics; zero-allocation hot-path helpers like IsExpired() and GetRemainingTime().
 - Useful orchestration ergonomics: hierarchical paths (GetPath), parent/child links, and a dedicated graceful shutdown signal separate from cancel.
 - Clear separation of concerns for timeout helpers vs. shutdown coordination.
 
 ## Gaps vs. Go idioms (and why they matter)
 
-- Doesn’t implement context.Context. Most Go APIs accept context.Context; without Deadline() and Value(), you lose plug‑and‑play interoperability and tracing tools.
+- Doesn't implement context.Context. Most Go APIs accept context.Context; without Deadline() and Value(), you lose plug‑and‑play interoperability and tracing tools.
 - Exposes Cancel() on the read interface. In idiomatic Go, only the creator should cancel; handing out a cancel method invites accidental global cancels.
-- Mutable key/value map with string keys on the context. This diverges from std context.Value guidance on purpose for orchestration needs. That’s fine when treated as an orchestration-local state store with clear guardrails (see “Using mutable orchestration state safely”).
+- Mutable key/value map with string keys on the context. This diverges from std context.Value guidance on purpose for orchestration needs. That's fine when treated as an orchestration-local state store with clear guardrails (see "Using mutable orchestration state safely").
 - Redundant timeout timer alongside context.WithDeadline. Duplicating timers risks double work and leaks; std context cancellation already handles deadlines.
-- Value inheritance mismatch. Comments suggest children inherit values, but code initializes a fresh map and lookups don’t fall back to the parent.
+- Value inheritance mismatch. Comments suggest children inherit values, but code initializes a fresh map and lookups don't fall back to the parent. This is by design; there is no implicit parent read‑through.
 - No cancel causes. With Go 1.20+, context.WithCancelCause and context.Cause allow precise error semantics (timeout vs. business cancel).
 
 ## Recommended design adjustments
 
-1) Implement context.Context on the enhanced Context
+1. Implement context.Context on the enhanced Context
 
 - Add Deadline() (time.Time, bool) and Value(key any) any; keep Done() and Err().
 - Optionally expose Std() context.Context to access the underlying context when needed.
 
-1) Split reader vs controller roles
+1. Split reader vs controller roles
 
 - Constructors should return (Context, CancelFunc) and only the owner holds the cancel func.
 - Alternatively, define two interfaces: Context (read-only API) and Controller (Cancel(), InitiateShutdown()). Public APIs accept Context only.
 
-1) Prefer std deadline mechanics, simplify timers
+1. Prefer std deadline mechanics, simplify timers
 
 - Rely on context.WithDeadline/WithTimeout to trigger cancellation.
 - Keep IsExpired/GetRemainingTime by consulting ctx.Deadline() and time.Until(deadline) (atomic cache optional).
 
-1) Rework values to be idiomatic and safe
+1. Rework values to be idiomatic and safe
 
 - For cross-cutting data, prefer ctx.Value with typed keys (unexported types), immutable semantics.
-- If you need a mutable state bag for orchestration, expose it separately (e.g., State() or Store) rather than as context values; document that it doesn’t auto‑inherit unless explicitly copied.
+- If you need a mutable state bag for orchestration, expose it separately (e.g., State() or Store) rather than as context values; document that it doesn't auto‑inherit unless explicitly copied.
 - If you keep inheritance semantics, implement hierarchical read‑through to parent and document write locality.
 
-1) Add cancel causes and reasoned cancellation
+1. Add cancel causes and reasoned cancellation
 
 - Use context.WithCancelCause internally and expose CancelWithReason(err error).
 - Document that Err() reflects the cause via context.Cause(ctx).
 
-1) Clarify shutdown vs cancel semantics
+1. Clarify shutdown vs cancel semantics
 
 - Cancel(): immediate abort; Shutdown(): graceful wind‑down signal. Document that they are independent channels.
 - Provide InitiateShutdown() only to the owner/controller.
 
-## Do’s and Don’ts
+<!-- Consolidated in the Do's and Don'ts section near the end -->
 
-Do
-
-- Accept the read-only Context interface in all public APIs; don’t require a cancel‑capable type from callers.
-- Derive child contexts for sub-orchestrations with CreateChild("name").
-- Use WithTimeout/WithDeadline on the parent to bound operations; check ctx.Err() and select on ctx.Done().
-- Use typed keys for ctx.Value when attaching metadata (trace IDs, request IDs). Keep values immutable.
-- Use Shutdown() to coordinate graceful stop; keep Cancel() for immediate abort paths.
-
-Don’t
-
-- Don’t pass a context that exposes Cancel() to downstream libraries; only the creator should cancel.
-- Don’t store large objects or long‑lived mutable state in context values. Prefer a separate state store.
-- Don’t create your own parallel timeout timer when using context.WithDeadline; rely on std cancellation.
-- Don’t assume child contexts inherit values unless implemented; either copy explicitly or read through parent.
-
-## Example: implementing context.Context and cancel cause
+## Interoperability and cancel cause
 
 ```go
 // Deadline and Value forward to std context for interop
@@ -77,15 +62,13 @@ func (c *contextImpl) Deadline() (time.Time, bool) { return c.ctx.Deadline() }
 func (c *contextImpl) Value(key any) any          { return c.ctx.Value(key) }
 
 // Constructor returns reader + cancel func; only owner can cancel
-func NewContext(cfg config.Config) (Context, context.CancelFunc) {
-	base := cfg.Context
-	if base == nil { base = context.Background() }
+func NewFromStd(parent context.Context) (Context, context.CancelFunc) {
 	// WithCancelCause in Go 1.20+
-	ctx, cancel := context.WithCancelCause(base)
+	ctx, cancel := context.WithCancelCause(parent)
 	c := &contextImpl{ /* init fields, ctx: ctx */ }
-	// wrap a cancel func without exposing on interface
+	// return a cancel without exposing it on the read-only interface
 	cancelFn := func() { context.CancelCause(c.ctx, context.Canceled) }
-	_ = cancel // keep if you also need it internally
+	_ = cancel // kept if owner needs direct cancel
 	return c, cancelFn
 }
 
@@ -131,7 +114,7 @@ case <-ctx.Done():
 
 - Add Deadline() and Value() methods delegating to c.ctx to implement context.Context.
 - Replace internal time.AfterFunc timer with std deadline cancellation; keep IsExpired/GetRemainingTime by reading ctx.Deadline().
-- Update NewContext/WithDeadline/WithTimeout to return (Context, CancelFunc) or keep Cancel() but don’t expose it on the public interface; provide a separate Controller interface as needed.
+- Update NewContext/WithDeadline/WithTimeout to return (Context, CancelFunc) or keep Cancel() but don't expose it on the public interface; provide a separate Controller interface as needed.
 - Decide on value semantics: either remove Get/Set or add parent read‑through and typed helpers; avoid string keys in examples.
 - Introduce CancelWithReason and Err() powered by context.WithCancelCause/context.Cause.
 - Ensure config inheritance is copy‑safe (no shared mutation) and document it.
@@ -190,15 +173,15 @@ func ns(c orchestration.Context, local string) string {
 c.Set(ns(c, "inventory.reserved"), true)
 ```
 
-Do’s
+Do's
 
 - Use Set/Get for orchestration-local, small, transient state; prefer typed helpers and key namespacing.
 - Pass immutable cross-cutting metadata via ctx.Value with typed keys when it must flow through third-party APIs.
 
-Don’ts
+Don'ts
 
-- Don’t store large or long-lived data in the KV; use external stores and keep references only.
-- Don’t expose raw string keys widely; centralize them or wrap with helpers to avoid collisions.
+- Don't store large or long-lived data in the KV; use external stores and keep references only.
+- Don't expose raw string keys widely; centralize them or wrap with helpers to avoid collisions.
 
 ## Example: adapting std context at the boundary
 
@@ -211,6 +194,38 @@ func FromStd(ctx context.Context) Context {
 	}
 	// wrap preserves Done/Err/Deadline/Value behavior; no config seeding here
 	return newWrappedContext(ctx)
+}
+```
+
+## The Entrypoint: `Run(ctx context.Context, ...)`
+
+`Run` should accept the standard `context.Context` so callers can pass any context they have (with deadlines/cancellation or already your enhanced Context). Normalize it at the boundary and then use your enhanced features internally.
+
+```go
+// In your orchestrator package...
+
+type Orchestrator struct {
+	policy Policy
+	// other configured dependencies
+}
+
+func (o *Orchestrator) Run(ctx context.Context, wf Workflow) (*result.Result, error) {
+	// 1) Normalize: support both std context and your Context
+	orchCtx := ourcontext.FromStd(ctx)
+
+	// 2) Apply per-step policy timeouts by deriving from current context
+	stepCtx, cancel := context.WithTimeout(orchCtx, o.policy.Timeout)
+	defer cancel()
+
+	if err := doStep(stepCtx); err != nil {
+		return nil, err
+	}
+
+	// 3) Third-party calls accept orchCtx directly if your Context implements context.Context
+	// db.QueryContext(orchCtx, query, args...)
+
+	// return a result (illustrative)
+	return &result.Result{}, nil
 }
 ```
 
@@ -234,9 +249,8 @@ db.QueryContext(c /* or c.Std() */, query, args...)
 
 ```go
 func runStep(c Context, policy Policy) error {
-	// derive from current std ctx, respecting caller’s deadline
-	std := c.(interface{ Std() context.Context }).Std()
-	stepCtx, cancel := context.WithTimeout(std, policy.Timeout)
+	// If Context implements context.Context, pass it directly
+	stepCtx, cancel := context.WithTimeout(c, policy.Timeout)
 	defer cancel()
 	return callExternal(stepCtx)
 }
@@ -260,18 +274,22 @@ func (h *Handler) Handle(c Context) error {
 }
 ```
 
-## Top-level Do’s and Don’ts (extended)
+## Do's and Don'ts
 
 Do
 
 - Accept std context.Context at boundaries; adapt once via FromStd and pass your Context internally.
+- Implement context.Context (preferred) or provide Std() for third-party API calls.
 - Keep timeouts/retries in policy; derive per-step child contexts at use-sites.
-- Implement context.Context or provide Std() for third-party API calls.
-- Split roles: read-only Context for consumers; owner-only controller holds cancel/shutdown.
+- Use CreateChild("name") to scope state and tracing context.
+- Use Shutdown() to coordinate graceful stop; keep Cancel() for immediate abort paths.
+- Use typed keys for std ctx metadata; keep orchestration KV entries small and namespaced.
 
-Don’t
+Don't
 
-- Don’t seed or override the caller’s context from config.
-- Don’t attach large or long-lived data to the KV; store references instead.
-- Don’t expose Cancel() on the consumer-facing Context.
+- Don't seed or override the caller's context from config.
+- Don't expose Cancel() on the consumer-facing Context; only owners control cancellation.
+- Don't attach large or long-lived data to the KV; store references instead.
+- Don't create a parallel timeout timer when using context.WithDeadline/WithTimeout.
+- Don't assume implicit value inheritance from parent; there is no read-through by design.
 
