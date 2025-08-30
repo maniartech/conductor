@@ -2,6 +2,8 @@
 
 This document reviews the enhanced orchestration Context and aligns it with Go's context best practices. It highlights what's already solid, where it diverges from idioms, and provides concrete recommendations with examples, plus Do's and Don'ts for everyday use.
 
+Note on examples: They assume your enhanced Context implements context.Context. If not, use c.Std() when passing into third-party APIs or deriving timeouts with context.WithTimeout/WithDeadline.
+
 ## What's good in the current design
 
 - Uses the standard library for cancellation and deadlines (context.WithCancel/WithDeadline), and exposes Done() and Err().
@@ -63,17 +65,16 @@ func (c *contextImpl) Value(key any) any          { return c.ctx.Value(key) }
 
 // Constructor returns reader + cancel func; only owner can cancel
 func NewFromStd(parent context.Context) (Context, context.CancelFunc) {
-	// WithCancelCause in Go 1.20+
-	ctx, cancel := context.WithCancelCause(parent)
-	c := &contextImpl{ /* init fields, ctx: ctx */ }
-	// return a cancel without exposing it on the read-only interface
-	cancelFn := func() { context.CancelCause(c.ctx, context.Canceled) }
-	_ = cancel // kept if owner needs direct cancel
-	return c, cancelFn
+    // WithCancelCause in Go 1.20+
+    ctx, cancel := context.WithCancelCause(parent)
+    c := &contextImpl{ /* init fields, ctx: ctx, cancel: cancel */ }
+    // return a cancel without exposing it on the read-only interface
+    cancelFn := func() { cancel(context.Canceled) }
+    return c, cancelFn
 }
 
 // Reasoned cancellation
-func (c *contextImpl) CancelWithReason(err error) { context.CancelCause(c.ctx, err) }
+func (c *contextImpl) CancelWithReason(err error) { c.cancel(err) }
 func (c *contextImpl) Err() error                 { return context.Cause(c.ctx) }
 ```
 
@@ -85,9 +86,9 @@ type userIDKey struct{}
 
 func WithUserID(ctx context.Context, id int64) context.Context { return context.WithValue(ctx, userIDKey{}, id) }
 func UserIDFrom(ctx context.Context) (int64, bool) {
-	v := ctx.Value(userIDKey{})
-	id, ok := v.(int64)
-	return id, ok
+    v := ctx.Value(userIDKey{})
+    id, ok := v.(int64)
+    return id, ok
 }
 ```
 
@@ -95,15 +96,15 @@ func UserIDFrom(ctx context.Context) (int64, bool) {
 
 ```go
 // Owner receives a std context and adapts it once
-func worker(parent context.Context, controller Controller) error {
-	c := FromStd(parent)
-	// Prefer Shutdown() for graceful wind-down; Done() for immediate abort
-	select {
-	case <-c.Shutdown():
-		return nil // finish quickly
-	case <-c.Done():
-		return c.Err() // immediate abort
-	}
+func worker(parent context.Context) error {
+    c := orchContext.FromStd(parent)
+    // Prefer Shutdown() for graceful wind-down; Done() for immediate abort
+    select {
+    case <-c.Shutdown():
+        return nil // finish quickly
+    case <-c.Done():
+        return c.Err() // immediate abort
+    }
 }
 ```
 
@@ -141,20 +142,20 @@ Example: typed helper over Set/Get (single context)
 const keyAuthResult = "pay.authorize.result"
 
 type AuthResult struct {
-	TxID string
-	Approved bool
+    TxID string
+    Approved bool
 }
 
 // Note: c is your orchestration Context (not std context.Context)
 func SetAuthResult(c Context, r AuthResult) {
-	// store small struct; callers own larger payloads elsewhere
-	c.Set(keyAuthResult, r)
+    // store small struct; callers own larger payloads elsewhere
+    c.Set(keyAuthResult, r)
 }
 
 func GetAuthResult(c Context) (AuthResult, bool) {
-	v := c.Get(keyAuthResult)
-	r, ok := v.(AuthResult)
-	return r, ok
+    v := c.Get(keyAuthResult)
+    r, ok := v.(AuthResult)
+    return r, ok
 }
 ```
 
@@ -162,9 +163,9 @@ Example: namespacing with path (single context)
 
 ```go
 func ns(c Context, local string) string {
-	p := c.GetPath()
-	if p == "" { return local }
-	return strings.TrimPrefix(p, "/") + "." + local
+    p := c.GetPath()
+    if p == "" { return local }
+    return strings.TrimPrefix(p, "/") + "." + local
 }
 
 // usage
@@ -187,43 +188,42 @@ Don'ts
 // FromStd adapts an incoming std context to your orchestration Context.
 // Fast-path: if incoming is already your Context, just return it.
 func FromStd(ctx context.Context) Context {
-	if c, ok := ctx.(Context); ok {
-		return c
-	}
-	// wrap preserves Done/Err/Deadline/Value behavior; no config seeding here
-	return newWrappedContext(ctx)
+    if c, ok := ctx.(Context); ok {
+        return c
+    }
+    // wrap preserves Done/Err/Deadline/Value behavior; no config seeding here
+    return newWrappedContext(ctx)
 }
 ```
 
 ## The Entrypoint: `Run(ctx context.Context, ...)`
 
-`Run` should accept the standard `context.Context` so callers can pass any context they have (with deadlines/cancellation or already your enhanced Context). Normalize it at the boundary and then use your enhanced features internally.
+`Run` should accept the standard `context.Context` so callers can pass any context they have (with deadlines/cancellation or already your enhanced Context). Normalize it at the boundary and then use your enhanced features internally. Setup(...) remains unchanged and returns a workflow value.
 
 ```go
-// In your orchestrator package...
+// Caller perspective (unchanged Setup signature)
+wf := orchestrator.Setup(myOrchestration)
+res, err := wf.Run(context.Background())
 
-type Orchestrator struct {
-	policy Policy
-	// other configured dependencies
+// Inside the package: normalize once and pass enhanced Context through orchestration execution
+func (w *Workflow) Run(ctx context.Context) (*result.Result, error) {
+    // 1) Normalize: support both std context and your Context
+    orchCtx := orchContext.FromStd(ctx)
+
+    // 2) Execute orchestration tree with orchCtx; per-step policies derive child contexts as needed
+    return w.executeOrchestrationTree(orchCtx)
 }
 
-func (o *Orchestrator) Run(ctx context.Context, wf Workflow) (*result.Result, error) {
-	// 1) Normalize: support both std context and your Context
-	orchCtx := ourcontext.FromStd(ctx)
+func (w *Workflow) executeOrchestrationTree(c orchContext.Context) (*result.Result, error) {
+    // Example: per-step timeout derived from the current enhanced context
+    stepCtx, cancel := context.WithTimeout(c /* or c.Std() */, w.policy.Timeout)
+    defer cancel()
 
-	// 2) Apply per-step policy timeouts by deriving from current context
-	stepCtx, cancel := context.WithTimeout(orchCtx, o.policy.Timeout)
-	defer cancel()
-
-	if err := doStep(stepCtx); err != nil {
-		return nil, err
-	}
-
-	// 3) Third-party calls accept orchCtx directly if your Context implements context.Context
-	// db.QueryContext(orchCtx, query, args...)
-
-	// return a result (illustrative)
-	return &result.Result{}, nil
+    if err := doStep(stepCtx); err != nil {
+        return nil, err
+    }
+    // ... pass `c` (or children of it) down to tasks/orchestrations so enhancements flow through
+    return &result.Result{}, nil
 }
 ```
 
@@ -247,10 +247,10 @@ db.QueryContext(c /* or c.Std() */, query, args...)
 
 ```go
 func runStep(c Context, policy Policy) error {
-	// If Context implements context.Context, pass it directly
-	stepCtx, cancel := context.WithTimeout(c, policy.Timeout)
-	defer cancel()
-	return callExternal(stepCtx)
+    // If Context implements context.Context, pass it directly; otherwise use c.Std()
+    stepCtx, cancel := context.WithTimeout(c /* or c.Std() */, policy.Timeout)
+    defer cancel()
+    return callExternal(stepCtx)
 }
 ```
 
@@ -261,14 +261,14 @@ type Handler struct{ Svc *Service }
 
 // Public APIs use your Context
 func (h *Handler) Handle(c Context) error {
-	// KV: small, namespaced, typed helpers
-	SetAuthResult(c, AuthResult{TxID: "t1", Approved: true})
+    // KV: small, namespaced, typed helpers
+    SetAuthResult(c, AuthResult{TxID: "t1", Approved: true})
 
-	// Third-party: pass std ctx seamlessly
-	if err := h.Svc.Do(c /* implements context.Context */); err != nil {
-		return err
-	}
-	return nil
+    // Third-party: pass std ctx seamlessly
+    if err := h.Svc.Do(c /* implements context.Context */); err != nil {
+        return err
+    }
+    return nil
 }
 ```
 
@@ -280,7 +280,7 @@ Do
 - Implement context.Context (preferred) or provide Std() for third-party API calls.
 - Keep timeouts/retries in policy; derive per-step child contexts at use-sites.
 - Use CreateChild("name") to scope state and tracing context.
-- Use Shutdown() to coordinate graceful stop; keep Cancel() for immediate abort paths.
+- Use Shutdown() to coordinate graceful stop. CancelWithReason is owner-only (controller), not exposed on the consumer-facing Context.
 - Use typed keys for std ctx metadata; keep orchestration KV entries small and namespaced.
 
 Don't
