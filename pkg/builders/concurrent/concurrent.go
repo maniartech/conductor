@@ -484,16 +484,10 @@ func (cb *ConcurrentBuilder) getChildName(orch types.Orchestration, index int) s
 // getChildOperationID generates a unique operation ID for a child orchestration.
 // Combines concurrent name with child information for traceability.
 func (cb *ConcurrentBuilder) getChildOperationID(orch types.Orchestration, index int) string {
-	concurrentID := cb.getOperationID()
+	concurrentID := cb.GetOperationID()
 	childName := cb.getChildName(orch, index)
 
 	return fmt.Sprintf("%s.%s", concurrentID, childName)
-}
-
-// getOperationID generates a unique operation ID for traceability.
-// Uses the concurrent name if available, otherwise generates a default ID.
-func (cb *ConcurrentBuilder) getOperationID() string {
-	return cb.GetOperationID()
 }
 
 // GetOperationID returns a unique operation ID for this concurrent orchestration.

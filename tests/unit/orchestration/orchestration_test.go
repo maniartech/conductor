@@ -66,6 +66,13 @@ func (m *mockOrchestration) GetStatus() Status {
 	return m.status
 }
 
+func (m *mockOrchestration) GetOperationID() string {
+	if m.name != "" {
+		return fmt.Sprintf("mock-%s", m.name)
+	}
+	return fmt.Sprintf("mock-%p", m)
+}
+
 // PathResolver interface implementation for mockOrchestration
 func (m *mockOrchestration) GetCurrentPath() string {
 	if m.name != "" {

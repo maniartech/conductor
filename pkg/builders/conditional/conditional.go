@@ -314,7 +314,7 @@ func (cb *ConditionalBuilder) Execute(ctx context.Context, config config.Config)
 			Index:     -1, // Conditional-level error
 			Duration:  time.Since(startTime),
 			Timestamp: startTime,
-			OpID:      cb.GetOperationID(cb),
+			OpID:      cb.GetOperationID(),
 		})
 	}
 
@@ -434,14 +434,14 @@ func (cb *ConditionalBuilder) safeEvaluateCondition(ctx context.Context, orchCtx
 // getBranchOperationID generates a unique operation ID for a branch execution.
 // Combines conditional name with branch information for traceability.
 func (cb *ConditionalBuilder) getBranchOperationID(branch types.Orchestration, branchName string) string {
-	conditionalID := cb.getOperationID()
+	conditionalID := cb.GetOperationID()
 	return fmt.Sprintf("%s.%s", conditionalID, branchName)
 }
 
-// getOperationID generates a unique operation ID for traceability.
-// Uses the conditional name if available, otherwise generates a default ID.
-func (cb *ConditionalBuilder) getOperationID() string {
-	return cb.GetOperationID(cb)
+// GetOperationID returns a unique operation ID for this conditional orchestration.
+// This provides a standardized way to access the operation ID without needing to pass the instance.
+func (cb *ConditionalBuilder) GetOperationID() string {
+	return cb.BaseOrchestrationBuilder.GetOperationID(cb)
 }
 
 // GetChildren returns the child orchestrations (ifTrue and ifFalse branches).

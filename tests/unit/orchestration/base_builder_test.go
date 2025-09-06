@@ -49,6 +49,11 @@ func (m *MockOrchestration) Execute(ctx context.Context, cfg config.Config) (*re
 	return result.NewResult(), nil
 }
 
+// GetOperationID implements types.Orchestration interface
+func (m *MockOrchestration) GetOperationID() string {
+	return m.BaseOrchestrationBuilder.GetOperationID(m)
+}
+
 // Path resolver methods
 func (m *MockOrchestration) GetByPath(path string) (types.Orchestration, error) {
 	return m.BaseOrchestrationBuilder.GetByPath(m, path)

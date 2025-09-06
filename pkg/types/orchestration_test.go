@@ -67,6 +67,14 @@ func (m *MockOrchestration) GetStatus() Status {
 	return m.status
 }
 
+// GetOperationID implements Orchestration interface
+func (m *MockOrchestration) GetOperationID() string {
+	if m.name != "" {
+		return fmt.Sprintf("mock-%s", m.name)
+	}
+	return fmt.Sprintf("mock-%p", m)
+}
+
 // PathResolver methods - minimal implementation for testing
 func (m *MockOrchestration) GetByPath(path string) (Orchestration, error) {
 	if path == m.name {

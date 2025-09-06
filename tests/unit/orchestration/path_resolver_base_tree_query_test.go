@@ -42,6 +42,11 @@ func (n *nestedMock) Execute(ctx context.Context, c config.Config) (*result.Resu
 	return result.NewResult(), nil
 }
 
+// GetOperationID implements types.Orchestration interface
+func (n *nestedMock) GetOperationID() string {
+	return n.BaseOrchestrationBuilder.GetOperationID(n)
+}
+
 // Path methods (override to use resolver recursion where appropriate)
 func (n *nestedMock) GetByPath(p string) (types.Orchestration, error) {
 	if p == n.GetCurrentPath() {

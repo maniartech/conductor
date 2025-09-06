@@ -316,7 +316,7 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 			Index:     -1, // Sequential-level error
 			Duration:  time.Since(startTime),
 			Timestamp: startTime,
-			OpID:      sb.getOperationID(),
+			OpID:      sb.GetOperationID(),
 		})
 	}
 
@@ -328,13 +328,13 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 // This provides fast failure detection, minimal resource usage, and rich error context.
 func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.Config, result *result.Result) error {
 	// Create error boundary handler for fail-fast strategy
-	boundaryName := sb.getOperationID()
+	boundaryName := sb.GetOperationID()
 	errorHandler := errors.NewErrorBoundaryHandler(errors.FailFast, boundaryName, nil)
 
 	// Create rich error context
 	errorContext := errors.CreateErrorContext(
 		sb.GetName(),
-		sb.getOperationID(),
+		sb.GetOperationID(),
 		"sequential",
 		len(sb.orchestrations),
 		config.ErrorStrategy,
@@ -430,13 +430,13 @@ func (sb *SequentialBuilder) executeFailFast(ctx context.Context, config config.
 // This provides complete error visibility, maximum operation completion, and rich error context.
 func (sb *SequentialBuilder) executeCollectAll(ctx context.Context, config config.Config, result *result.Result) error {
 	// Create error boundary handler for collect-all strategy
-	boundaryName := sb.getOperationID()
+	boundaryName := sb.GetOperationID()
 	errorHandler := errors.NewErrorBoundaryHandler(errors.CollectAll, boundaryName, nil)
 
 	// Create rich error context
 	errorContext := errors.CreateErrorContext(
 		sb.GetName(),
-		sb.getOperationID(),
+		sb.GetOperationID(),
 		"sequential",
 		len(sb.orchestrations),
 		config.ErrorStrategy,

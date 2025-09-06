@@ -81,7 +81,7 @@ copy(children, sb.orchestrations)
 // Current - creates detailed error context for each execution
 errorContext := errors.CreateErrorContext(
     sb.name,
-    sb.getOperationID(),
+    sb.GetOperationID(),
     "sequential",
     len(sb.orchestrations),
     config.ErrorStrategy,
