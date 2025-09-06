@@ -224,7 +224,7 @@ func (tb *TaskBuilder[T]) Execute(ctx context.Context, config config.Config) (*r
 			Index:     0,
 			Duration:  duration,
 			Timestamp: startTime,
-			OpID:      tb.GetOperationID(tb),
+			OpID:      tb.GetOperationID(),
 			Stack:     tb.captureStack(),
 		})
 		return result, taskError
@@ -346,6 +346,12 @@ func (tb *TaskBuilder[T]) captureStack() []byte {
 // - SetStatus(status types.Status)
 // - CompareAndSwapStatus(old, new types.Status) bool
 // - GetOperationID(instance any) string
+
+// GetOperationID returns a unique operation ID for this task orchestration.
+// This provides a standardized way to access the operation ID without needing to pass the instance.
+func (tb *TaskBuilder[T]) GetOperationID() string {
+	return tb.BaseOrchestrationBuilder.GetOperationID(tb)
+}
 
 // =============================================================================
 // Path Resolution Methods - Delegated to Base

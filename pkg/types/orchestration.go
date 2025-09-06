@@ -99,6 +99,19 @@ type Orchestration interface {
 	// This method is thread-safe and uses atomic operations.
 	GetStatus() Status
 
+	// GetOperationID returns a unique operation ID for this orchestration instance.
+	// The operation ID is used for traceability, logging, and debugging purposes.
+	// It combines the orchestration type with either the assigned name or a unique identifier.
+	//
+	// Returns:
+	//   - string: Unique operation ID for this orchestration
+	//
+	// Example:
+	//
+	//	task := Task(myFunction).Named("user-data-fetch")
+	//	opID := task.GetOperationID() // Returns "task-user-data-fetch"
+	GetOperationID() string
+
 	// PathResolver methods - all orchestrations support path-based lookup
 	PathResolver
 }

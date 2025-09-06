@@ -560,15 +560,15 @@ func (sb *SequentialBuilder) getChildName(orch types.Orchestration, index int) s
 // getChildOperationID generates a unique operation ID for a child orchestration.
 // Combines sequential name with child information for traceability.
 func (sb *SequentialBuilder) getChildOperationID(orch orchestration.Orchestration, index int) string {
-	sequentialID := sb.getOperationID()
+	sequentialID := sb.GetOperationID()
 	childName := sb.getChildName(orch, index)
 	return fmt.Sprintf("%s.%s", sequentialID, childName)
 }
 
-// getOperationID generates a unique operation ID for traceability.
-// Uses the sequential name if available, otherwise generates a default ID.
-func (sb *SequentialBuilder) getOperationID() string {
-	return sb.GetOperationID(sb)
+// GetOperationID returns a unique operation ID for this sequential orchestration.
+// This provides a standardized way to access the operation ID without needing to pass the instance.
+func (sb *SequentialBuilder) GetOperationID() string {
+	return sb.BaseOrchestrationBuilder.GetOperationID(sb)
 }
 
 // GetName returns the sequential orchestration name for debugging and observability.

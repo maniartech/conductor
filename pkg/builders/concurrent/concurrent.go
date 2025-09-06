@@ -295,7 +295,7 @@ func (cb *ConcurrentBuilder) Execute(ctx context.Context, config config.Config) 
 			Index:     -1, // Concurrent-level error
 			Duration:  time.Since(startTime),
 			Timestamp: startTime,
-			OpID:      cb.GetOperationID(cb),
+			OpID:      cb.GetOperationID(),
 		})
 	}
 
@@ -486,13 +486,20 @@ func (cb *ConcurrentBuilder) getChildName(orch types.Orchestration, index int) s
 func (cb *ConcurrentBuilder) getChildOperationID(orch types.Orchestration, index int) string {
 	concurrentID := cb.getOperationID()
 	childName := cb.getChildName(orch, index)
+
 	return fmt.Sprintf("%s.%s", concurrentID, childName)
 }
 
 // getOperationID generates a unique operation ID for traceability.
 // Uses the concurrent name if available, otherwise generates a default ID.
 func (cb *ConcurrentBuilder) getOperationID() string {
-	return cb.GetOperationID(cb)
+	return cb.GetOperationID()
+}
+
+// GetOperationID returns a unique operation ID for this concurrent orchestration.
+// This provides a standardized way to access the operation ID without needing to pass the instance.
+func (cb *ConcurrentBuilder) GetOperationID() string {
+	return cb.BaseOrchestrationBuilder.GetOperationID(cb)
 }
 
 // GetChildAt returns the child orchestration at the specified index.
