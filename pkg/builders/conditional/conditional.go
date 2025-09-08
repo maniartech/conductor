@@ -97,13 +97,12 @@ import (
 //	).Named("role-based-operation").
 //	With(config.Config{Timeout: 30*time.Second})
 type ConditionalBuilder struct {
-	*orchestration.BaseOrchestrationBuilder
+	*orchestration.BaseContainerOrchestration
 	condition     func(orchContext.Context) (bool, error)
 	ifTrue        types.Orchestration
 	ifFalse       types.Orchestration
-	namer         *types.HierarchicalNamer        // Hierarchical naming system
-	parentContext *types.NamingContext            // Parent naming context for nested orchestrations
-	pathResolver  *orchestration.PathResolverBase // Path-based orchestration resolution
+	namer         *types.HierarchicalNamer // Hierarchical naming system
+	parentContext *types.NamingContext     // Parent naming context for nested orchestrations
 }
 
 // Conditional creates a new ConditionalBuilder with the provided condition and orchestrations.
@@ -162,18 +161,17 @@ func Conditional(condition func(orchContext.Context) (bool, error), ifTrue, ifFa
 	}
 
 	cb := &ConditionalBuilder{
-		BaseOrchestrationBuilder: orchestration.NewBaseOrchestrationBuilder("conditional"),
-		condition:                condition,
-		ifTrue:                   ifTrue,
-		ifFalse:                  ifFalse,
+		BaseContainerOrchestration: orchestration.NewBaseContainerOrchestration("conditional", []types.Orchestration{ifTrue, ifFalse}),
+		condition:                  condition,
+		ifTrue:                     ifTrue,
+		ifFalse:                    ifFalse,
 	}
 
 	// Initialize hierarchical naming system
 	cb.initializeNaming()
 
-	// Initialize path resolver
-	cb.pathResolver = orchestration.NewPathResolverBase()
-	cb.pathResolver.SetCallbacks(
+	// Initialize path resolver using the base container's resolver
+	cb.GetPathResolver().SetCallbacks(
 		func() string { return cb.GetCurrentPath() },
 		func() []types.Orchestration { return cb.GetChildren() },
 		func(child types.Orchestration, index int) string { return cb.getChildName(child, index) },
@@ -206,7 +204,7 @@ func (cb *ConditionalBuilder) SetParentContext(parentContext *types.NamingContex
 func (cb *ConditionalBuilder) Named(name string) types.Orchestration {
 	cb.SetName(name)
 	// Refresh the naming system with the new name
-	cb.initializeNaming()
+	cb.namer = types.NewHierarchicalNamer(cb.parentContext, name, "conditional", 0)
 	return cb
 }
 
@@ -227,7 +225,7 @@ func (cb *ConditionalBuilder) GetType() string {
 //	        ErrorStrategy: errors.CollectAll,
 //	    })
 func (cb *ConditionalBuilder) With(config config.Config) types.Orchestration {
-	cb.SetConfig(config)
+	cb.BaseContainerOrchestration.With(config)
 	return cb
 }
 
@@ -242,7 +240,7 @@ func (cb *ConditionalBuilder) With(config config.Config) types.Orchestration {
 //
 //	cond := Conditional(condition, ifTrue, ifFalse).ErrorBoundary(errors.CollectAll)
 func (cb *ConditionalBuilder) ErrorBoundary(strategy errors.ErrorStrategy) types.Orchestration {
-	cb.SetErrorBoundary(strategy)
+	cb.BaseContainerOrchestration.ErrorBoundary(strategy)
 	return cb
 }
 
@@ -275,47 +273,43 @@ func (cb *ConditionalBuilder) ErrorBoundary(strategy errors.ErrorStrategy) types
 //	// Access results from the selected branch
 //	branchResult := result.Get("selected-branch")
 func (cb *ConditionalBuilder) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
-	// Validate execution preconditions (handled by base)
-	if err := cb.ValidateExecutionPreconditions(); err != nil {
-		return nil, err
+	// Ensure conditional can only be executed once
+	if !cb.CompareAndSwapStatus(types.NotStarted, types.Running) {
+		return nil, fmt.Errorf("conditional orchestration already executed or in progress, current status: %v", cb.GetStatus())
 	}
 
-	startTime := time.Now()
-
-	// Apply configuration inheritance (handled by base)
-	finalConfig := cb.ApplyConfigurationInheritance(config)
-
-	// Create execution context with timeout
-	execCtx := ctx
-	if finalConfig.Context != nil && finalConfig.Context != context.Background() {
-		execCtx = finalConfig.Context
+	// Apply configuration inheritance
+	finalConfig := config
+	if cb.GetConfig() != nil {
+		finalConfig = cb.GetConfig().Inherit(config)
 	}
 
-	if finalConfig.Timeout > 0 {
-		var cancel context.CancelFunc
-		execCtx, cancel = context.WithTimeout(execCtx, finalConfig.Timeout)
-		defer cancel()
+	// Apply error boundary if specified
+	if cb.GetErrorBoundary() != nil {
+		finalConfig.ErrorStrategy = *cb.GetErrorBoundary()
+	}
+
+	// Create orchestration context for condition evaluation
+	if finalConfig.OrchestrationContext == nil {
+		orchCtx := orchContext.NewContext(finalConfig)
+		finalConfig.OrchestrationContext = orchCtx
 	}
 
 	// Create result container
 	result := result.NewResult()
 
 	// Execute conditional logic
-	executionError := cb.executeConditional(execCtx, finalConfig, result)
+	executionError := cb.executeConditional(ctx, finalConfig, result)
 
-	// Complete execution (handled by base)
-	cb.CompleteExecution(execCtx, executionError)
-
-	// Add execution metadata if there were errors
-	if executionError != nil && len(result.Errors()) == 0 {
-		// Add a conditional-level error if no branch errors were collected
-		result.AddError(errors.OperationError{
-			Error:     executionError,
-			Index:     -1, // Conditional-level error
-			Duration:  time.Since(startTime),
-			Timestamp: startTime,
-			OpID:      cb.GetOperationID(),
-		})
+	// Update status based on outcome
+	if executionError != nil {
+		if ctx.Err() != nil {
+			cb.SetStatus(types.Cancelled)
+		} else {
+			cb.SetStatus(types.Completed)
+		}
+	} else {
+		cb.SetStatus(types.Completed)
 	}
 
 	return result, executionError
@@ -328,8 +322,19 @@ func (cb *ConditionalBuilder) executeConditional(ctx context.Context, config con
 	orchCtx := orchContext.NewContext(config)
 
 	// Evaluate condition with comprehensive error handling
+	conditionStart := time.Now()
 	conditionResult, conditionError := cb.safeEvaluateCondition(ctx, orchCtx)
+	conditionDuration := time.Since(conditionStart)
+
 	if conditionError != nil {
+		// Add condition evaluation error to result
+		result.AddError(errors.OperationError{
+			Error:     conditionError,
+			Index:     -1, // Condition evaluation error
+			Duration:  conditionDuration,
+			Timestamp: conditionStart,
+			OpID:      cb.GetOperationID() + ".condition",
+		})
 		return fmt.Errorf("condition evaluation failed: %w", conditionError)
 	}
 
@@ -441,7 +446,7 @@ func (cb *ConditionalBuilder) getBranchOperationID(branch types.Orchestration, b
 // GetOperationID returns a unique operation ID for this conditional orchestration.
 // This provides a standardized way to access the operation ID without needing to pass the instance.
 func (cb *ConditionalBuilder) GetOperationID() string {
-	return cb.BaseOrchestrationBuilder.GetOperationID(cb)
+	return cb.BaseContainerOrchestration.GetOperationID()
 }
 
 // GetChildren returns the child orchestrations (ifTrue and ifFalse branches).
@@ -482,121 +487,22 @@ func (cb *ConditionalBuilder) getChildName(orch types.Orchestration, index int) 
 // =============================================================================
 
 // GetCurrentPath returns the current orchestration's full hierarchical path.
-// Delegates to base implementation.
+// This method provides access to the hierarchical path for debugging and introspection.
 func (cb *ConditionalBuilder) GetCurrentPath() string {
-	return cb.BaseOrchestrationBuilder.GetCurrentPath(cb)
+	return cb.namer.GetOperationID()
 }
 
-// GetByPath finds an orchestration by its hierarchical path using dynamic resolution.
-// This method allows finding any orchestration in the tree without maintaining a centralized map.
-//
-// Parameters:
-//   - path: Hierarchical path (e.g., "main-pipeline.user-auth.if-true")
-//
-// Returns:
-//   - types.Orchestration: Found orchestration (nil if not found)
-//   - error: Error if path is invalid or orchestration not found
-//
-// Example:
-//
-//	// Find a branch in a conditional
-//	branch, err := conditional.GetByPath("main-pipeline.user-auth.if-true")
-//	if err != nil {
-//	    log.Printf("Branch not found: %v", err)
-//	} else {
-//	    log.Printf("Found branch: %s", branch.GetName())
-//	}
-func (cb *ConditionalBuilder) GetByPath(path string) (types.Orchestration, error) {
-	// Handle self-reference
-	if path == cb.GetCurrentPath() {
-		return cb, nil
-	}
-	return cb.pathResolver.GetByPath(path)
-}
-
-// ListAllPaths returns all available paths in the orchestration subtree.
-// This method performs a depth-first traversal to collect all paths dynamically.
-//
-// Returns:
-//   - []string: All paths in the subtree
-//
-// Example:
-//
-//	paths := conditional.ListAllPaths()
-//	for _, path := range paths {
-//	    log.Printf("Available path: %s", path)
-//	}
+// ListAllPaths returns all available paths in the orchestration hierarchy.
 func (cb *ConditionalBuilder) ListAllPaths() []string {
-	return cb.pathResolver.ListAllPaths()
+	return cb.BaseContainerOrchestration.ListAllPaths()
 }
 
-// FindByName searches for orchestrations by name across the entire subtree.
-// This method can return multiple matches if the same name appears at different levels.
-//
-// Parameters:
-//   - name: Name to search for
-//
-// Returns:
-//   - []types.PathMatch: All matching orchestrations with their path information
-//
-// Example:
-//
-//	matches := conditional.FindByName("validate-user")
-//	for _, match := range matches {
-//	    log.Printf("Found '%s' at path: %s (depth: %d)", name, match.Path, match.Depth)
-//	}
+// FindByName searches for orchestrations by name in the subtree.
 func (cb *ConditionalBuilder) FindByName(name string) []types.PathMatch {
-	matches := cb.pathResolver.FindByName(name)
-
-	// Check if current orchestration matches
-	if cb.GetName() == name {
-		currentMatch := types.PathMatch{
-			Path:          cb.GetCurrentPath(),
-			Orchestration: cb,
-			Depth:         cb.namer.GetContext().GetDepth(),
-			Parent:        cb.namer.GetContext().GetParentPath(),
-			Type:          "conditional",
-		}
-		matches = append([]types.PathMatch{currentMatch}, matches...)
-	}
-
-	return matches
+	return cb.BaseContainerOrchestration.FindByName(name)
 }
 
 // Query returns a PathQuery instance for advanced path-based queries.
-// Delegates to base implementation.
 func (cb *ConditionalBuilder) Query() *types.PathQuery {
-	return cb.BaseOrchestrationBuilder.Query(cb)
-}
-
-// GetOrchestrationTree returns a tree representation of the orchestration hierarchy.
-// This method provides a structured view of the conditional and its branches.
-//
-// Returns:
-//   - *types.OrchestrationTree: Tree representation
-//
-// Example:
-//
-//	tree := conditional.GetOrchestrationTree()
-//	tree.Print() // Prints the tree structure
-func (cb *ConditionalBuilder) GetOrchestrationTree() *types.OrchestrationTree {
-	tree := &types.OrchestrationTree{
-		Name:          cb.GetName(),
-		Path:          cb.GetCurrentPath(),
-		Type:          "conditional",
-		Depth:         cb.namer.GetContext().GetDepth(),
-		Parent:        nil, // Will be set by parent when building tree
-		Orchestration: cb,
-		Children:      make([]*types.OrchestrationTree, 2), // ifTrue and ifFalse
-	}
-
-	// Build child trees
-	children := cb.GetChildren()
-	for i, child := range children {
-		childTree := child.GetOrchestrationTree()
-		childTree.Parent = tree
-		tree.Children[i] = childTree
-	}
-
-	return tree
+	return cb.BaseContainerOrchestration.Query()
 }
