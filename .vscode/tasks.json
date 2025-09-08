@@ -13,6 +13,48 @@
 				"$go"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Run sequential and full tests",
+			"type": "shell",
+			"command": "go",
+			"args": [
+				"test",
+				"./tests/unit/builders/sequential/",
+				"-v"
+			],
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run sequential unit tests",
+			"type": "shell",
+			"command": "go",
+			"args": [
+				"test",
+				"./tests/unit/builders/sequential/",
+				"-v"
+			],
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Re-run sequential unit tests",
+			"type": "shell",
+			"command": "go",
+			"args": [
+				"test",
+				"./tests/unit/builders/sequential/",
+				"-v"
+			],
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
 		}
 	]
 }

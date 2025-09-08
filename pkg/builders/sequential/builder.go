@@ -69,7 +69,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maniartech/orchestrator/internal/orchestration"
+	orchestration "github.com/maniartech/orchestrator/internal/orchestration"
 	"github.com/maniartech/orchestrator/pkg/config"
 	orchContext "github.com/maniartech/orchestrator/pkg/context"
 	"github.com/maniartech/orchestrator/pkg/errors"
@@ -78,23 +78,17 @@ import (
 )
 
 // SequentialBuilder provides a fluent API for creating and configuring sequential orchestrations.
-// It executes child orchestrations one after another in order, with comprehensive error handling
-// and configuration inheritance following Go best practices.
-//
-// Example:
-//
-//	sequential := Sequential(
-//	    Task(fetchData),
-//	    Task(processData),
-//	    Task(saveData),
-//	).Named("data-pipeline").
-//	With(config.Config{Timeout: 30*time.Second})
 type SequentialBuilder struct {
-	*orchestration.BaseOrchestrationBuilder
+	// Embed the container base to implement ContainerOrchestration and centralize child management
+	*orchestration.BaseContainerOrchestration
+
+	// TEMP: Keep the local slice for minimal-churn; kept in sync with base during construction.
+	// TODO: Remove and replace all usages with BaseContainerOrchestration.GetChildren().
 	orchestrations []types.Orchestration
-	namer          *types.HierarchicalNamer        // Hierarchical naming system
-	parentContext  *types.NamingContext            // Parent naming context for nested orchestrations
-	pathResolver   *orchestration.PathResolverBase // Path-based orchestration resolution
+
+	// Hierarchical naming
+	namer         *types.HierarchicalNamer // Hierarchical naming system
+	parentContext *types.NamingContext     // Parent naming context for nested orchestrations
 }
 
 // Sequential creates a new SequentialBuilder with the provided orchestrations.
@@ -128,29 +122,27 @@ type SequentialBuilder struct {
 //	)
 func Sequential(orchestrations ...types.Orchestration) *SequentialBuilder {
 	if len(orchestrations) == 0 {
-		panic("sequential orchestration requires at least one orchestration")
+		panic("sequential: at least one orchestration is required")
 	}
-
 	// Validate all orchestrations are non-nil
 	for i, orch := range orchestrations {
 		if orch == nil {
-			panic(fmt.Sprintf("orchestration at index %d cannot be nil", i))
+			panic(fmt.Sprintf("sequential: orchestration at index %d is nil", i))
 		}
 	}
 
+	// Initialize the container base with the children list
 	sb := &SequentialBuilder{
-		BaseOrchestrationBuilder: orchestration.NewBaseOrchestrationBuilder("sequential"),
-		orchestrations:           orchestrations,
+		BaseContainerOrchestration: orchestration.NewBaseContainerOrchestration("sequential", orchestrations),
+		orchestrations:             orchestrations, // TEMP: keep in sync for existing code paths
 	}
 
 	// Initialize hierarchical naming system
-	// This will be updated when Named() is called or when parent context is set
 	sb.initializeNaming()
 
-	// Initialize path resolver
-	sb.pathResolver = orchestration.NewPathResolverBase()
-	sb.pathResolver.SetCallbacks(
-		func() string { // avoid recursive call through pathResolver
+	// Wire path resolver callbacks on the base resolver
+	sb.GetPathResolver().SetCallbacks(
+		func() string {
 			if sb.namer != nil {
 				return sb.namer.GetContext().GetPath()
 			}
@@ -260,7 +252,7 @@ func (sb *SequentialBuilder) ErrorBoundary(strategy errors.ErrorStrategy) types.
 //	processedData := result.Get("process-user")
 func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) (*result.Result, error) {
 	// Ensure sequential can only be executed once
-	if !sb.compareAndSwapStatus(types.NotStarted, types.Running) {
+	if !sb.CompareAndSwapStatus(types.NotStarted, types.Running) {
 		return nil, fmt.Errorf("sequential orchestration already executed or in progress, current status: %v", sb.GetStatus())
 	}
 
@@ -300,12 +292,12 @@ func (sb *SequentialBuilder) Execute(ctx context.Context, config config.Config) 
 	// Update status based on outcome
 	if executionError != nil {
 		if ctx.Err() != nil {
-			sb.setStatus(types.Cancelled)
+			sb.SetStatus(types.Cancelled)
 		} else {
-			sb.setStatus(types.Completed)
+			sb.SetStatus(types.Completed)
 		}
 	} else {
-		sb.setStatus(types.Completed)
+		sb.SetStatus(types.Completed)
 	}
 
 	// Add execution metadata if there were errors
@@ -559,7 +551,7 @@ func (sb *SequentialBuilder) getChildName(orch types.Orchestration, index int) s
 
 // getChildOperationID generates a unique operation ID for a child orchestration.
 // Combines sequential name with child information for traceability.
-func (sb *SequentialBuilder) getChildOperationID(orch orchestration.Orchestration, index int) string {
+func (sb *SequentialBuilder) getChildOperationID(orch types.Orchestration, index int) string {
 	sequentialID := sb.GetOperationID()
 	childName := sb.getChildName(orch, index)
 	return fmt.Sprintf("%s.%s", sequentialID, childName)
@@ -568,164 +560,61 @@ func (sb *SequentialBuilder) getChildOperationID(orch orchestration.Orchestratio
 // GetOperationID returns a unique operation ID for this sequential orchestration.
 // This provides a standardized way to access the operation ID without needing to pass the instance.
 func (sb *SequentialBuilder) GetOperationID() string {
+	// BaseContainerOrchestration embeds BaseOrchestrationBuilder,
+	// so we can still delegate to it for the concrete instance op-id.
 	return sb.BaseOrchestrationBuilder.GetOperationID(sb)
 }
 
-// GetName returns the sequential orchestration name for debugging and observability.
-// Returns empty string if no name was set.
-func (sb *SequentialBuilder) GetName() string {
-	return sb.BaseOrchestrationBuilder.GetName()
-}
-
-// GetConfig returns the sequential orchestration's configuration.
-// Returns nil if no configuration was set.
-func (sb *SequentialBuilder) GetConfig() *config.Config {
-	return sb.BaseOrchestrationBuilder.GetConfig()
-}
-
-// GetStatus returns the current sequential orchestration status using atomic operations.
-// This method is thread-safe and can be called concurrently.
-func (sb *SequentialBuilder) GetStatus() types.Status {
-	return sb.BaseOrchestrationBuilder.GetStatus()
-}
-
-// GetChildAt returns the child orchestration at the specified index.
-// This method provides access to individual child orchestrations for introspection,
-// debugging, and dynamic orchestration management.
-//
-// Parameters:
-//   - index: Zero-based index of the child orchestration to retrieve
-//
-// Returns:
-//   - orchestration.Orchestration: The child orchestration at the specified index
-//   - error: Error if index is out of bounds
-//
-// Example:
-//
-//	seq := Sequential(
-//	    Task(func(ctx orchContext.Context) (string, error) { return "task1", nil }).Named("first-task"),
-//	    Task(func(ctx orchContext.Context) (int, error) { return 42, nil }).Named("second-task"),
-//	    Task(func(ctx orchContext.Context) (bool, error) { return true, nil }).Named("third-task"),
-//	)
-//
-//	// Access the second child (index 1)
-//	child, err := seq.GetChildAt(1)
-//	if err != nil {
-//	    log.Printf("Error accessing child: %v", err)
-//	} else {
-//	    log.Printf("Child name: %s", child.GetName()) // "second-task"
-//	}
+// ContainerOrchestration delegations (optional now; can remove duplicates later)
+// These help migrate away from sb.orchestrations usages.
 func (sb *SequentialBuilder) GetChildAt(index int) (types.Orchestration, error) {
-	if index < 0 || index >= len(sb.orchestrations) {
-		return nil, fmt.Errorf("index %d out of bounds: sequential has %d orchestrations (valid range: 0-%d)",
-			index, len(sb.orchestrations), len(sb.orchestrations)-1)
-	}
-	return sb.orchestrations[index], nil
+	return sb.BaseContainerOrchestration.GetChildAt(index)
 }
-
-// GetChildCount returns the total number of child orchestrations in this sequential.
-// This method provides the count of orchestrations that will be executed sequentially.
-//
-// Returns:
-//   - int: The number of child orchestrations
-//
-// Example:
-//
-//	seq := Sequential(task1, task2, task3)
-//	count := seq.GetChildCount() // Returns 3
 func (sb *SequentialBuilder) GetChildCount() int {
-	return len(sb.orchestrations)
+	return sb.BaseContainerOrchestration.GetChildCount()
 }
-
-// GetChildren returns a copy of all child orchestrations.
-// This method provides access to all child orchestrations for introspection and analysis.
-// Returns a copy to prevent external modification of the internal orchestration slice.
-//
-// Returns:
-//   - []orchestration.Orchestration: Copy of all child orchestrations
-//
-// Example:
-//
-//	seq := Sequential(task1, task2, task3)
-//	children := seq.GetChildren()
-//	for i, child := range children {
-//	    log.Printf("Child %d: %s (status: %v)", i, child.GetName(), child.GetStatus())
-//	}
 func (sb *SequentialBuilder) GetChildren() []types.Orchestration {
-	// Return a copy to prevent external modification
-	children := make([]types.Orchestration, len(sb.orchestrations))
-	copy(children, sb.orchestrations)
-	return children
+	return sb.BaseContainerOrchestration.GetChildren()
 }
-
-// FindChildByName searches for a child orchestration by name and returns its index and the orchestration.
-// This method provides a convenient way to locate specific child orchestrations by their names.
-//
-// Parameters:
-//   - name: The name of the child orchestration to find
-//
-// Returns:
-//   - int: The index of the found orchestration (-1 if not found)
-//   - orchestration.Orchestration: The found orchestration (nil if not found)
-//
-// Example:
-//
-//	seq := Sequential(
-//	    Task(func(ctx orchContext.Context) (string, error) { return "data", nil }).Named("fetch-data"),
-//	    Task(func(ctx orchContext.Context) (string, error) { return "processed", nil }).Named("process-data"),
-//	)
-//
-//	index, child := seq.FindChildByName("process-data")
-//	if child != nil {
-//	    log.Printf("Found 'process-data' at index %d", index) // index = 1
-//	} else {
-//	    log.Println("Child not found")
-//	}
+func (sb *SequentialBuilder) GetChildByName(name string) (types.Orchestration, error) {
+	return sb.BaseContainerOrchestration.GetChildByName(name)
+}
+func (sb *SequentialBuilder) GetFirstChild() (types.Orchestration, error) {
+	return sb.BaseContainerOrchestration.GetFirstChild()
+}
+func (sb *SequentialBuilder) GetLastChild() (types.Orchestration, error) {
+	return sb.BaseContainerOrchestration.GetLastChild()
+}
 func (sb *SequentialBuilder) FindChildByName(name string) (int, types.Orchestration) {
-	for i, orch := range sb.orchestrations {
-		if sb.getChildName(orch, i) == name {
-			return i, orch
+	// Override to support generated names like "step-<index>" in addition to explicit names
+	children := sb.GetChildren()
+	for i, child := range children {
+		if sb.getChildName(child, i) == name {
+			return i, child
 		}
 	}
 	return -1, nil
 }
+func (sb *SequentialBuilder) ContainsChild(child types.Orchestration) bool {
+	return sb.BaseContainerOrchestration.ContainsChild(child)
+}
+func (sb *SequentialBuilder) ContainsChildWithName(name string) bool {
+	return sb.BaseContainerOrchestration.ContainsChildWithName(name)
+}
+func (sb *SequentialBuilder) GetChildByOperationID(opID string) (types.Orchestration, error) {
+	return sb.BaseContainerOrchestration.GetChildByOperationID(opID)
+}
 
-// GetChildNames returns the names of all child orchestrations.
-// This method provides a convenient way to get an overview of all child orchestration names.
-// Unnamed orchestrations are represented with generated names (e.g., "step-0", "step-1").
-//
-// Returns:
-//   - []string: Slice of child orchestration names
-//
-// Example:
-//
-//	seq := Sequential(
-//	    Task(func(ctx orchContext.Context) (string, error) { return "data", nil }).Named("fetch-data"),
-//	    Task(func(ctx orchContext.Context) (string, error) { return "processed", nil }), // unnamed
-//	    Task(func(ctx orchContext.Context) (string, error) { return "saved", nil }).Named("save-data"),
-//	)
-//
-//	names := seq.GetChildNames()
-//	// Returns: ["fetch-data", "step-1", "save-data"]
+// GetChildNames returns the names of all child orchestrations, using explicit names
+// if set or generated names (step-<index>) otherwise. This keeps naming stable
+// before and after execution and is used by unit tests.
 func (sb *SequentialBuilder) GetChildNames() []string {
-	names := make([]string, len(sb.orchestrations))
-	for i, orch := range sb.orchestrations {
-		names[i] = sb.getChildName(orch, i)
+	children := sb.GetChildren()
+	names := make([]string, len(children))
+	for i, child := range children {
+		names[i] = sb.getChildName(child, i)
 	}
 	return names
-}
-
-// setStatus atomically sets the sequential orchestration status.
-// This is an internal method used during sequential execution.
-func (sb *SequentialBuilder) setStatus(status types.Status) {
-	sb.SetStatus(status)
-}
-
-// compareAndSwapStatus atomically compares and swaps the sequential orchestration status.
-// Returns true if the swap was successful, false otherwise.
-// This ensures thread-safe status transitions.
-func (sb *SequentialBuilder) compareAndSwapStatus(old, new types.Status) bool {
-	return sb.CompareAndSwapStatus(old, new)
 }
 
 // =============================================================================
@@ -752,20 +641,13 @@ func (sb *SequentialBuilder) compareAndSwapStatus(old, new types.Status) bool {
 //	    log.Printf("Found task: %s", task.GetName())
 //	}
 func (sb *SequentialBuilder) GetByPath(path string) (types.Orchestration, error) {
-	// Handle self-reference
-	if path == sb.GetCurrentPath() {
-		return sb, nil
-	}
-	return sb.pathResolver.GetByPath(path)
+	return sb.BaseContainerOrchestration.GetByPath(path)
 }
 
 // GetCurrentPath returns the current orchestration's full hierarchical path.
 // Each orchestration knows its own path without requiring a centralized registry.
 func (sb *SequentialBuilder) GetCurrentPath() string {
-	if sb.namer != nil {
-		return sb.namer.GetContext().GetPath()
-	}
-	return ""
+	return sb.BaseContainerOrchestration.GetCurrentPath()
 }
 
 // ListAllPaths returns all available paths in the orchestration subtree.
@@ -781,7 +663,7 @@ func (sb *SequentialBuilder) GetCurrentPath() string {
 //	    log.Printf("Available path: %s", path)
 //	}
 func (sb *SequentialBuilder) ListAllPaths() []string {
-	return sb.pathResolver.ListAllPaths()
+	return sb.BaseContainerOrchestration.ListAllPaths()
 }
 
 // FindByName searches for orchestrations by name across the entire subtree.
@@ -800,21 +682,7 @@ func (sb *SequentialBuilder) ListAllPaths() []string {
 //	    log.Printf("Found '%s' at path: %s (depth: %d)", name, match.Path, match.Depth)
 //	}
 func (sb *SequentialBuilder) FindByName(name string) []types.PathMatch {
-	matches := sb.pathResolver.FindByName(name)
-
-	// Check if current orchestration matches
-	if sb.GetName() == name {
-		currentMatch := orchestration.PathMatch{
-			Path:          sb.GetCurrentPath(),
-			Orchestration: sb,
-			Depth:         sb.namer.GetDepth(),
-			Parent:        sb.namer.GetContext().GetParentPath(),
-			Type:          "sequential",
-		}
-		matches = append([]orchestration.PathMatch{currentMatch}, matches...)
-	}
-
-	return matches
+	return sb.BaseContainerOrchestration.FindByName(name)
 }
 
 // =============================================================================
@@ -833,8 +701,7 @@ func (sb *SequentialBuilder) FindByName(name string) []types.PathMatch {
 //	authTasks := query.FindByPattern("*.auth.*")
 //	sequentialOrchestrations := query.FindByType("sequential")
 func (sb *SequentialBuilder) Query() *types.PathQuery {
-	tree := sb.GetOrchestrationTree()
-	return types.NewPathQuery(tree)
+	return sb.BaseContainerOrchestration.Query()
 }
 
 // GetOrchestrationTree returns a tree representation of the orchestration hierarchy.
@@ -848,38 +715,5 @@ func (sb *SequentialBuilder) Query() *types.PathQuery {
 //	tree := sequential.GetOrchestrationTree()
 //	tree.Print() // Prints the tree structure
 func (sb *SequentialBuilder) GetOrchestrationTree() *types.OrchestrationTree {
-	tree := &types.OrchestrationTree{
-		Name:          sb.GetName(),
-		Path:          sb.GetCurrentPath(),
-		Type:          "sequential",
-		Depth:         sb.namer.GetDepth(),
-		Orchestration: sb,
-		Children:      make([]*types.OrchestrationTree, 0, len(sb.orchestrations)),
-	}
-
-	// Add children to tree
-	for i, child := range sb.orchestrations {
-		childName := sb.getChildName(child, i)
-		childPath := sb.GetCurrentPath() + "." + childName
-
-		childTree := &types.OrchestrationTree{
-			Name:          childName,
-			Path:          childPath,
-			Type:          "unknown", // Will be determined by child type
-			Depth:         sb.namer.GetDepth() + 1,
-			Parent:        tree,
-			Orchestration: child,
-			Children:      []*orchestration.OrchestrationTree{},
-		}
-
-		// If child implements PathResolver, get its tree recursively
-		if pathResolver, ok := child.(types.PathResolver); ok {
-			childTree = pathResolver.GetOrchestrationTree()
-			childTree.Parent = tree
-		}
-
-		tree.Children = append(tree.Children, childTree)
-	}
-
-	return tree
+	return sb.BaseContainerOrchestration.GetOrchestrationTree()
 }
